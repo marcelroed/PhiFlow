@@ -5,7 +5,7 @@ Vortices start appearing after a couple of hundred steps.
 from phi.flow import *  # minimal dependencies
 # from phi.torch.flow import *
 # from phi.tf.flow import *
-# from phi.jax.flow import *
+from phi.jax.flow import *
 
 
 SPEED = vis.control(2.)
