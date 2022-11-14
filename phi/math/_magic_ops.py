@@ -63,7 +63,7 @@ def stack(values: tuple or list or dict, dim: Shape, **kwargs):
     Args:
         values: Collection of `phi.math.magic.Shapable`, such as `phi.math.Tensor`
             If a `dict`, keys must be of type `str` and are used as item names along `dim`.
-        dim: `Shape` with a least one dimension. None of these dimensions can be present with any of the `values`.
+        dim: `Shape` with at least one dimension. None of these dimensions can be present with any of the `values`.
             If `dim` is a single-dimension shape, its size is determined from `len(values)` and can be left undefined (`None`).
             If `dim` is a multi-dimension shape, its volume must be equal to `len(values)`.
         **kwargs: Additional keyword arguments required by specific implementations.
