@@ -1,3 +1,4 @@
+from abc import ABC
 from numbers import Number
 
 import numpy as np
@@ -117,7 +118,7 @@ class Geometry:
         """
         raise NotImplementedError(self.__class__)
 
-    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Tensor or Number = 0.5) -> Tensor:
+    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Tensor | Number = 0.5) -> Tensor:
         """
         Computes the approximate overlap between the geometry and a small other geometry.
         Returns 1.0 if `other_geometry` is fully enclosed in this geometry and 0.0 if there is no overlap.
@@ -338,9 +339,7 @@ class Geometry:
         return BoundDim(self, name)
 
 
-
-class _InvertedGeometry(Geometry):
-
+class _InvertedGeometry(Geometry, ABC):
     def __init__(self, geometry):
         self.geometry = geometry
 
@@ -399,7 +398,7 @@ def invert(geometry: Geometry):
     return ~geometry
 
 
-class _NoGeometry(Geometry):
+class _NoGeometry(Geometry, ABC):
 
     @property
     def shape(self):
