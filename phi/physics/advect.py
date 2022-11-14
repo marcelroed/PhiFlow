@@ -8,6 +8,7 @@ Examples:
 * runge_kutta_4 (particle)
 """
 from phi import math
+from phi.physics.fluid import Obstacle
 from phi.field import SampledField, Field, PointCloud, Grid, sample, reduce_sample
 from phi.field._field import FieldType
 from phi.field._field_math import GridType
@@ -41,7 +42,6 @@ def finite_rk4(elements: Geometry, velocity: Grid, dt: float, v0: math.Tensor = 
     vel_rk4 = (1 / 6.) * (v0 + 2 * (vel_half + vel_half2) + vel_full)
     vel_nan = math.where(math.is_finite(vel_rk4), vel_rk4, v0)
     return elements.shifted(dt * vel_nan)
-
 
 
 def advect(field: SampledField,
@@ -97,6 +97,33 @@ def semi_lagrangian(field: GridType,
     """
     Semi-Lagrangian advection with simple backward lookup.
     
+    This method samples the `velocity` at the grid points of `field`
+    to determine the lookup location for each grid point by walking backwards along the velocity vectors.
+    The new values are then determined by sampling `field` at these lookup locations.
+
+    Args:
+        field: quantity to be advected, stored on a grid (CenteredGrid or StaggeredGrid)
+        velocity: vector field, need not be compatible with with `field`.
+        dt: time increment
+        integrator: ODE integrator for solving the movement.
+
+    Returns:
+        Field with same sample points as `field`
+
+    """
+    lookup = integrator(field.elements, velocity, -dt)
+    interpolated = reduce_sample(field, lookup)
+    return field.with_values(interpolated)
+
+
+def semi_lagrangian_two_way(field: GridType,
+                            velocity: Field,
+                            dt: float,
+                            obstacles: tuple[Obstacle] | list[Obstacle],
+                            integrator=euler) -> GridType:
+    """
+    Semi-Lagrangian advection with simple backward lookup.
+
     This method samples the `velocity` at the grid points of `field`
     to determine the lookup location for each grid point by walking backwards along the velocity vectors.
     The new values are then determined by sampling `field` at these lookup locations.

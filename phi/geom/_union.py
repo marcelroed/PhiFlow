@@ -69,6 +69,16 @@ class Union(Geometry):
         return rotate(self, angle)
 
 
+class WeightedUnion(Union):
+    """Like Union, but calculates the centroid for use as the center of the new geometry."""
+
+    def __init__(self, geometries):
+        super(WeightedUnion, self).__init__(geometries)
+
+    def center(self):
+        return math.sum([g.center * g.volume for g in self.geometries], dim='0') / self.volume
+
+
 def union(*geometries) -> Geometry:
     """
     Union of the given geometries.
