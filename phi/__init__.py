@@ -17,7 +17,6 @@ PyPI: https://pypi.org/project/phiflow/
 
 import os as _os
 
-
 with open(_os.path.join(_os.path.dirname(__file__), 'VERSION'), 'r') as version_file:
     __version__ = version_file.read()
 

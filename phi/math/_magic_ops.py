@@ -39,7 +39,8 @@ def unstack(value, dim: DimFilter):
             result = value.__unstack__(dims.names)
             if result is not NotImplemented:
                 assert isinstance(result, tuple), f"__unstack__ must return a tuple but got {type(result)}"
-                assert all([isinstance(item, Sliceable) for item in result]), f"__unstack__ must return a tuple of Sliceable objects but not all items were sliceable in {result}"
+                assert all([isinstance(item, Sliceable) for item in
+                            result]), f"__unstack__ must return a tuple of Sliceable objects but not all items were sliceable in {result}"
                 return result
         return tuple([value[{dims.name: i}] for i in range(dims.size)])
     else:  # multiple dimensions
@@ -53,7 +54,7 @@ def unstack(value, dim: DimFilter):
         return sum(inner_unstacked, ())
 
 
-def stack(values: tuple or list or dict, dim: Shape, **kwargs):
+def stack(values: tuple | list | dict, dim: Shape, **kwargs):
     """
     Stacks `values` along the new dimension `dim`.
 
@@ -89,7 +90,8 @@ def stack(values: tuple or list or dict, dim: Shape, **kwargs):
     assert len(values) > 0, f"stack() got empty sequence {values}"
     assert isinstance(dim, Shape)
     if dim.rank == 1:
-        assert dim.size == len(values) or dim.size is None, f"stack dim size must match len(values) or be undefined but got {dim} for {len(values)} values"
+        assert dim.size == len(
+            values) or dim.size is None, f"stack dim size must match len(values) or be undefined but got {dim} for {len(values)} values"
         if dim.size is None:
             dim = dim.with_size(len(values))
         if isinstance(values, dict):
@@ -97,7 +99,8 @@ def stack(values: tuple or list or dict, dim: Shape, **kwargs):
             values = tuple(values.values())
             dim = dim._with_item_names((dim_item_names,))
         for v in values[1:]:
-            assert set(shape(v).names) == set(shape(values[0]).names), f"Stacked values must have the same dimensions but got {shape(values[0])} and {shape(v)}"
+            assert set(shape(v).names) == set(shape(values[
+                                                        0]).names), f"Stacked values must have the same dimensions but got {shape(values[0])} and {shape(v)}"
         # if any value implements Shapable, use their implementation
         for v in values:
             if hasattr(v, '__stack__'):
@@ -110,7 +113,9 @@ def stack(values: tuple or list or dict, dim: Shape, **kwargs):
             if not hasattr(v, '__stack__') and hasattr(v, '__concat__') and hasattr(v, '__expand__'):
                 exp_values = tuple([expand(v, dim.with_size(1), **kwargs) for v in values])
                 if len(exp_values) > 8:
-                    warnings.warn(f"stack() default implementation is slow on large dimensions ({dim.name}={len(exp_values)}). Please implement __stack__()", RuntimeWarning, stacklevel=2)
+                    warnings.warn(
+                        f"stack() default implementation is slow on large dimensions ({dim.name}={len(exp_values)}). Please implement __stack__()",
+                        RuntimeWarning, stacklevel=2)
                 result = v.__concat__(exp_values, dim.name, **kwargs)
                 if result is not NotImplemented:
                     assert isinstance(result, Shapable), "__concat__ must return a Shapable object"
@@ -120,12 +125,16 @@ def stack(values: tuple or list or dict, dim: Shape, **kwargs):
         try:
             values = tuple([wrap(v) for v in values])
         except ValueError:
-            raise MagicNotImplemented(f"At least one item in values must be Shapable but got types {[type(v) for v in values]}")
+            raise MagicNotImplemented(
+                f"At least one item in values must be Shapable but got types {[type(v) for v in values]}")
         return values[0].__stack__(values, dim, **kwargs)
     else:
-        assert dim.volume == len(values), f"When passing multiple stack dims, their volume must equal len(values) but got {dim} for {len(values)} values"
+        assert dim.volume == len(
+            values), f"When passing multiple stack dims, their volume must equal len(values) but got {dim} for {len(values)} values"
         if isinstance(values, dict):
-            warnings.warn(f"When stacking a dict along multiple dimensions, the key names are discarded. Got keys {tuple(values.keys())}", RuntimeWarning, stacklevel=2)
+            warnings.warn(
+                f"When stacking a dict along multiple dimensions, the key names are discarded. Got keys {tuple(values.keys())}",
+                RuntimeWarning, stacklevel=2)
             values = tuple(values.values())
         # if any value implements Shapable, use stack and unpack_dim
         for v in values:
@@ -134,10 +143,13 @@ def stack(values: tuple or list or dict, dim: Shape, **kwargs):
                 stacked = v.__stack__(values, stack_dim, **kwargs)
                 if stacked is not NotImplemented:
                     assert isinstance(stacked, Shapable), "__stack__ must return a Shapable object"
-                    assert hasattr(stacked, '__unpack_dim__'), "If a value supports __unpack_dim__, the result of __stack__ must also support it."
+                    assert hasattr(stacked,
+                                   '__unpack_dim__'), "If a value supports __unpack_dim__, the result of __stack__ must also support it."
                     reshaped = stacked.__unpack_dim__(stack_dim.name, dim, **kwargs)
                     if kwargs is NotImplemented:
-                        warnings.warn("__unpack_dim__ is overridden but returned NotImplemented during multi-dimensional stack. This results in unnecessary stack operations.", RuntimeWarning, stacklevel=2)
+                        warnings.warn(
+                            "__unpack_dim__ is overridden but returned NotImplemented during multi-dimensional stack. This results in unnecessary stack operations.",
+                            RuntimeWarning, stacklevel=2)
                     else:
                         return reshaped
         # Fallback: multi-level stack
@@ -146,7 +158,7 @@ def stack(values: tuple or list or dict, dim: Shape, **kwargs):
         return values[0]
 
 
-def concat(values: tuple or list, dim: str or Shape, **kwargs):
+def concat(values: tuple | list, dim: str | Shape, **kwargs):
     """
     Concatenates a sequence of `phi.math.magic.Shapable` objects, e.g. `Tensor`, along one dimension.
     The shapes of all values must be equal, except for the size of the concat dimension.
@@ -177,7 +189,8 @@ def concat(values: tuple or list, dim: str or Shape, **kwargs):
         dim = dim.name
     assert isinstance(dim, str), f"dim must be a str or Shape but got '{dim}' of type {type(dim)}"
     for v in values[1:]:
-        assert set(shape(v).names) == set(shape(values[0]).names), f"Concatenated values must have the same dimensions but got {values[0].shape} and {v.shape}"
+        assert set(shape(v).names) == set(shape(values[
+                                                    0]).names), f"Concatenated values must have the same dimensions but got {values[0].shape} and {v.shape}"
     # First try __concat__
     for v in values:
         if isinstance(v, Shapable):
@@ -190,15 +203,18 @@ def concat(values: tuple or list, dim: str or Shape, **kwargs):
     try:
         unstacked = sum([unstack(v, dim) for v in values], ())
     except MagicNotImplemented:
-        raise MagicNotImplemented(f"concat: No value implemented __concat__ and not all values were Sliceable along {dim}. values = {[type(v) for v in values]}")
+        raise MagicNotImplemented(
+            f"concat: No value implemented __concat__ and not all values were Sliceable along {dim}. values = {[type(v) for v in values]}")
     if len(unstacked) > 8:
-        warnings.warn(f"concat() default implementation is slow on large dimensions ({dim}={len(unstacked)}). Please implement __concat__()", RuntimeWarning, stacklevel=2)
+        warnings.warn(
+            f"concat() default implementation is slow on large dimensions ({dim}={len(unstacked)}). Please implement __concat__()",
+            RuntimeWarning, stacklevel=2)
     dim = shape(values[0])[dim].with_size(None)
     try:
         return stack(unstacked, dim, **kwargs)
     except MagicNotImplemented:
-        raise MagicNotImplemented(f"concat: No value implemented __concat__ and slices could not be stacked. values = {[type(v) for v in values]}")
-
+        raise MagicNotImplemented(
+            f"concat: No value implemented __concat__ and slices could not be stacked. values = {[type(v) for v in values]}")
 
 
 def expand(value, dims: Shape, **kwargs):
@@ -231,7 +247,9 @@ def expand(value, dims: Shape, **kwargs):
     # Fallback: stack
     if hasattr(value, '__stack__'):
         if dims.volume > 8:
-            warnings.warn(f"expand() default implementation is slow on large shapes {dims}. Please implement __expand__()", RuntimeWarning, stacklevel=2)
+            warnings.warn(
+                f"expand() default implementation is slow on large shapes {dims}. Please implement __expand__()",
+                RuntimeWarning, stacklevel=2)
         for dim in reversed(dims):
             value = stack((value,) * dim.size, dim, **kwargs)
             assert value is not NotImplemented, "Value must implement either __expand__ or __stack__"
@@ -278,13 +296,15 @@ def rename_dims(value,
             return result
     # Fallback: unstack and stack
     if shape(value).only(dims).volume > 8:
-        warnings.warn(f"rename_dims() default implementation is slow on large dimensions ({shape(value).only(dims)}). Please implement __replace_dims__()", RuntimeWarning, stacklevel=2)
+        warnings.warn(
+            f"rename_dims() default implementation is slow on large dimensions ({shape(value).only(dims)}). Please implement __replace_dims__()",
+            RuntimeWarning, stacklevel=2)
     for old_name, new_dim in zip(dims.names, names):
         value = stack(unstack(value, old_name), new_dim, **kwargs)
     return value
 
 
-def pack_dims(value, dims: DimFilter, packed_dim: Shape, pos: int or None = None, **kwargs):
+def pack_dims(value, dims: DimFilter, packed_dim: Shape, pos: int | None = None, **kwargs):
     """
     Compresses multiple dimensions into a single dimension by concatenating the elements.
     Elements along the new dimensions are laid out according to the order of `dims`.
@@ -317,12 +337,14 @@ def pack_dims(value, dims: DimFilter, packed_dim: Shape, pos: int or None = None
         # Out: (pointsⁱ=12) const 0.0
         ```
     """
-    assert isinstance(value, Shapable) and isinstance(value, Sliceable) and isinstance(value, Shaped), f"value must be Shapable but got {type(value)}"
+    assert isinstance(value, Shapable) and isinstance(value, Sliceable) and isinstance(value,
+                                                                                       Shaped), f"value must be Shapable but got {type(value)}"
     dims = shape(value).only(dims)
     if packed_dim in shape(value):
         assert packed_dim in dims, f"Cannot pack dims into new dimension {packed_dim} because it already exists on value {value} and is not packed."
     if len(dims) == 0 or all(dim not in shape(value) for dim in dims):
-        return value if packed_dim.size is None else expand(value, packed_dim, **kwargs)  # Inserting size=1 can cause shape errors
+        return value if packed_dim.size is None else expand(value, packed_dim,
+                                                            **kwargs)  # Inserting size=1 can cause shape errors
     elif len(dims) == 1:
         return rename_dims(value, dims, packed_dim, **kwargs)
     if dims.rank == shape(value).rank and hasattr(value, '__flatten__'):
@@ -335,13 +357,13 @@ def pack_dims(value, dims: DimFilter, packed_dim: Shape, pos: int or None = None
             return result
     # Fallback: unstack and stack
     if shape(value).only(dims).volume > 8:
-        warnings.warn(f"pack_dims() default implementation is slow on large dimensions ({shape(value).only(dims)}). Please implement __pack_dims__()", RuntimeWarning, stacklevel=2)
+        warnings.warn(
+            f"pack_dims() default implementation is slow on large dimensions ({shape(value).only(dims)}). Please implement __pack_dims__()",
+            RuntimeWarning, stacklevel=2)
     return stack(unstack(value, dims), packed_dim, **kwargs)
 
 
-
-
-def unpack_dim(value, dim: str or Shape, unpacked_dims: Shape, **kwargs):
+def unpack_dim(value, dim: str | Shape, unpacked_dims: Shape, **kwargs):
     """
     Decompresses a dimension by unstacking the elements along it.
     This function replaces the traditional `reshape` for these cases.
@@ -367,7 +389,8 @@ def unpack_dim(value, dim: str or Shape, unpacked_dims: Shape, **kwargs):
         # Out: (xˢ=4, yˢ=3) const 0.0
         ```
     """
-    assert isinstance(value, Shapable) and isinstance(value, Sliceable) and isinstance(value, Shaped), f"value must be Shapable but got {type(value)}"
+    assert isinstance(value, Shapable) and isinstance(value, Sliceable) and isinstance(value,
+                                                                                       Shaped), f"value must be Shapable but got {type(value)}"
     if isinstance(dim, Shape):
         dim = dim.name
     assert isinstance(dim, str), f"dim must be a str but got {type(dim)}"
@@ -381,12 +404,13 @@ def unpack_dim(value, dim: str or Shape, unpacked_dims: Shape, **kwargs):
             return result
     # Fallback: unstack and stack
     if shape(value).only(dim).volume > 8:
-        warnings.warn(f"pack_dims() default implementation is slow on large dimensions ({shape(value).only(dim)}). Please implement __unpack_dim__()", RuntimeWarning, stacklevel=2)
+        warnings.warn(
+            f"pack_dims() default implementation is slow on large dimensions ({shape(value).only(dim)}). Please implement __unpack_dim__()",
+            RuntimeWarning, stacklevel=2)
     unstacked = unstack(value, dim)
     for dim in reversed(unpacked_dims):
-        unstacked = [stack(unstacked[i:i+dim.size], dim, **kwargs) for i in range(0, len(unstacked), dim.size)]
+        unstacked = [stack(unstacked[i:i + dim.size], dim, **kwargs) for i in range(0, len(unstacked), dim.size)]
     return unstacked[0]
-
 
 
 def flatten(value, flat_dim: Shape = instance('flat'), **kwargs):
@@ -435,12 +459,14 @@ def variable_attributes(obj) -> Tuple[str]:
 
 
 def value_attributes(obj):
-    assert hasattr(obj, '__value_attrs__'), f"{type(obj)} must implement '__value_attrs__()' to be used with value functions."
+    assert hasattr(obj,
+                   '__value_attrs__'), f"{type(obj)} must implement '__value_attrs__()' to be used with value functions."
     return obj.__value_attrs__()
 
 
 def variable_values(obj):
-    assert hasattr(obj, '__value_attrs__'), f"{type(obj)} must implement '__value_attrs__()' to be used with value functions."
+    assert hasattr(obj,
+                   '__value_attrs__'), f"{type(obj)} must implement '__value_attrs__()' to be used with value functions."
     if hasattr(obj, '__variable_attrs__'):
         values = obj.__value_attrs__()
         variables = obj.__variable_attrs__()
@@ -479,7 +505,7 @@ def copy_with(obj: PhiTreeNodeType, **updates) -> PhiTreeNodeType:
 OtherMagicType = TypeVar('OtherMagicType')
 
 
-def cast(x: OtherMagicType, dtype: DType or type) -> OtherMagicType:
+def cast(x: OtherMagicType, dtype: DType | type) -> OtherMagicType:
     """
     Casts `x` to a different data type.
 

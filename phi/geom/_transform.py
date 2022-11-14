@@ -10,7 +10,7 @@ from ..math._shape import parse_dim_order
 
 class RotatedGeometry(Geometry):
 
-    def __init__(self, geometry: Geometry, angle: float or math.Tensor):
+    def __init__(self, geometry: Geometry, angle: float | math.Tensor):
         assert not isinstance(geometry, RotatedGeometry)
         self._geometry = geometry
         self._angle = math.wrap(angle)
@@ -79,7 +79,7 @@ class RotatedGeometry(Geometry):
     def rotated(self, angle) -> Geometry:
         return RotatedGeometry(self._geometry, self._angle + angle)
 
-    def scaled(self, factor: float or Tensor) -> 'Geometry':
+    def scaled(self, factor: float | Tensor) -> 'Geometry':
         return RotatedGeometry(self._geometry.scaled(factor), self._angle)
 
     def unstack(self, dimension: str) -> tuple:
@@ -93,7 +93,7 @@ class RotatedGeometry(Geometry):
         return hash(self._angle) + hash(self._geometry)
 
 
-def rotate(geometry: Geometry, angle: Number or Tensor) -> Geometry:
+def rotate(geometry: Geometry, angle: Number | Tensor) -> Geometry:
     """ Package-internal rotation function. Users should use Geometry.rotated() instead. """
     assert isinstance(geometry, Geometry)
     if isinstance(geometry, RotatedGeometry):
@@ -162,17 +162,17 @@ class _EmbeddedGeometry(Geometry):
     def shifted(self, delta: Tensor) -> 'Geometry':
         raise NotImplementedError()
 
-    def rotated(self, angle: float or Tensor) -> 'Geometry':
+    def rotated(self, angle: float | Tensor) -> 'Geometry':
         raise NotImplementedError()
 
-    def scaled(self, factor: float or Tensor) -> 'Geometry':
+    def scaled(self, factor: float | Tensor) -> 'Geometry':
         raise NotImplementedError()
 
     def __hash__(self):
         return hash(self.geometry) + hash(self.projected_dims)
 
 
-def embed(geometry: Geometry, projected_dims: math.Shape or str or tuple or list or None) -> Geometry:
+def embed(geometry: Geometry, projected_dims: math.Shape | str | tuple | list | None) -> Geometry:
     """
     Adds fake spatial dimensions to a geometry.
     The geometry value will be constant along the added dimensions, as if it had infinite length in these directions.
@@ -199,7 +199,7 @@ def embed(geometry: Geometry, projected_dims: math.Shape or str or tuple or list
     return _EmbeddedGeometry(geometry, projected_dims) if projected_dims.rank > 0 else geometry
 
 
-def infinite_cylinder(center=None, radius=None, inf_dim: str or Shape or tuple or list = None, **center_) -> Geometry:
+def infinite_cylinder(center=None, radius=None, inf_dim: str | Shape | tuple | list = None, **center_) -> Geometry:
     """
     Creates an infinite cylinder.
     This is equal to embedding an `n`-dimensional `Sphere` in `n+1` dimensions.

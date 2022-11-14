@@ -84,8 +84,10 @@ class Field:
             Field object of same type as `representation`
         """
         resampled = reduce_sample(self, representation.elements, scheme=scheme)
-        extrap = self.extrapolation if isinstance(self, SampledField) and keep_extrapolation else representation.extrapolation
-        return representation._op1(lambda old: extrap if isinstance(old, math.extrapolation.Extrapolation) else resampled)
+        extrap = self.extrapolation if isinstance(self,
+                                                  SampledField) and keep_extrapolation else representation.extrapolation
+        return representation._op1(
+            lambda old: extrap if isinstance(old, math.extrapolation.Extrapolation) else resampled)
 
     def __matmul__(self, other: 'SampledField'):  # values @ representation
         """
@@ -107,11 +109,13 @@ class Field:
         return NotImplemented
 
     def __rshift__(self, other):
-        warnings.warn(">> operator for Fields is deprecated. Use field.at(), the constructor or obj @ field instead.", SyntaxWarning, stacklevel=2)
+        warnings.warn(">> operator for Fields is deprecated. Use field.at(), the constructor or obj @ field instead.",
+                      SyntaxWarning, stacklevel=2)
         return self.at(other, keep_extrapolation=False)
 
     def __rrshift__(self, other):
-        warnings.warn(">> operator for Fields is deprecated. Use field.at(), the constructor or obj @ field instead.", SyntaxWarning, stacklevel=2)
+        warnings.warn(">> operator for Fields is deprecated. Use field.at(), the constructor or obj @ field instead.",
+                      SyntaxWarning, stacklevel=2)
         if not isinstance(self, SampledField):
             return NotImplemented
         if isinstance(other, (Geometry, float, int, complex, tuple, list)):
@@ -162,7 +166,8 @@ class SampledField(Field):
     Base class for fields that are sampled at specific locations such as grids or point clouds.
     """
 
-    def __init__(self, elements: Geometry or Tensor, values: Tensor, extrapolation: float or Extrapolation or Field or None, bounds: Box or None):
+    def __init__(self, elements: Geometry | Tensor, values: Tensor, extrapolation: float | Extrapolation | Field | None,
+                 bounds: Box | None):
         """
         Args:
           elements: Geometry object specifying the sample points and sizes
@@ -373,7 +378,8 @@ def reduce_sample(field: Field, geometry: Geometry, dim=channel('vector'), schem
             components = math.unstack(field, field.shape.channel.name)
             sampled = [c._sample(p, scheme=scheme) for c, p in zip(components, geometry.unstack(geom_ch.name))]
         else:
-            sampled = [field._sample(p, scheme=scheme) for p in geometry.unstack(channel(geometry).without('vector').name)]
+            sampled = [field._sample(p, scheme=scheme) for p in
+                       geometry.unstack(channel(geometry).without('vector').name)]
         dim = dim._with_item_names(geometry.shape.channel.item_names)
         return math.stack(sampled, dim)
     else:  # Nothing to reduce
@@ -384,7 +390,7 @@ FieldType = TypeVar('FieldType', bound=Field)
 SampledFieldType = TypeVar('SampledFieldType', bound=SampledField)
 
 
-def as_extrapolation(obj: Extrapolation or float or Field or None) -> Extrapolation:
+def as_extrapolation(obj: Extrapolation | float | Field | None) -> Extrapolation:
     """
     Returns an `Extrapolation` representing `obj`.
 

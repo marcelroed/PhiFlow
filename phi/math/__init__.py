@@ -22,7 +22,8 @@ from ._shape import (
     non_batch, non_spatial, non_instance, non_channel,
     merge_shapes, concat_shapes, IncompatibleShapes
 )
-from ._magic_ops import unstack, stack, concat, expand, rename_dims, pack_dims, unpack_dim, unpack_dim as unpack_dims, flatten, copy_with
+from ._magic_ops import unstack, stack, concat, expand, rename_dims, pack_dims, unpack_dim, unpack_dim as unpack_dims, \
+    flatten, copy_with
 from ._tensors import wrap, tensor, layout, Tensor, Dict, to_dict, from_dict, is_scalar
 from .extrapolation import Extrapolation
 from ._ops import (
@@ -30,13 +31,15 @@ from ._ops import (
     native, numpy, reshaped_native, reshaped_tensor, reshaped_numpy, copy, native_call,
     print_ as print,
     map_ as map,
-    zeros, ones, fftfreq, random_normal, random_uniform, meshgrid, linspace, arange as range, range_tensor,  # creation operators (use default backend)
+    zeros, ones, fftfreq, random_normal, random_uniform, meshgrid, linspace, arange as range,
+    range_tensor,  # creation operators (use default backend)
     zeros_like, ones_like,
     pad,
     transpose,  # reshape operations
     divide_no_nan,
     where, nonzero,
-    sum_ as sum, finite_sum, mean, finite_mean, std, prod, max_ as max, finite_max, min_ as min, finite_min, any_ as any, all_ as all, quantile, median,  # reduce
+    sum_ as sum, finite_sum, mean, finite_mean, std, prod, max_ as max, finite_max, min_ as min, finite_min,
+    any_ as any, all_ as all, quantile, median,  # reduce
     dot,
     abs_ as abs, sign,
     round_ as round, ceil, floor,
@@ -70,7 +73,6 @@ from ._functional import (
     iterate,
 )
 
-
 PI = 3.14159265358979323846
 """Value of π to double precision """
 pi = PI  # intentionally undocumented, use PI instead. Exists only as an anlog to numpy.pi
@@ -78,7 +80,6 @@ pi = PI  # intentionally undocumented, use PI instead. Exists only as an anlog t
 INF = float("inf")
 """ Floating-point representation of positive infinity. """
 inf = INF  # intentionally undocumented, use INF instead. Exists only as an anlog to numpy.inf
-
 
 NAN = float("nan")
 """ Floating-point representation of NaN (not a number). """

@@ -20,7 +20,8 @@ def fit_line_2d(x: Tensor, y: Tensor, point_dim: DimFilter = instance, weights: 
         slope: Line slope in units y/x as `Tensor`
         offset: Line value for x=0.
     """
-    assert shape(x).only(point_dim) or shape(y).only(point_dim), f"Either x or y need to have a dimension corresponding to point_dim but got x: {shape(x)}, y: {shape(y)}"
+    assert shape(x).only(point_dim) or shape(y).only(
+        point_dim), f"Either x or y need to have a dimension corresponding to point_dim but got x: {shape(x)}, y: {shape(y)}"
     if not shape(weights):  # unweighted fit
         mean_x = mean(x, point_dim)
         x_rel = x - mean_x

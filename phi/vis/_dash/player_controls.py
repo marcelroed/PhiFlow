@@ -1,11 +1,10 @@
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 from dash.dependencies import Output, Input, State
 from dash.exceptions import PreventUpdate
 
 from .dash_app import DashApp
 from .._vis_base import display_name
-
 
 REFRESH_INTERVAL = Input('playing-refresh-interval', 'n_intervals')
 
@@ -16,7 +15,8 @@ def build_status_bar(app: DashApp):
         dcc.Interval(id='status-interval', interval=500),
     ])
 
-    @app.dash.callback(Output('status-bar', 'children'), [Input('status-interval', 'n_intervals'), STEP_COMPLETE, PLAYING])
+    @app.dash.callback(Output('status-bar', 'children'),
+                       [Input('status-interval', 'n_intervals'), STEP_COMPLETE, PLAYING])
     def update_status_bar(*_):
         return [app.status_message]
 
@@ -36,7 +36,6 @@ def all_actions(app: DashApp):
 
 
 def build_player_controls(app: DashApp):
-
     layout = html.Div(style={'height': '30px'}, children=[
         html.Button('Play', id=PLAY_BUTTON.component_id),
         html.Button('Pause', id=PAUSE_BUTTON.component_id),
@@ -80,7 +79,7 @@ def build_player_controls(app: DashApp):
     return layout
 
 
-def parse_step_count(step_count, app, default: int or None = 1):
+def parse_step_count(step_count, app, default: int | None = 1):
     if step_count is None:
         return default
     try:

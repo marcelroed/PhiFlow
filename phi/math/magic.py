@@ -131,11 +131,11 @@ class Sliceable(metaclass=_SliceableType):
 
 class _ShapableType(type):
     def __instancecheck__(self, instance):
-        return isinstance(instance, Sliceable) and isinstance(instance, Shaped) and\
+        return isinstance(instance, Sliceable) and isinstance(instance, Shaped) and \
                (hasattr(instance, '__stack__') or (hasattr(instance, '__concat__') and hasattr(instance, '__expand__')))
 
     def __subclasscheck__(self, subclass):
-        return issubclass(subclass, Sliceable) and\
+        return issubclass(subclass, Sliceable) and \
                (hasattr(subclass, '__stack__') or (hasattr(subclass, '__concat__') and hasattr(subclass, '__expand__')))
 
 
@@ -236,7 +236,7 @@ class Shapable(metaclass=_ShapableType):
         """
         raise NotImplementedError
 
-    def __pack_dims__(self, dims: Tuple[str, ...], packed_dim: Shape, pos: int or None, **kwargs) -> 'Shapable':
+    def __pack_dims__(self, dims: Tuple[str, ...], packed_dim: Shape, pos: int | None, **kwargs) -> 'Shapable':
         """
         Compresses multiple dimensions into a single dimension by concatenating the elements.
         Elements along the new dimensions are laid out according to the order of `dims`.
@@ -291,7 +291,6 @@ class Shapable(metaclass=_ShapableType):
         raise NotImplementedError
 
 
-
 class _PhiTreeNodeType(type):
 
     def __instancecheck__(self, instance):
@@ -307,7 +306,8 @@ class _PhiTreeNodeType(type):
         elif isinstance(instance, Dict):
             return True
         elif isinstance(instance, dict):
-            return all(isinstance(name, str) for name in instance.keys()) and all(isinstance(val, PhiTreeNode) for val in instance.values())
+            return all(isinstance(name, str) for name in instance.keys()) and all(
+                isinstance(val, PhiTreeNode) for val in instance.values())
         else:
             return hasattr(instance, '__variable_attrs__') or hasattr(instance, '__value_attrs__')
 
@@ -393,7 +393,6 @@ class PhiTreeNode(metaclass=_PhiTreeNodeType):
 
     def __eq__(self, other):
         raise NotImplementedError
-
 
 
 class BoundDim:
@@ -489,7 +488,7 @@ class BoundDim:
     def __setitem__(self, key, value):
         self.obj[{self.name: key}] = value
 
-    def unstack(self, size: int or None = None) -> tuple:
+    def unstack(self, size: int | None = None) -> tuple:
         """
         Lists the slices along this dimension as a `tuple`.
 
@@ -582,27 +581,34 @@ def slicing_dict(obj, item) -> dict:
         `dict` mapping dimension names to slices.
     """
     if isinstance(item, dict):
-        assert all(isinstance(key, str) for key in item.keys()), f"All slice dimensions must be given as str but got keys {tuple(item.keys())}"
+        assert all(isinstance(key, str) for key in
+                   item.keys()), f"All slice dimensions must be given as str but got keys {tuple(item.keys())}"
         return item
     if isinstance(item, tuple):
         if item[0] == Ellipsis:
             assert len(item) - 1 == shape(obj).channel_rank
             item = {name: selection for name, selection in zip(channel(obj).names, item[1:])}
         elif len(item) == shape(obj).channel_rank:
-            warnings.warn("NumPy-style slicing for more than one channel dimension is highly discouraged. Use a dict or the special slicing syntax value.dim[slice] instead. See https://tum-pbs.github.io/PhiFlow/Math.html", SyntaxWarning, stacklevel=3)
+            warnings.warn(
+                "NumPy-style slicing for more than one channel dimension is highly discouraged. Use a dict or the special slicing syntax value.dim[slice] instead. See https://tum-pbs.github.io/PhiFlow/Math.html",
+                SyntaxWarning, stacklevel=3)
             item = {name: selection for name, selection in zip(channel(obj).names, item)}
         elif len(item) == shape(obj).rank:  # legacy indexing
-            warnings.warn("NumPy-style slicing for non-channel dimensions is highly discouraged. Use a dict or the special slicing syntax value.dim[slice] instead. See https://tum-pbs.github.io/PhiFlow/Math.html", SyntaxWarning, stacklevel=3)
+            warnings.warn(
+                "NumPy-style slicing for non-channel dimensions is highly discouraged. Use a dict or the special slicing syntax value.dim[slice] instead. See https://tum-pbs.github.io/PhiFlow/Math.html",
+                SyntaxWarning, stacklevel=3)
             item = {name: selection for name, selection in zip(obj.shape.names, item)}
         else:
-            raise AssertionError(f"Cannot slice {obj}[{item}]. Use a dict or the special slicing syntax value.dim[slice] instead. See https://tum-pbs.github.io/PhiFlow/Math.html")
+            raise AssertionError(
+                f"Cannot slice {obj}[{item}]. Use a dict or the special slicing syntax value.dim[slice] instead. See https://tum-pbs.github.io/PhiFlow/Math.html")
     else:
         if shape(obj).channel_rank == 1:
             item = {channel(obj).name: item}
         elif non_batch(obj).rank == 1:
             item = {non_batch(obj).name: item}
         else:
-            raise AssertionError(f"Slicing {type(obj).__name__}[{type(item).__name__}] is only supported for 1D values (excluding batch dimensions) but shape is {shape(obj)}")
+            raise AssertionError(
+                f"Slicing {type(obj).__name__}[{type(item).__name__}] is only supported for 1D values (excluding batch dimensions) but shape is {shape(obj)}")
     return item
 
 
@@ -616,5 +622,6 @@ __pdoc__ = {}  # Show all magic functions in pdoc3
 for cls_name, cls in dict(globals()).items():
     if isinstance(cls, type) and type(cls) != type and not cls_name.startswith('_'):
         for magic_function in dir(cls):
-            if magic_function.startswith('__') and magic_function.endswith('__') and not hasattr(object, magic_function) and magic_function != '__weakref__':
+            if magic_function.startswith('__') and magic_function.endswith('__') and not hasattr(object,
+                                                                                                 magic_function) and magic_function != '__weakref__':
                 __pdoc__[f'{cls_name}.{magic_function}'] = True

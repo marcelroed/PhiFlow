@@ -29,7 +29,8 @@ class Sphere(Geometry):
         if center is not None:
             assert isinstance(center, Tensor), "center must be a Tensor"
             assert 'vector' in center.shape, f"Sphere center must have a 'vector' dimension."
-            assert center.shape.get_item_names('vector') is not None, f"Vector dimension must list spatial dimensions as item names. Use the syntax Sphere(x=x, y=y) to assign names."
+            assert center.shape.get_item_names(
+                'vector') is not None, f"Vector dimension must list spatial dimensions as item names. Use the syntax Sphere(x=x, y=y) to assign names."
             self._center = center
         else:
             self._center = wrap(tuple(center_.values()), math.channel(vector=tuple(center_.keys())))
@@ -72,7 +73,7 @@ class Sphere(Geometry):
         distance_squared = math.sum((location - self.center) ** 2, dim='vector')
         return math.any(distance_squared <= self.radius ** 2, self.shape.instance)  # union for instance dimensions
 
-    def approximate_signed_distance(self, location: Tensor or tuple):
+    def approximate_signed_distance(self, location: Tensor | tuple):
         """
         Computes the exact distance from location to the closest point on the sphere.
         Very close to the sphere center, the distance takes a constant value.
@@ -85,7 +86,8 @@ class Sphere(Geometry):
 
         """
         distance_squared = math.vec_squared(location - self.center)
-        distance_squared = math.maximum(distance_squared, self.radius * 1e-2)  # Prevent infinite spatial_gradient at sphere center
+        distance_squared = math.maximum(distance_squared,
+                                        self.radius * 1e-2)  # Prevent infinite spatial_gradient at sphere center
         distance = math.sqrt(distance_squared)
         return math.min(distance - self.radius, self.shape.instance)  # union for instance dimensions
 
@@ -104,7 +106,7 @@ class Sphere(Geometry):
     def rotated(self, angle):
         return self
 
-    def scaled(self, factor: float or Tensor) -> 'Geometry':
+    def scaled(self, factor: float | Tensor) -> 'Geometry':
         return Sphere(self.center, self.radius * factor)
 
     def __variable_attrs__(self):
@@ -116,7 +118,8 @@ class Sphere(Geometry):
 
     def __stack__(self, values: tuple, dim: Shape, **kwargs) -> 'Geometry':
         if all(isinstance(v, Sphere) for v in values):
-            return Sphere(math.stack([v.center for v in values], dim, **kwargs), radius=math.stack([v.radius for v in values], dim, **kwargs))
+            return Sphere(math.stack([v.center for v in values], dim, **kwargs),
+                          radius=math.stack([v.radius for v in values], dim, **kwargs))
         else:
             return Geometry.__stack__(self, values, dim, **kwargs)
 

@@ -94,7 +94,7 @@ class GeometryStack(Geometry):
 
     def __hash__(self):
         return hash(self.geometries)
-    
+
     def __getitem__(self, item):
         selected = self.geometries[slicing_dict(self, item)]
         if selected.shape.volume > 1:

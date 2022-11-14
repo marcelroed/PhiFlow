@@ -3,8 +3,8 @@ import inspect
 import datetime
 from os.path import dirname, join
 
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 import socket
 from dash.dependencies import Input, Output
 
@@ -69,7 +69,8 @@ def build_app_time(dashapp):
         now = datetime.datetime.now()
         elapsed = now - start_time
         minutes, seconds = divmod(elapsed.seconds, 60)
-        return 'Application started: %s (Running for %d minutes and %d seconds)' % (start_time.ctime(), minutes, seconds)
+        return 'Application started: %s (Running for %d minutes and %d seconds)' % (
+        start_time.ctime(), minutes, seconds)
 
     layout = html.Div([
         dcc.Markdown(children=build_text(), id='clock-output'),

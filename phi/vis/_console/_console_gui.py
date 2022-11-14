@@ -14,6 +14,7 @@ class ConsoleGui(Gui):
         self.play_status = None
 
         # def setup(self):
+
     #     vis = self.vis
     #     self.vis.logger.removeHandler(self.vis.console_handler)
     #     terminal_size = shutil.get_terminal_size(fallback=(80, 20))
@@ -57,7 +58,8 @@ class ConsoleGui(Gui):
             self.app.progress()
         elif command.startswith('play'):
             if self.play_status:
-                print("Wait for current step to finish." if self.play_status.paused else "Already playing, command ignored.")
+                print(
+                    "Wait for current step to finish." if self.play_status.paused else "Already playing, command ignored.")
             else:
                 if command.strip() == 'play':
                     frames = None
@@ -90,14 +92,17 @@ class ConsoleGui(Gui):
                 print("Available controls:\n-------------------------------------------")
                 for control in self.app.controls:
                     value = self.app.get_control_value(control.name)
-                    print(f"{control.name}: {control.control_type.__name__} = {value}  \t(initial value: {control.initial}, \trange {control.value_range})")
+                    print(
+                        f"{control.name}: {control.control_type.__name__} = {value}  \t(initial value: {control.initial}, \trange {control.value_range})")
                 print("-------------------------------------------")
                 print("You can change a control value by typing '<control_name> = <value>'")
             else:
-                print("No controls available. Create controls in your Python script using '<control_name> = control(value)'.")
+                print(
+                    "No controls available. Create controls in your Python script using '<control_name> = control(value)'.")
         elif '=' in command:
             parts = command.split('=')
-            assert len(parts) == 2, "Invalid command syntax. Use '<control_name> = <value>'. Type 'controls' for a list of available controls."
+            assert len(
+                parts) == 2, "Invalid command syntax. Use '<control_name> = <value>'. Type 'controls' for a list of available controls."
             parts = [p.strip() for p in parts]
             name, value = parts
             control = get_control_by_name(self.app, name)
@@ -129,7 +134,7 @@ class ConsoleGui(Gui):
             field_names = self.app.field_names[:2] if len(self.app.field_names) > 2 else self.app.field_names
             channel_sel = [None] * len(field_names)
         else:
-            channel_sel = [n[n.index('.')+1:] if '.' in n else None for n in field_names]
+            channel_sel = [n[n.index('.') + 1:] if '.' in n else None for n in field_names]
             field_names = [n[:n.index('.')] if '.' in n else n for n in field_names]
         values = []
         for n in field_names:
@@ -148,7 +153,7 @@ class ConsoleGui(Gui):
                 plt_lines = quiver(v, plt_width, plt_height, name, threshold=0.1, basic_chars=True)
             else:
                 plt_lines = heatmap(v, plt_width, plt_height, name)
-            lines = [l+p for l, p in zip(lines, plt_lines)]
+            lines = [l + p for l, p in zip(lines, plt_lines)]
         print("\n".join(lines))
 
     def auto_play(self):

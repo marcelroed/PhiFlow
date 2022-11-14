@@ -39,7 +39,7 @@ class Tensor:
     When backed by an editable native tensor, e.g. a `numpy.ndarray`, do not edit the underlying data structure.
     """
 
-    def native(self, order: str or tuple or list or Shape = None):
+    def native(self, order: str | tuple | list | Shape = None):
         """
         Returns a native tensor object with the dimensions ordered according to `order`.
         
@@ -57,7 +57,7 @@ class Tensor:
         """
         raise NotImplementedError()
 
-    def numpy(self, order: str or tuple or list or Shape = None) -> np.ndarray:
+    def numpy(self, order: str | tuple | list | Shape = None) -> np.ndarray:
         """
         Converts this tensor to a `numpy.ndarray` with dimensions ordered according to `order`.
         
@@ -85,7 +85,9 @@ class Tensor:
         return choose_backend(native).numpy(native)
 
     def __array__(self, dtype=None):  # NumPy conversion
-        warnings.warn("Automatic conversion of Φ-Flow tensors to NumPy can cause problems because the dimension order is not guaranteed.", SyntaxWarning, stacklevel=3)
+        warnings.warn(
+            "Automatic conversion of Φ-Flow tensors to NumPy can cause problems because the dimension order is not guaranteed.",
+            SyntaxWarning, stacklevel=3)
         return self.numpy(self._shape)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):  # NumPy interface
@@ -95,66 +97,87 @@ class Tensor:
             if inputs[0] is self:
                 return self._op2(inputs[1], lambda x, y: x * y, lambda x, y: choose_backend(x, y).mul(x, y), 'mul', '*')
             else:
-                return self._op2(inputs[0], lambda x, y: y * x, lambda x, y: choose_backend(x, y).mul(y, x), 'rmul', '*')
+                return self._op2(inputs[0], lambda x, y: y * x, lambda x, y: choose_backend(x, y).mul(y, x), 'rmul',
+                                 '*')
         if ufunc.__name__ == 'add':
             if inputs[0] is self:
                 return self._op2(inputs[1], lambda x, y: x + y, lambda x, y: choose_backend(x, y).add(x, y), 'add', '+')
             else:
-                return self._op2(inputs[0], lambda x, y: y + x, lambda x, y: choose_backend(x, y).add(y, x), 'radd', '+')
+                return self._op2(inputs[0], lambda x, y: y + x, lambda x, y: choose_backend(x, y).add(y, x), 'radd',
+                                 '+')
         if ufunc.__name__ == 'subtract':
             if inputs[0] is self:
                 return self._op2(inputs[1], lambda x, y: x - y, lambda x, y: choose_backend(x, y).sub(x, y), 'add', '-')
             else:
-                return self._op2(inputs[0], lambda x, y: y - x, lambda x, y: choose_backend(x, y).sub(y, x), 'rsub', '-')
+                return self._op2(inputs[0], lambda x, y: y - x, lambda x, y: choose_backend(x, y).sub(y, x), 'rsub',
+                                 '-')
         if ufunc.__name__ in ['divide', 'true_divide']:
             if inputs[0] is self:
-                return self._op2(inputs[1], lambda x, y: x / y, lambda x, y: choose_backend(x, y).div(x, y), 'true_divide', '/')
+                return self._op2(inputs[1], lambda x, y: x / y, lambda x, y: choose_backend(x, y).div(x, y),
+                                 'true_divide', '/')
             else:
-                return self._op2(inputs[0], lambda x, y: y / x, lambda x, y: choose_backend(x, y).div(y, x), 'r_true_divide', '/')
+                return self._op2(inputs[0], lambda x, y: y / x, lambda x, y: choose_backend(x, y).div(y, x),
+                                 'r_true_divide', '/')
         if ufunc.__name__ == 'floor_divide':
             if inputs[0] is self:
-                return self._op2(inputs[1], lambda x, y: x // y, lambda x, y: choose_backend(x, y).floordiv(x, y), 'floor_divide', '//')
+                return self._op2(inputs[1], lambda x, y: x // y, lambda x, y: choose_backend(x, y).floordiv(x, y),
+                                 'floor_divide', '//')
             else:
-                return self._op2(inputs[0], lambda x, y: y // x, lambda x, y: choose_backend(x, y).floordiv(y, x), 'r_floor_divide', '//')
+                return self._op2(inputs[0], lambda x, y: y // x, lambda x, y: choose_backend(x, y).floordiv(y, x),
+                                 'r_floor_divide', '//')
         if ufunc.__name__ == 'remainder':
             if inputs[0] is self:
-                return self._op2(inputs[1], lambda x, y: x % y, lambda x, y: choose_backend(x, y).mod(x, y), 'remainder', '%')
+                return self._op2(inputs[1], lambda x, y: x % y, lambda x, y: choose_backend(x, y).mod(x, y),
+                                 'remainder', '%')
             else:
-                return self._op2(inputs[0], lambda x, y: y % x, lambda x, y: choose_backend(x, y).mod(y, x), 'r_remainder', '%')
+                return self._op2(inputs[0], lambda x, y: y % x, lambda x, y: choose_backend(x, y).mod(y, x),
+                                 'r_remainder', '%')
         if ufunc.__name__ == 'equal':
             if _EQUALITY_BY_REF:
                 return wrap(inputs[0] is inputs[1])
             if inputs[0] is self:
-                return self._op2(inputs[1], lambda x, y: x == y, lambda x, y: choose_backend(x, y).equal(x, y), 'equal', '==')
+                return self._op2(inputs[1], lambda x, y: x == y, lambda x, y: choose_backend(x, y).equal(x, y), 'equal',
+                                 '==')
             else:
-                return self._op2(inputs[0], lambda x, y: y == x, lambda x, y: choose_backend(x, y).equal(y, x), 'r_equal', '==')
+                return self._op2(inputs[0], lambda x, y: y == x, lambda x, y: choose_backend(x, y).equal(y, x),
+                                 'r_equal', '==')
         if ufunc.__name__ == 'not_equal':
             if _EQUALITY_BY_REF:
                 return wrap(inputs[0] is not inputs[1])
             if inputs[0] is self:
-                return self._op2(inputs[1], lambda x, y: x != y, lambda x, y: choose_backend(x, y).not_equal(x, y), 'equal', '!=')
+                return self._op2(inputs[1], lambda x, y: x != y, lambda x, y: choose_backend(x, y).not_equal(x, y),
+                                 'equal', '!=')
             else:
-                return self._op2(inputs[0], lambda x, y: y != x, lambda x, y: choose_backend(x, y).not_equal(y, x), 'r_equal', '!=')
+                return self._op2(inputs[0], lambda x, y: y != x, lambda x, y: choose_backend(x, y).not_equal(y, x),
+                                 'r_equal', '!=')
         if ufunc.__name__ == 'greater':
             if inputs[0] is self:
-                return self._op2(inputs[1], lambda x, y: x > y, lambda x, y: choose_backend(x, y).greater_than(x, y), 'greater', '>')
+                return self._op2(inputs[1], lambda x, y: x > y, lambda x, y: choose_backend(x, y).greater_than(x, y),
+                                 'greater', '>')
             else:
-                return self._op2(inputs[0], lambda x, y: y > x, lambda x, y: choose_backend(x, y).greater_than(y, x), 'r_greater', '>')
+                return self._op2(inputs[0], lambda x, y: y > x, lambda x, y: choose_backend(x, y).greater_than(y, x),
+                                 'r_greater', '>')
         if ufunc.__name__ == 'greater_equal':
             if inputs[0] is self:
-                return self._op2(inputs[1], lambda x, y: x >= y, lambda x, y: choose_backend(x, y).greater_or_equal(x, y), 'greater_equal', '>=')
+                return self._op2(inputs[1], lambda x, y: x >= y,
+                                 lambda x, y: choose_backend(x, y).greater_or_equal(x, y), 'greater_equal', '>=')
             else:
-                return self._op2(inputs[0], lambda x, y: y >= x, lambda x, y: choose_backend(x, y).greater_or_equal(y, x), 'r_greater_equal', '>=')
+                return self._op2(inputs[0], lambda x, y: y >= x,
+                                 lambda x, y: choose_backend(x, y).greater_or_equal(y, x), 'r_greater_equal', '>=')
         if ufunc.__name__ == 'less':
             if inputs[0] is self:
-                return self._op2(inputs[1], lambda x, y: x < y, lambda x, y: choose_backend(x, y).greater_than(y, x), 'less', '<')
+                return self._op2(inputs[1], lambda x, y: x < y, lambda x, y: choose_backend(x, y).greater_than(y, x),
+                                 'less', '<')
             else:
-                return self._op2(inputs[0], lambda x, y: y < x, lambda x, y: choose_backend(x, y).greater_than(x, y), 'r_less', '<')
+                return self._op2(inputs[0], lambda x, y: y < x, lambda x, y: choose_backend(x, y).greater_than(x, y),
+                                 'r_less', '<')
         if ufunc.__name__ == 'less_equal':
             if inputs[0] is self:
-                return self._op2(inputs[1], lambda x, y: x <= y, lambda x, y: choose_backend(x, y).greater_or_equal(y, x), 'less_equal', '<=')
+                return self._op2(inputs[1], lambda x, y: x <= y,
+                                 lambda x, y: choose_backend(x, y).greater_or_equal(y, x), 'less_equal', '<=')
             else:
-                return self._op2(inputs[0], lambda x, y: y <= x, lambda x, y: choose_backend(x, y).greater_or_equal(x, y), 'r_less_equal', '<=')
+                return self._op2(inputs[0], lambda x, y: y <= x,
+                                 lambda x, y: choose_backend(x, y).greater_or_equal(x, y), 'r_less_equal', '<=')
         raise NotImplementedError(f"NumPy function '{ufunc.__name__}' is not compatible with Φ-Flow tensors.")
 
     @property
@@ -326,7 +349,7 @@ class Tensor:
         return all_available(self)
 
     @property
-    def device(self) -> ComputeDevice or None:
+    def device(self) -> ComputeDevice | None:
         """
         Returns the `ComputeDevice` that this tensor is allocated on.
         The device belongs to this tensor's `default_backend`.
@@ -410,7 +433,7 @@ class Tensor:
         Slice the tensor along specified dimensions.
 
         Args:
-          selection: dim_name: str -> int or slice
+          selection: dim_name: str -> int  | slice
           selection: dict: 
 
         Returns:
@@ -419,7 +442,8 @@ class Tensor:
         raise NotImplementedError()
 
     def __setitem__(self, key, value):
-        raise NotImplementedError("Tensors are not editable to preserve the autodiff chain. This feature might be added in the future. To update part of a tensor, use math.where() or math.scatter()")
+        raise NotImplementedError(
+            "Tensors are not editable to preserve the autodiff chain. This feature might be added in the future. To update part of a tensor, use math.where() or math.scatter()")
 
     def flip(self, *dims: str) -> 'Tensor':
         """
@@ -484,7 +508,7 @@ class Tensor:
         native_reshaped = choose_backend(native).reshape(native, new_shape.sizes)
         return NativeTensor(native_reshaped, new_shape)
 
-    def __pack_dims__(self, dims: Tuple[str, ...], packed_dim: Shape, pos: int or None, **kwargs) -> 'Tensor':
+    def __pack_dims__(self, dims: Tuple[str, ...], packed_dim: Shape, pos: int | None, **kwargs) -> 'Tensor':
         order = self.shape._order_group(dims)
         if self.shape.is_uniform:
             native = self.native(order)
@@ -506,7 +530,7 @@ class Tensor:
     def __cast__(self, dtype: DType):
         return self._op1(lambda native: choose_backend(native).cast(native, dtype=dtype))
 
-    def dimension(self, name: str or Shape) -> 'TensorDim':
+    def dimension(self, name: str | Shape) -> 'TensorDim':
         """
         Returns a reference to a specific dimension of this tensor.
         This is equivalent to the syntax `tensor.<name>`.
@@ -598,7 +622,8 @@ class Tensor:
         return self._op2(other, lambda x, y: x // y, lambda x, y: choose_backend(x, y).floordiv(x, y), 'floordiv', '//')
 
     def __rfloordiv__(self, other):
-        return self._op2(other, lambda x, y: y // x, lambda x, y: choose_backend(x, y).floordiv(y, x), 'rfloordiv', '//')
+        return self._op2(other, lambda x, y: y // x, lambda x, y: choose_backend(x, y).floordiv(y, x), 'rfloordiv',
+                         '//')
 
     def __pow__(self, power, modulo=None):
         assert modulo is None
@@ -627,13 +652,15 @@ class Tensor:
         return self._op2(other, lambda x, y: x < y, lambda x, y: choose_backend(x, y).greater_than(y, x), 'lt', '<')
 
     def __le__(self, other):
-        return self._op2(other, lambda x, y: x <= y, lambda x, y: choose_backend(x, y).greater_or_equal(y, x), 'le', '<=')
+        return self._op2(other, lambda x, y: x <= y, lambda x, y: choose_backend(x, y).greater_or_equal(y, x), 'le',
+                         '<=')
 
     def __gt__(self, other):
         return self._op2(other, lambda x, y: x > y, lambda x, y: choose_backend(x, y).greater_than(x, y), 'gt', '>')
 
     def __ge__(self, other):
-        return self._op2(other, lambda x, y: x >= y, lambda x, y: choose_backend(x, y).greater_or_equal(x, y), 'ge', '>=')
+        return self._op2(other, lambda x, y: x >= y, lambda x, y: choose_backend(x, y).greater_or_equal(x, y), 'ge',
+                         '>=')
 
     def __abs__(self):
         return self._op1(lambda t: choose_backend(t).abs(t))
@@ -683,7 +710,8 @@ class Tensor:
         """
         raise NotImplementedError(self.__class__)
 
-    def _op2(self, other, operator: Callable, native_function: Callable, op_name: str = 'unknown', op_symbol: str = '?') -> 'Tensor':
+    def _op2(self, other, operator: Callable, native_function: Callable, op_name: str = 'unknown',
+             op_symbol: str = '?') -> 'Tensor':
         """
         Apply a broadcast operation on two tensors.
 
@@ -736,7 +764,8 @@ class TensorDim(BoundDim):
         self.tensor = tensor
 
     def __len__(self):
-        warnings.warn("Use Tensor.dim.size instead of len(Tensor.dim). len() only supports with integer sizes.", DeprecationWarning)
+        warnings.warn("Use Tensor.dim.size instead of len(Tensor.dim). len() only supports with integer sizes.",
+                      DeprecationWarning)
         return self.size
 
     def as_batch(self, name: str = None):
@@ -755,10 +784,10 @@ class TensorDim(BoundDim):
         """ Returns a shallow copy of the `Tensor` where the type of this dimension is *instance*. """
         return self._as(INSTANCE_DIM, name)
 
-    def as_type(self, dim_type: Callable or str):
+    def as_type(self, dim_type: Callable | str):
         return self._as(dim_type('d').type if callable(dim_type) else dim_type, None)
 
-    def _as(self, dim_type: str, name: str or None):
+    def _as(self, dim_type: str, name: str | None):
         if not self.exists:
             return self.tensor
         shape = self.tensor.shape
@@ -845,7 +874,7 @@ class Layout(Tensor):
     def default_backend(self):
         return None
 
-    def native(self, order: str or tuple or list or Shape = None):
+    def native(self, order: str | tuple | list | Shape = None):
         order = parse_dim_order(order)
         assert order is None or order == self._shape.names, "Layout.native() does not allow for changing the dimension order"
         return self._obj
@@ -934,7 +963,7 @@ class Layout(Tensor):
         new_shape = self._shape.replace(dims, new_dims)
         return Layout(self._obj, new_shape)
 
-    def __pack_dims__(self, dims: Tuple[str, ...], packed_dim: Shape, pos: int or None, **kwargs) -> 'Shapable':
+    def __pack_dims__(self, dims: Tuple[str, ...], packed_dim: Shape, pos: int | None, **kwargs) -> 'Shapable':
         return NotImplemented
 
     def __unpack_dim__(self, dim: str, unpacked_dims: Shape, **kwargs) -> 'Shapable':
@@ -953,15 +982,18 @@ class Layout(Tensor):
         if _EQUALITY_BY_REF:
             return wrap(self is not other)
         return self._op2(other, lambda x, y: x != y, lambda x, y: x != y, 'ne', '!=')
-    
+
     def _assert_close(self, other: Tensor, rel_tolerance: float, abs_tolerance: float, msg: str, verbose: bool):
         from ._ops import assert_close
-        inner_test = lambda x, y: assert_close(x, y, rel_tolerance=rel_tolerance, abs_tolerance=abs_tolerance, msg=msg, verbose=verbose)
+        inner_test = lambda x, y: assert_close(x, y, rel_tolerance=rel_tolerance, abs_tolerance=abs_tolerance, msg=msg,
+                                               verbose=verbose)
         return self._op2(other, inner_test, inner_test, 'assert_close', '≈')
 
-    def _op2(self, other, operator: Callable, native_function: Callable, op_name: str = 'unknown', op_symbol: str = '?') -> Tensor:
+    def _op2(self, other, operator: Callable, native_function: Callable, op_name: str = 'unknown',
+             op_symbol: str = '?') -> Tensor:
         obj = self._recursive_op2(self._obj, self._shape, other, operator, native_function, op_name)
-        new_shape = concat_shapes(self._shape, other.shape.without(self._shape)) if isinstance(other, Tensor) else self._shape
+        new_shape = concat_shapes(self._shape, other.shape.without(self._shape)) if isinstance(other,
+                                                                                               Tensor) else self._shape
         return Layout(obj, new_shape)
 
     @staticmethod
@@ -969,14 +1001,17 @@ class Layout(Tensor):
         if shape:
             dim = shape.names[0]
             if isinstance(other, Tensor) and dim in other.shape:
-                assert other.shape.get_size(dim) == len(obj), f"Shape mismatch during {op_name}: '{dim}' has size {len(obj)} on layout but {other.shape.get_size(dim)} on other tensor."
+                assert other.shape.get_size(dim) == len(
+                    obj), f"Shape mismatch during {op_name}: '{dim}' has size {len(obj)} on layout but {other.shape.get_size(dim)} on other tensor."
                 others = [other[{dim: i}] for i in range(len(obj))]
             else:
                 others = [other] * len(obj)
             if isinstance(obj, (tuple, list)):
-                return type(obj)([Layout._recursive_op2(i, shape[1:], o, operator, native_function, op_name) for i, o in zip(obj, others)])
+                return type(obj)([Layout._recursive_op2(i, shape[1:], o, operator, native_function, op_name) for i, o in
+                                  zip(obj, others)])
             elif isinstance(obj, dict):
-                return {k: Layout._recursive_op2(v, shape[1:], o, operator, native_function, op_name) for (k, v), o in zip(obj.items(), others)}
+                return {k: Layout._recursive_op2(v, shape[1:], o, operator, native_function, op_name) for (k, v), o in
+                        zip(obj.items(), others)}
         else:  # leaf
             if isinstance(other, Layout) and not other.shape:
                 return native_function(obj, other.native())
@@ -1010,7 +1045,8 @@ class Layout(Tensor):
                 result = native_function(choose_backend(self._as_list()), self._obj, 0)
             return wrap(result)
         if not self._shape.without(dims):
-            return self.__flatten__(batch('_flat'))._tensor_reduce(('_flat',), dtype, native_function, collapsed_function, unaffected_function)
+            return self.__flatten__(batch('_flat'))._tensor_reduce(('_flat',), dtype, native_function,
+                                                                   collapsed_function, unaffected_function)
         else:
             raise NotImplementedError(f"Partial Layout reduction not yet supported. Shape={self._shape}, reduce={dims}")
         # # --- inner reduce ---
@@ -1054,11 +1090,12 @@ class NativeTensor(Tensor):
         assert isinstance(shape, Shape), f"Expected Shape but got '{type(shape)}'"
         backend = choose_backend(native_tensor)
         # if backend.is_available(native_tensor):
-        assert backend.staticshape(native_tensor) == shape.sizes, f"Shape {shape} does not match native tensor with shape {backend.staticshape(native_tensor)}"
+        assert backend.staticshape(
+            native_tensor) == shape.sizes, f"Shape {shape} does not match native tensor with shape {backend.staticshape(native_tensor)}"
         self._native = native_tensor
         self._shape = shape
 
-    def native(self, order: str or tuple or list or Shape = None):
+    def native(self, order: str | tuple | list | Shape = None):
         order = parse_dim_order(order, check_rank=self.rank)
         if order is None or tuple(order) == self.shape.names:
             if self.dtype.precision in [None, get_precision()]:
@@ -1189,8 +1226,10 @@ class CollapsedTensor(Tensor):  # package-private
         for name in tensor.shape.names:
             assert name in shape
         for size, name, dim_type, *_ in tensor.shape._dimensions:
-            assert wrap(shape.get_size(name) == size).all, f"Shape mismatch while trying to set {name}={shape.get_size(name)} but has size {size}"
-            assert shape.get_type(name) == dim_type, f"Dimension type mismatch for dimension '{name}': {shape.get_type(name)}, {dim_type}"
+            assert wrap(shape.get_size(
+                name) == size).all, f"Shape mismatch while trying to set {name}={shape.get_size(name)} but has size {size}"
+            assert shape.get_type(
+                name) == dim_type, f"Dimension type mismatch for dimension '{name}': {shape.get_type(name)}, {dim_type}"
         if isinstance(tensor, CollapsedTensor):
             if tensor.is_cached:
                 self._inner = tensor._cached
@@ -1226,7 +1265,7 @@ class CollapsedTensor(Tensor):  # package-private
         else:
             return self
 
-    def native(self, order: str or tuple or list or Shape = None):
+    def native(self, order: str | tuple | list | Shape = None):
         if self.is_cached:
             return self._cached.native(order)
         order = parse_dim_order(order, check_rank=self.rank)
@@ -1234,7 +1273,8 @@ class CollapsedTensor(Tensor):  # package-private
             return self._cache().native(order)
         else:
             native = self._inner.native(order=order)
-            multiples = [1 if name in self._inner.shape else (self.shape.get_size(name) if name in self.shape else 1) for name in order]
+            multiples = [1 if name in self._inner.shape else (self.shape.get_size(name) if name in self.shape else 1)
+                         for name in order]
             tiled = choose_backend(native).tile(native, multiples)
             return tiled
 
@@ -1349,7 +1389,8 @@ class CollapsedTensor(Tensor):  # package-private
         if all(dim not in self._shape for dim in dims):
             return unaffected_function(self)
         inner_dims = [dim for dim in dims if dim in self._inner.shape]
-        inner_reduce = self._inner._tensor_reduce(tuple(inner_dims), dtype, native_function, collapsed_function, unaffected_function)
+        inner_reduce = self._inner._tensor_reduce(tuple(inner_dims), dtype, native_function, collapsed_function,
+                                                  unaffected_function)
         collapsed_dims = self._shape.without(self._inner.shape)
         final_shape = self._shape.without(dims)
         total_reduce = collapsed_function(inner_reduce, collapsed_dims.only(dims))
@@ -1367,11 +1408,13 @@ class TensorStack(Tensor):
 
     """
 
-    def __init__(self, components: tuple or list, stack_dim: Shape):
-        assert isinstance(stack_dim, Shape) and stack_dim.rank == 1, f"stack_dim must be a single-dimension Shape object but got {type(stack_dim)}"
+    def __init__(self, components: tuple | list, stack_dim: Shape):
+        assert isinstance(stack_dim,
+                          Shape) and stack_dim.rank == 1, f"stack_dim must be a single-dimension Shape object but got {type(stack_dim)}"
         for t in components:
             assert isinstance(t, Tensor)
-            assert t.dtype == components[0].dtype, f"Stacked tensors must have the same data type but got {[t.dtype for t in components]}"
+            assert t.dtype == components[
+                0].dtype, f"Stacked tensors must have the same data type but got {[t.dtype for t in components]}"
             assert stack_dim.name not in t.shape, f"Cannot stack along '{stack_dim.name}' because the dimension already exists."
         self._tensors = tuple(components)
         self.stack_dim = stack_dim.with_sizes([len(components)])
@@ -1417,13 +1460,14 @@ class TensorStack(Tensor):
     def shape(self):
         return self._shape
 
-    def native(self, order: str or tuple or list or Shape = None):
+    def native(self, order: str | tuple | list | Shape = None):
         if self._cached is not None:
             return self._cached.native(order=order)
         else:
             order = parse_dim_order(order, check_rank=self.rank)
             # Is only the stack dimension shifted?
-            if order is not None and self._shape.without(self.stack_dim).names == tuple(filter(lambda name: name != self.stack_dim.name, order)):
+            if order is not None and self._shape.without(self.stack_dim).names == tuple(
+                    filter(lambda name: name != self.stack_dim.name, order)):
                 inner_order = [dim for dim in order if dim != self.stack_dim.name]
                 natives = [t.native(inner_order) for t in self._tensors]
                 assert self.stack_dim.name in order, f"Dimension {self.stack_dim} missing from 'order'. Got {order} but tensor has shape {self.shape}."
@@ -1481,9 +1525,11 @@ class TensorStack(Tensor):
         if dimension == self.stack_dim.name:
             return self._tensors
         else:
-            if self.requires_broadcast:
+            if self.requires_broadcast:  # In this branch we return a list. Is this intentional? There are checks in later code that expect a tuple.
                 unstacked = [t.unstack(dimension) for t in self._tensors]
                 result = [TensorStack(items, self.stack_dim) for items in zip(*unstacked)]
+                # TODO: Check that this is legitimate
+                result = tuple(result)
                 return result
             else:
                 return self._cache().unstack(dimension=dimension)
@@ -1548,7 +1594,8 @@ class TensorStack(Tensor):
             return self._cached._tensor_reduce(dims, dtype, native_function, collapsed_function, unaffected_function)
         # --- inner reduce ---
         inner_axes = [dim for dim in dims if dim != self.stack_dim.name]
-        red_inners = [t._tensor_reduce(inner_axes, dtype, native_function, collapsed_function, unaffected_function) for t in self._tensors]
+        red_inners = [t._tensor_reduce(inner_axes, dtype, native_function, collapsed_function, unaffected_function) for
+                      t in self._tensors]
         # --- outer reduce ---
         if self.stack_dim.name in dims:
             if any([t._is_tracer for t in red_inners]):
@@ -1557,16 +1604,18 @@ class TensorStack(Tensor):
                 inner_order = red_inners[0].shape.names
                 natives = [t.native(inner_order) for t in red_inners]
                 backend = choose_backend(*natives)
-                result = native_function(backend, backend.stack(natives), dim=0)  # TODO not necessary if tensors are CollapsedTensors
+                result = native_function(backend, backend.stack(natives),
+                                         dim=0)  # TODO not necessary if tensors are CollapsedTensors
                 return NativeTensor(result, red_inners[0].shape)
         else:
             return TensorStack(red_inners, self.stack_dim)
 
 
-def tensor(data: Tensor or Shape or tuple or list or numbers.Number,
+def tensor(data: Tensor | Shape | tuple | list | numbers.Number,
            *shape: Shape,
            convert: bool = True,
-           default_list_dim=channel('vector')) -> Tensor:  # TODO assume convert_unsupported, add convert_external=False for constants
+           default_list_dim=channel(
+               'vector')) -> Tensor:  # TODO assume convert_unsupported, add convert_external=False for constants
     """
     Create a Tensor from the specified `data`.
     If `convert=True`, converts `data` to the preferred format of the default backend.
@@ -1607,7 +1656,8 @@ def tensor(data: Tensor or Shape or tuple or list or numbers.Number,
     Returns:
       Tensor containing same values as data
     """
-    assert all(isinstance(s, Shape) for s in shape), f"Cannot create tensor because shape needs to be one or multiple Shape instances but got {shape}"
+    assert all(isinstance(s, Shape) for s in
+               shape), f"Cannot create tensor because shape needs to be one or multiple Shape instances but got {shape}"
     shape = None if len(shape) == 0 else concat_shapes(*shape)
     if isinstance(data, Tensor):
         if convert:
@@ -1649,7 +1699,8 @@ def tensor(data: Tensor or Shape or tuple or list or numbers.Number,
             tensors = [d if isinstance(d, Tensor) else tensor(d, *inner_shape, convert=convert) for d in data]
             common_shape = merge_shapes(*[e.shape for e in tensors])
             stack_dim = default_list_dim if shape is None else shape[0].with_sizes([len(tensors)])
-            assert all(stack_dim not in t.shape for t in tensors), f"Cannot stack tensors with dimension '{stack_dim}' because a tensor already has that dimension."
+            assert all(stack_dim not in t.shape for t in
+                       tensors), f"Cannot stack tensors with dimension '{stack_dim}' because a tensor already has that dimension."
             elements = [CollapsedTensor(e, common_shape) if e.shape.rank < common_shape.rank else e for e in tensors]
             from ._ops import cast_same
             elements = cast_same(*elements)
@@ -1673,7 +1724,8 @@ def tensor(data: Tensor or Shape or tuple or list or numbers.Number,
             data = convert_(data, use_dlpack=False)
         return NativeTensor(data, shape)
     except NoBackendFound:
-        raise ValueError(f"{type(data)} is not supported. Only (Tensor, tuple, list, np.ndarray, native tensors) are allowed.\nCurrent backends: {BACKENDS}")
+        raise ValueError(
+            f"{type(data)} is not supported. Only (Tensor, tuple, list, np.ndarray, native tensors) are allowed.\nCurrent backends: {BACKENDS}")
 
 
 def wrap(data: Tensor or Shape or tuple or list or numbers.Number,
@@ -1709,7 +1761,8 @@ def layout(objects, *shape: Shape) -> Tensor:
         `Tensor`.
         Calling `Tensor.native()` on the returned tensor will return `objects`.
     """
-    assert all(isinstance(s, Shape) for s in shape), f"shape needs to be one or multiple Shape instances but got {shape}"
+    assert all(
+        isinstance(s, Shape) for s in shape), f"shape needs to be one or multiple Shape instances but got {shape}"
     shape = EMPTY_SHAPE if len(shape) == 0 else concat_shapes(*shape)
     if isinstance(objects, Layout):
         assert objects.shape == shape
@@ -1721,7 +1774,8 @@ def layout(objects, *shape: Shape) -> Tensor:
             if not shape:
                 return shape
             if isinstance(native, dict):
-                assert all([isinstance(k, str) for k in native.keys()]), f"All dict keys in PyTrees must be str but got {tuple(native.keys())}"
+                assert all([isinstance(k, str) for k in
+                            native.keys()]), f"All dict keys in PyTrees must be str but got {tuple(native.keys())}"
                 shape = shape._with_item_name(shape.names[0], tuple(native.keys()))
             if shape.rank == 1:
                 return shape.with_sizes((len(native),))
@@ -1773,7 +1827,9 @@ def compatible_tensor(data, compat_shape: Shape = None, compat_natives=(), conve
         if compat_shape.channel_rank > 1 and len(shape) == 1 and 'vector' in compat_shape.channel:
             return wrap(data, compat_shape['vector'].without_sizes())
         elif len(shape) == compat_shape.rank:
-            warnings.warn(f"Combining a phi.math.Tensor with a {data_type} of same shape is not invariant under shape permutations. Please convert the {data_type} to a phi.math.Tensor first. Shapes: {shape} and {compat_shape}", SyntaxWarning, stacklevel=5)
+            warnings.warn(
+                f"Combining a phi.math.Tensor with a {data_type} of same shape is not invariant under shape permutations. Please convert the {data_type} to a phi.math.Tensor first. Shapes: {shape} and {compat_shape}",
+                SyntaxWarning, stacklevel=5)
             return NativeTensor(data, compat_shape.with_sizes(shape))
         else:
             raise ValueError(f"Cannot combine native tensor of shape {shape} with tensor of shape {compat_shape}")
@@ -1802,7 +1858,8 @@ def op2_native(x: Tensor, y: Tensor, native_function: Callable):
     return NativeTensor(result_tensor, new_shape)
 
 
-def custom_op2(x: Tensor or float, y: Tensor or float, l_operator, l_native_function, r_operator=None, r_native_function=None, op_name: str = 'unknown') -> Tensor:
+def custom_op2(x: Tensor | float, y: Tensor | float, l_operator, l_native_function, r_operator=None,
+               r_native_function=None, op_name: str = 'unknown') -> Tensor:
     """
     Perform a custom operator on two tensors.
     This method first tries calling _op2() on the first tensor and if that fails, tries it on the second tensor.
@@ -1829,7 +1886,7 @@ def custom_op2(x: Tensor or float, y: Tensor or float, l_operator, l_native_func
     return result
 
 
-def disassemble_tensors(obj: Tensor or Tuple[Tensor, ...] or List[Tensor], expand: bool) -> tuple:
+def disassemble_tensors(obj: Tensor | Tuple[Tensor, ...] | List[Tensor], expand: bool) -> tuple:
     """
     Args:
         obj: Tuple or list of Tensors.
@@ -1840,7 +1897,8 @@ def disassemble_tensors(obj: Tensor or Tuple[Tensor, ...] or List[Tensor], expan
         shapes: tuple of Shapes encoding the tensor dimensions including collapsed dims.
         native_dims: tuple of Shapes representing the dimensions of the natives in the correct order.
     """
-    assert isinstance(obj, (Tensor, tuple, list)), f"jit-compiled function returned {type(obj)} but must return either a 'phi.math.Tensor' or tuple/list of tensors."
+    assert isinstance(obj, (Tensor, tuple,
+                            list)), f"jit-compiled function returned {type(obj)} but must return either a 'phi.math.Tensor' or tuple/list of tensors."
     if isinstance(obj, Tensor):
         if expand or isinstance(obj, TensorStack):
             obj._expand()
@@ -1855,15 +1913,16 @@ def disassemble_tensors(obj: Tensor or Tuple[Tensor, ...] or List[Tensor], expan
         return sum([i[0] for i in dis], ()), tuple(i[1] for i in dis), tuple(i[2] for i in dis)
 
 
-def assemble_tensors(natives: tuple, shapes: Shape or Tuple[Shape], native_dims: Tuple[Shape, ...] or None):
+def assemble_tensors(natives: tuple, shapes: Shape | Tuple[Shape], native_dims: Tuple[Shape, ...] | None):
     natives = list(natives)
     if isinstance(shapes, Shape):
         return _assemble_pop(natives, shapes, native_dims)
     else:
-        return [_assemble_pop(natives, shape, None if native_dims is None else native_dims[i]) for i, shape in enumerate(shapes)]
+        return [_assemble_pop(natives, shape, None if native_dims is None else native_dims[i]) for i, shape in
+                enumerate(shapes)]
 
 
-def _assemble_pop(natives: list, shape: Shape, native_dims: Shape or None):
+def _assemble_pop(natives: list, shape: Shape, native_dims: Shape | None):
     if shape.is_uniform:
         native = natives.pop(0)
         ndim = choose_backend(native).ndims(native)
@@ -1883,10 +1942,6 @@ def _assemble_pop(natives: list, shape: Shape, native_dims: Shape or None):
         shapes = shape.unstack(s2.name)
         tensors = [NativeTensor(natives.pop(0), s) for s in shapes]
         return TensorStack(tensors, s2)
-
-
-
-
 
 
 MISSING_TENSOR = 'missing'
@@ -1942,7 +1997,8 @@ def disassemble_tree(obj: PhiTreeNodeType) -> Tuple[PhiTreeNodeType, List[Tensor
         try:
             backend = choose_backend(obj)
             sizes = backend.staticshape(obj)
-            shape = Shape(sizes, tuple([f"dim{i}" for i in range(len(sizes))]), (None,) * len(sizes), (None,) * len(sizes))
+            shape = Shape(sizes, tuple([f"dim{i}" for i in range(len(sizes))]), (None,) * len(sizes),
+                          (None,) * len(sizes))
             return NATIVE_TENSOR, [NativeTensor(obj, shape)]
         except NoBackendFound:
             return obj, []
@@ -1974,7 +2030,7 @@ def assemble_tree(obj: PhiTreeNodeType, values: List[Tensor]) -> PhiTreeNodeType
         return obj
 
 
-def cached(t: Tensor or 'PhiTreeNode') -> Tensor or 'PhiTreeNode':
+def cached(t: Tensor | 'PhiTreeNode') -> Tensor | 'PhiTreeNode':
     assert isinstance(t, (Tensor, PhiTreeNode)), f"All arguments must be Tensors but got {type(t)}"
     if isinstance(t, NativeTensor):
         return t
@@ -2023,7 +2079,7 @@ class Dict(dict):
 
     def __value_attrs__(self):
         return tuple(self.keys())
-    
+
     # --- Dict[key] ---
 
     def __getattr__(self, key):
@@ -2040,18 +2096,18 @@ class Dict(dict):
             del self[key]
         except KeyError as k:
             raise AttributeError(k)
-        
+
     # --- operators ---
-    
+
     def __neg__(self):
         return Dict({k: -v for k, v in self.items()})
-    
+
     def __invert__(self):
         return Dict({k: ~v for k, v in self.items()})
-    
+
     def __abs__(self):
         return Dict({k: abs(v) for k, v in self.items()})
-    
+
     def __round__(self, n=None):
         return Dict({k: round(v) for k, v in self.items()})
 
@@ -2182,7 +2238,7 @@ class Dict(dict):
         return Dict(self)
 
 
-def to_dict(value: Tensor or Shape):
+def to_dict(value: Tensor | Shape):
     """
     Returns a serializable form of a `Tensor` or `Shape`.
     The result can be written to a JSON file, for example.
@@ -2309,15 +2365,19 @@ def format_summary(self: Tensor, options: PrintOptions) -> str:
         elif self.dtype.kind == bool:
             result.append(colors.value(f"{self.sum} / {self.shape.volume} True"))
         elif self.dtype.kind in (float, int):
-            min_val, max_val, mean, std = [float(f) for f in [self.finite_min, self.finite_max, self.finite_mean, self.std]]
+            min_val, max_val, mean, std = [float(f) for f in
+                                           [self.finite_min, self.finite_max, self.finite_mean, self.std]]
             if std == 0:
                 result.append(colors.value(f"const {mean:{options.float_format or ''}}"))
             else:
                 if any([abs(val) < 0.001 or abs(val) > 1000 for val in [mean, std]]):
-                    result.append(colors.value(f"{mean:{options.float_format or '.2e'}} ± {std:{options.float_format or '.1e'}}"))
+                    result.append(
+                        colors.value(f"{mean:{options.float_format or '.2e'}} ± {std:{options.float_format or '.1e'}}"))
                 else:
-                    result.append(colors.value(f"{mean:{options.float_format or '.3f'}} ± {std:{options.float_format or '.3f'}}"))
-                result.append(colors.fine(f"({min_val:{options.float_format or '.0e'}}...{max_val:{options.float_format or '.0e'}})"))
+                    result.append(
+                        colors.value(f"{mean:{options.float_format or '.3f'}} ± {std:{options.float_format or '.3f'}}"))
+                result.append(colors.fine(
+                    f"({min_val:{options.float_format or '.0e'}}...{max_val:{options.float_format or '.0e'}})"))
         elif self.dtype.kind == complex:
             result.append(colors.value(f"|...| < {abs(self).max}"))
     except BaseException as err:
@@ -2361,13 +2421,15 @@ def format_full(value: Tensor, options: PrintOptions) -> str:  # multi-line cont
         elif value.shape.spatial_rank == 1:
             for index_dict in value.shape.non_spatial.meshgrid(names=True):
                 if value.shape.non_spatial.volume > 1:
-                    lines.append(f"--- {colors.shape(', '.join(f'{name}={idx}' for name, idx in index_dict.items()))} ---")
+                    lines.append(
+                        f"--- {colors.shape(', '.join(f'{name}={idx}' for name, idx in index_dict.items()))} ---")
                 text = np.array2string(value[index_dict].numpy(dim_order), separator=', ', max_line_width=np.inf)
                 lines.append(' ' + re.sub('[\\[\\]]', '', text))
         elif value.shape.spatial_rank == 2:
             for index_dict in value.shape.non_spatial.meshgrid(names=True):
                 if value.shape.non_spatial.volume > 1:
-                    lines.append(f"--- {colors.shape(', '.join(f'{name}={idx}' for name, idx in index_dict.items()))} ---")
+                    lines.append(
+                        f"--- {colors.shape(', '.join(f'{name}={idx}' for name, idx in index_dict.items()))} ---")
                 text = np.array2string(value[index_dict].numpy(dim_order)[::-1], separator=', ', max_line_width=np.inf)
                 lines.append(' ' + re.sub('[\\[\\]]', '', re.sub('\\],', '', text)))
         else:
@@ -2430,7 +2492,8 @@ def _format_vector(self: Tensor, options: PrintOptions) -> str:
         from ._ops import flatten
         self = flatten(self, channel('flat'))
     if self.shape.get_item_names(0) is not None and options.include_shape is not False:
-        content = ", ".join([f"{item}={_format_number(number, options, self.dtype)}" for number, item in zip(self, self.shape.get_item_names(0))])
+        content = ", ".join([f"{item}={_format_number(number, options, self.dtype)}" for number, item in
+                             zip(self, self.shape.get_item_names(0))])
     else:
         content = ", ".join([_format_number(num, options, self.dtype) for num in self])
     return colors.value(f"({content})")

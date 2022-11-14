@@ -125,7 +125,8 @@ class JupyterNamespace(UserNamespace):
             variables = {n: v for n, v in variables.items() if not n.startswith('_') and n not in hidden}
         if only_current_scope:
             text = shell.user_ns['In'][-1]
-            variables = {n: v for n, v in variables.items() if n in text}  # TODO parse text, only show names with assignment
+            variables = {n: v for n, v in variables.items() if
+                         n in text}  # TODO parse text, only show names with assignment
         return variables
 
     def get_variable(self, name: str, default=None):

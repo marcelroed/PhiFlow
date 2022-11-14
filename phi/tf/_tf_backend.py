@@ -18,7 +18,8 @@ from ._tf_cuda_resample import resample_cuda, use_cuda
 class TFBackend(Backend):
 
     def __init__(self):
-        devices = [ComputeDevice(self, device.name, simple_device_type(device.device_type), device.memory_limit, -1, str(device), device.name) for device in device_lib.list_local_devices()]
+        devices = [ComputeDevice(self, device.name, simple_device_type(device.device_type), device.memory_limit, -1,
+                                 str(device), device.name) for device in device_lib.list_local_devices()]
         # Example refs: '/device:CPU:0'
         default_device_ref = '/' + os.path.basename(tf.zeros(()).device)
         default_device = None
@@ -107,13 +108,16 @@ class TFBackend(Backend):
         compiled = tf.function(f)
         return lambda *args: self.as_registered.call(compiled, *args, name=f"run jit-compiled '{f.__name__}'")
 
-    def custom_gradient(self, f: Callable, gradient: Callable, get_external_cache: Callable = None, on_call_skipped: Callable = None) -> Callable:
+    def custom_gradient(self, f: Callable, gradient: Callable, get_external_cache: Callable = None,
+                        on_call_skipped: Callable = None) -> Callable:
         @tf.custom_gradient
         def tf_function(*args, **kwargs):
             def grad(*grad_args):
                 return gradient(args, y, grad_args)
+
             y = f(*args, **kwargs)
             return y, grad
+
         return tf_function
 
     def transpose(self, tensor, axes):
@@ -130,15 +134,19 @@ class TFBackend(Backend):
             x, y = self.auto_cast(x, y)
             return tf.math.divide_no_nan(x, y)
 
-    def random_uniform(self, shape, low, high, dtype: DType or None):
+    def random_uniform(self, shape, low, high, dtype: DType | None):
         dtype = dtype or self.float_type
         tdt = to_numpy_dtype(dtype)
         with tf.device(self._default_device.ref):
             if dtype.kind != complex:
                 return tf.random.uniform(shape, low, high, dtype=tdt)
             else:
-                real = tf.cast(tf.random.uniform(shape, low.real, high.real, dtype=to_numpy_dtype(DType(float, dtype.precision))), tdt)
-                imag = tf.cast(tf.random.uniform(shape, low.imag, high.imag, dtype=to_numpy_dtype(DType(float, dtype.precision))), tdt)
+                real = tf.cast(
+                    tf.random.uniform(shape, low.real, high.real, dtype=to_numpy_dtype(DType(float, dtype.precision))),
+                    tdt)
+                imag = tf.cast(
+                    tf.random.uniform(shape, low.imag, high.imag, dtype=to_numpy_dtype(DType(float, dtype.precision))),
+                    tdt)
                 return real + 1j * imag
 
     def random_normal(self, shape, dtype: DType):
@@ -257,7 +265,7 @@ class TFBackend(Backend):
         with tf.device(self._default_device.ref):
             return self.to_float(tf.linspace(start, stop, number))
 
-    def tensordot(self, a, a_axes: tuple or list, b, b_axes: tuple or list):
+    def tensordot(self, a, a_axes: tuple | list, b, b_axes: tuple | list):
         with self._device_for(a, b):
             a, b = self.auto_cast(a, b, bool_to_int=True)
             return tf.tensordot(a, b, (a_axes, b_axes))
@@ -310,7 +318,8 @@ class TFBackend(Backend):
             if isinstance(x, (tuple, list)):
                 x = tf.stack(x)
             if x.dtype == tf.bool:
-                return tf.cast(tf.reduce_max(tf.cast(x, tf.uint8), axis=axis, keepdims=keepdims), tf.bool)  # reduce_max allows no bool
+                return tf.cast(tf.reduce_max(tf.cast(x, tf.uint8), axis=axis, keepdims=keepdims),
+                               tf.bool)  # reduce_max allows no bool
             return tf.reduce_max(x, axis=axis, keepdims=keepdims)
 
     def min(self, x, axis=None, keepdims=False):
@@ -318,7 +327,8 @@ class TFBackend(Backend):
             if isinstance(x, (tuple, list)):
                 x = tf.stack(x)
             if x.dtype == tf.bool:
-                return tf.cast(tf.reduce_min(tf.cast(x, tf.uint8), axis=axis, keepdims=keepdims), tf.bool)  # reduce_min allows no bool
+                return tf.cast(tf.reduce_min(tf.cast(x, tf.uint8), axis=axis, keepdims=keepdims),
+                               tf.bool)  # reduce_min allows no bool
             return tf.reduce_min(x, axis=axis, keepdims=keepdims)
 
     def maximum(self, a, b):
@@ -347,21 +357,23 @@ class TFBackend(Backend):
     def conv(self, value, kernel, zero_padding=True):
         with self._device_for(value, kernel):
             value = self.to_float(value)
-            kernel = self.to_float(kernel)  # should use auto_cast but TensorFlow only supports DT_HALF, DT_BFLOAT16, DT_FLOAT, DT_DOUBLE, DT_INT32
+            kernel = self.to_float(
+                kernel)  # should use auto_cast but TensorFlow only supports DT_HALF, DT_BFLOAT16, DT_FLOAT, DT_DOUBLE, DT_INT32
             if zero_padding:
                 value_padding = [[0, 0]] * 2 + [[s // 2, (s - 1) // 2] for s in kernel.shape[3:]]
                 value = tf.pad(value, value_padding)
             convf = {3: partial(tf.nn.conv1d, stride=1),
                      4: partial(tf.nn.conv2d, strides=[1, 1, 1, 1]),
                      5: partial(tf.nn.conv3d, strides=[1, 1, 1, 1, 1])}[len(value.shape)]
-            value = tf.transpose(value, [0, *range(2, self.ndims(value)), 1])  # could use data_format='NC...' but it's supported neither on CPU and for int tensors
+            value = tf.transpose(value, [0, *range(2, self.ndims(value)),
+                                         1])  # could use data_format='NC...' but it's supported neither on CPU and for int tensors
             kernel = tf.transpose(kernel, [0, *range(3, self.ndims(kernel)), 2, 1])
             if kernel.shape[0] == 1:
                 result = convf(value, kernel[0, ...], padding='VALID')
             else:
                 result = []
                 for b in range(kernel.shape[0]):
-                    result.append(convf(value[b:b+1, ...], kernel[b], padding='VALID'))
+                    result.append(convf(value[b:b + 1, ...], kernel[b], padding='VALID'))
                 result = tf.concat(result, 0)
             result = tf.transpose(result, [0, self.ndims(result) - 1, *range(1, self.ndims(result) - 1)])
             return result
@@ -452,7 +464,7 @@ class TFBackend(Backend):
                 result.append(scatter(b_grid, b_indices, b_values))
             return self.stack(result, axis=0)
 
-    def fft(self, x, axes: tuple or list):
+    def fft(self, x, axes: tuple | list):
         if not axes:
             return x
         x = self.to_complex(x)
@@ -470,7 +482,7 @@ class TFBackend(Backend):
                     x = self.fft(x, [axis])
                 return x
 
-    def ifft(self, k, axes: tuple or list):
+    def ifft(self, k, axes: tuple | list):
         if not axes:
             return k
         k = self.to_complex(k)
@@ -631,7 +643,7 @@ class TFBackend(Backend):
             a, b = self.auto_cast(a, b)
             return a // b
 
-    def jacobian(self, f, wrt: tuple or list, get_output: bool, is_f_scalar: bool):
+    def jacobian(self, f, wrt: tuple | list, get_output: bool, is_f_scalar: bool):
         @wraps(f)
         def eval_grad(*args):
             args = [self.as_tensor(arg, True) if i in wrt else arg for i, arg in enumerate(args)]
@@ -639,7 +651,8 @@ class TFBackend(Backend):
             wrt_args = [arg for i, arg in enumerate(args) if i in wrt]
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 for arg in wrt_args:
-                    assert arg.dtype in (tf.float16, tf.float32, tf.float64, tf.complex64, tf.complex128), f"Gradients can only be computed for float or complex tensors but got {arg.dtype} for argument with shape {arg.shape}"
+                    assert arg.dtype in (tf.float16, tf.float32, tf.float64, tf.complex64,
+                                         tf.complex128), f"Gradients can only be computed for float or complex tensors but got {arg.dtype} for argument with shape {arg.shape}"
                     tape.watch(arg)
                 loss, output = f(*args)
             if self.prod(tf.shape(loss)) == 1:
@@ -648,12 +661,14 @@ class TFBackend(Backend):
                 grads = list(self.as_registered.call(tape.jacobian, loss, wrt_args, name=f"Backpropagation"))
             assert None not in grads, f"Gradient could not be computed for wrt argument {grads.index(None)} (argument {wrt[grads.index(None)]}) with shape {wrt_args[grads.index(None)].shape}. TensorFlow returned gradient=None."
             return (*output, *grads) if get_output else grads
+
         return eval_grad
 
     def stop_gradient(self, value):
         return tf.stop_gradient(value)
 
-    def matrix_solve_least_squares(self, matrix: TensorType, rhs: TensorType) -> Tuple[TensorType, TensorType, TensorType, TensorType]:
+    def matrix_solve_least_squares(self, matrix: TensorType, rhs: TensorType) -> Tuple[
+        TensorType, TensorType, TensorType, TensorType]:
         solution = tf.linalg.lstsq(matrix, rhs)
         return solution, None, None, None
 

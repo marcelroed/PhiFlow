@@ -28,28 +28,33 @@ class PlotlyPlots(PlottingLibrary):
                       subplots: Dict[Tuple[int, int], Box],
                       titles: Dict[Tuple[int, int], str]) -> Tuple[Any, Dict[Tuple[int, int], Any]]:
         titles = [titles.get((r, c), None) for r in range(rows) for c in range(cols)]
-        specs = [[{'type': 'xy' if subplots.get((row, col), Box()).spatial_rank < 3 else 'surface'} for col in range(cols)] for row in range(rows)]
+        specs = [
+            [{'type': 'xy' if subplots.get((row, col), Box()).spatial_rank < 3 else 'surface'} for col in range(cols)]
+            for row in range(rows)]
         fig = self.current_figure = make_subplots(rows=rows, cols=cols, subplot_titles=titles, specs=specs)
         for (row, col), bounds in subplots.items():
             subplot = fig.get_subplot(row + 1, col + 1)
             if bounds.spatial_rank == 1:
                 subplot.xaxis.update(title=bounds.vector.item_names[0], range=_get_range(bounds, 0))
             elif bounds.spatial_rank == 2:
-                subplot.xaxis.update(scaleanchor=f'y{subplot.yaxis.plotly_name[5:]}', scaleratio=1, constrain='domain', title=bounds.vector.item_names[0], range=_get_range(bounds, 0))
+                subplot.xaxis.update(scaleanchor=f'y{subplot.yaxis.plotly_name[5:]}', scaleratio=1, constrain='domain',
+                                     title=bounds.vector.item_names[0], range=_get_range(bounds, 0))
                 subplot.yaxis.update(constrain='domain', title=bounds.vector.item_names[1], range=_get_range(bounds, 1))
             elif bounds.spatial_rank == 3:
                 subplot.xaxis.update(title=bounds.vector.item_names[0], range=_get_range(bounds, 0))
                 subplot.yaxis.update(title=bounds.vector.item_names[1], range=_get_range(bounds, 1))
                 subplot.zaxis.update(title=bounds.vector.item_names[2], range=_get_range(bounds, 2))
         fig._phi_size = size
-        return fig, {pos: (pos[0]+1, pos[1]+1) for pos in subplots.keys()}
+        return fig, {pos: (pos[0] + 1, pos[1] + 1) for pos in subplots.keys()}
 
     def animate(self, fig, frames: int, plot_frame_function: Callable, interval: float, repeat: bool):
         raise NotImplementedError()
 
-    def plot(self, data: SampledField, figure: graph_objects.Figure, subplot, space: Box, min_val: float = None, max_val: float = None,
+    def plot(self, data: SampledField, figure: graph_objects.Figure, subplot, space: Box, min_val: float = None,
+             max_val: float = None,
              show_color_bar: bool = True, **plt_args):
-        _plot(data, figure, row=subplot[0], col=subplot[1], size=(800, 600), colormap=None, show_color_bar=show_color_bar, vmin=min_val, vmax=max_val)
+        _plot(data, figure, row=subplot[0], col=subplot[1], size=(800, 600), colormap=None,
+              show_color_bar=show_color_bar, vmin=min_val, vmax=max_val)
 
     def close(self, figure):
         pass
@@ -60,9 +65,8 @@ class PlotlyPlots(PlottingLibrary):
     def save(self, figure: graph_objects.Figure, path: str, dpi: float):
         width, height = figure._phi_size
         figure.layout.update(margin=dict(l=0, r=0, b=0, t=0))
-        scale = dpi/90.
+        scale = dpi / 90.
         figure.write_image(path, width=width * dpi / scale, height=height * dpi / scale, scale=scale)
-
 
 
 PLOTLY = PlotlyPlots()
@@ -98,7 +102,8 @@ def _plot(data: SampledField,
         else:
             for ch_idx in channels.meshgrid():
                 y = math.reshaped_native(real_values(data[ch_idx]), [data.shape.spatial], to_numpy=True)
-                fig.add_trace(graph_objects.Scatter(x=x, y=y, mode='lines+markers', name='Multi-channel'), row=row, col=col)
+                fig.add_trace(graph_objects.Scatter(x=x, y=y, mode='lines+markers', name='Multi-channel'), row=row,
+                              col=col)
             fig.update_layout(showlegend=False)
         if vmin is not None and vmax is not None:
             subplot.yaxis.update(range=(vmin - .02 * (vmax - vmin), vmax + .02 * (vmax - vmin)))
@@ -111,12 +116,14 @@ def _plot(data: SampledField,
         min_val, max_val = min_val if numpy.isfinite(min_val) else 0, max_val if numpy.isfinite(max_val) else 0
         color_scale = get_div_map(min_val, max_val, equal_scale=True, colormap=colormap)
         # color_bar = graph_objects.heatmap.ColorBar(x=1.15)   , colorbar=color_bar
-        fig.add_heatmap(row=row, col=col, x=x, y=y, z=values, zauto=False, zmin=min_val, zmax=max_val, colorscale=color_scale, showscale=show_color_bar)
+        fig.add_heatmap(row=row, col=col, x=x, y=y, z=values, zauto=False, zmin=min_val, zmax=max_val,
+                        colorscale=color_scale, showscale=show_color_bar)
     elif data.spatial_rank == 2 and isinstance(data, Grid):  # vector field
         if isinstance(data, StaggeredGrid):
             data = data.at_centers()
         x, y = math.reshaped_numpy(data.points.vector[dims], [vector, data.shape.non_channel], force_expand=True)
-        u, v = math.reshaped_numpy(data.values.vector[dims], [vector, extra_channels, data.shape.without(vector)], force_expand=True)
+        u, v = math.reshaped_numpy(data.values.vector[dims], [vector, extra_channels, data.shape.without(vector)],
+                                   force_expand=True)
         for ch in range(u.shape[0]):
             # quiver = figure_factory.create_quiver(x, y, data_x[ch], data_y[ch], scale=1.0)  # 7 points per arrow
             # fig.add_trace(quiver, row=row, col=col)
@@ -126,7 +133,8 @@ def _plot(data: SampledField,
             # lines_x = numpy.stack([x, x + data_x_flat, [None] * len(x)], -1).flatten()
             lines_x = numpy.stack([x, x + u_ch, [None] * len(x)], -1).flatten()
             lines_y = numpy.stack([y, y + v_ch, [None] * len(x)], -1).flatten()  # 3 points per arrow
-            name = extra_channels.get_item_names(0)[ch] if extra_channels.rank == 1 and extra_channels.get_item_names(0) is not None else None
+            name = extra_channels.get_item_names(0)[ch] if extra_channels.rank == 1 and extra_channels.get_item_names(
+                0) is not None else None
             fig.add_scatter(x=lines_x, y=lines_y, mode='lines', row=row, col=col, name=name)
         if u.shape[0] == 1:
             fig.update_layout(showlegend=False)
@@ -147,7 +155,8 @@ def _plot(data: SampledField,
         if isinstance(data, StaggeredGrid):
             data = data.at_centers()
         x, y, z = math.reshaped_numpy(data.points.vector[dims], [vector, data.shape.non_channel])
-        u, v, w = math.reshaped_numpy(data.values.vector[dims], [vector, extra_channels, data.shape.non_channel], force_expand=True)
+        u, v, w = math.reshaped_numpy(data.values.vector[dims], [vector, extra_channels, data.shape.non_channel],
+                                      force_expand=True)
         fig.add_cone(x=x.flatten(), y=y.flatten(), z=z.flatten(), u=u.flatten(), v=v.flatten(), w=w.flatten(),
                      colorscale='Blues',
                      sizemode="absolute", sizeref=1,
@@ -318,7 +327,7 @@ def get_color_interpolation(val, cm_arr):
     return center
 
 
-def plot_scalars(curves: tuple or list, labels, subplots=True, log_scale='', smooth: int = 1):
+def plot_scalars(curves: tuple | list, labels, subplots=True, log_scale='', smooth: int = 1):
     if not curves:
         return graph_objects.Figure()
     if subplots:
@@ -356,8 +365,10 @@ def _graph(label: str, x: np.ndarray, y: np.ndarray, smooth: int, index: int, ma
         smooth_x, smooth_y = join_curves(low_res_smooth).T
         transparent_color = f"rgba{color[3:-1]}, 0.4)"
         return [
-            graph_objects.Scatter(x=x, y=y, line=graph_objects.scatter.Line(color=transparent_color, width=1), showlegend=False),
-            graph_objects.Scatter(x=smooth_x, y=smooth_y, name=label, line=graph_objects.scatter.Line(color=color, width=3), mode='lines')
+            graph_objects.Scatter(x=x, y=y, line=graph_objects.scatter.Line(color=transparent_color, width=1),
+                                  showlegend=False),
+            graph_objects.Scatter(x=smooth_x, y=smooth_y, name=label,
+                                  line=graph_objects.scatter.Line(color=color, width=3), mode='lines')
         ]
 
 

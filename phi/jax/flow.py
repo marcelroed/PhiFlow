@@ -18,9 +18,9 @@ import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
 
-
 if not backend.context_backend():
     backend.set_global_default_backend(JAX)
 else:
     from ..math.backend import PHI_LOGGER as _LOGGER
+
     _LOGGER.warning(f"Importing '{__name__}' within a backend context will not set the default backend.")

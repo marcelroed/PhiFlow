@@ -20,7 +20,8 @@ from .physics import fluid, advect, diffuse
 # Classes
 from .math import Tensor, DType, Solve
 from .geom import Geometry, Sphere, Box, Cuboid
-from .field import Grid, CenteredGrid, StaggeredGrid, GeometryMask, SoftGeometryMask, HardGeometryMask, Noise, PointCloud, Scene
+from .field import Grid, CenteredGrid, StaggeredGrid, GeometryMask, SoftGeometryMask, HardGeometryMask, Noise, \
+    PointCloud, Scene
 from .field.numerical import Scheme
 from .vis import Viewer
 from .physics.fluid import Obstacle
@@ -31,9 +32,11 @@ from .math import PI, INF, NAN
 # Functions
 from .math import (
     wrap, tensor, vec,  # Tensor creation
-    shape, spatial, channel, batch, instance, non_spatial, non_channel, non_batch, non_instance,  # Shape functions (magic)
+    shape, spatial, channel, batch, instance, non_spatial, non_channel, non_batch,
+    non_instance,  # Shape functions (magic)
     unstack, stack, concat, expand, rename_dims, pack_dims, unpack_dim, flatten, cast,  # Magic Ops
-    jit_compile, jit_compile_linear, minimize, functional_gradient, solve_linear, solve_nonlinear, iterate,  # jacobian, hessian, custom_gradient # Functional magic
+    jit_compile, jit_compile_linear, minimize, functional_gradient, solve_linear, solve_nonlinear,
+    iterate,  # jacobian, hessian, custom_gradient # Functional magic
 )
 from .geom import union
 from .vis import show, view, control, plot

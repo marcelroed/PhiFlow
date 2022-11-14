@@ -167,7 +167,7 @@ def _recursive_add_parameters(param, wrap: bool, prefix: tuple, result: dict):
             result[name] = phi_tensor
 
 
-def save_state(obj: StaxNet or JaxOptimizer, path: str):
+def save_state(obj: StaxNet | JaxOptimizer, path: str):
     """
     Write the state of a module or optimizer to a file.
 
@@ -187,7 +187,7 @@ def save_state(obj: StaxNet or JaxOptimizer, path: str):
         # numpy.save(path, obj._state)
 
 
-def load_state(obj: StaxNet or JaxOptimizer, path: str):
+def load_state(obj: StaxNet | JaxOptimizer, path: str):
     """
     Read the state of a module or optimizer from a file.
 
@@ -251,7 +251,8 @@ def sgd(net: StaxNet, learning_rate: float = 1e-3, momentum=0, dampening=0, weig
     return opt
 
 
-def adagrad(net: StaxNet, learning_rate: float = 1e-3, lr_decay=0, weight_decay=0, initial_accumulator_value=0, eps=1e-10):
+def adagrad(net: StaxNet, learning_rate: float = 1e-3, lr_decay=0, weight_decay=0, initial_accumulator_value=0,
+            eps=1e-10):
     """
     Creates an Adagrad optimizer for `net`, alias for [`jax.example_libraries.optimizers.adagrad`](https://jax.readthedocs.io/en/latest/jax.example_libraries.optimizers.html).
     Analogue functions exist for other learning frameworks.
@@ -261,7 +262,8 @@ def adagrad(net: StaxNet, learning_rate: float = 1e-3, lr_decay=0, weight_decay=
     return opt
 
 
-def rmsprop(net: StaxNet, learning_rate: float = 1e-3, alpha=0.99, eps=1e-08, weight_decay=0, momentum=0, centered=False):
+def rmsprop(net: StaxNet, learning_rate: float = 1e-3, alpha=0.99, eps=1e-08, weight_decay=0, momentum=0,
+            centered=False):
     """
     Creates an RMSprop optimizer for `net`, alias for [`jax.example_libraries.optimizers.rmsprop`](https://jax.readthedocs.io/en/latest/jax.example_libraries.optimizers.html).
     Analogue functions exist for other learning frameworks.
@@ -441,7 +443,7 @@ def create_upsample():
     return NotImplemented, upsample_apply
 
 
-def conv_classifier(input_shape_list: list, num_classes: int, batch_norm: bool, in_spatial: int or tuple):
+def conv_classifier(input_shape_list: list, num_classes: int, batch_norm: bool, in_spatial: int | tuple):
     if isinstance(in_spatial, int):
         d = in_spatial
         in_spatial = (1,) * d

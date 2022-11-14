@@ -7,7 +7,7 @@ from ._field_math import stack
 from ..math import extrapolation, wrap, tensor, Shape, channel, Tensor, spatial
 
 
-def write(field: SampledField, file: str or Tensor):
+def write(field: SampledField, file: str | Tensor):
     """
     Writes a field to disc using a NumPy file format.
     Depending on `file`, the data may be split up into multiple files.
@@ -64,7 +64,7 @@ def write_single_field(field: SampledField, file: str):
         raise NotImplementedError(f"{type(field)} not implemented. Only Grid allowed.")
 
 
-def read(file: str or Tensor, convert_to_backend=True) -> SampledField:
+def read(file: str | Tensor, convert_to_backend=True) -> SampledField:
     """
     Loads a previously saved `SampledField` from disc.
 
@@ -100,11 +100,13 @@ def read_single_field(file: str, convert_to_backend=True) -> SampledField:
     if ftype in implemented_types:
         data_arr = stored['data']
         dim_item_names = stored.get('dim_item_names', (None,) * len(data_arr.shape))
-        data = tensor(data_arr, Shape(data_arr.shape, tuple(stored['dim_names']), tuple(stored['dim_types']), tuple(dim_item_names)), convert=convert_to_backend)
+        data = tensor(data_arr, Shape(data_arr.shape, tuple(stored['dim_names']), tuple(stored['dim_types']),
+                                      tuple(dim_item_names)), convert=convert_to_backend)
         bounds_item_names = stored.get('bounds_item_names', None)
         if bounds_item_names is None or bounds_item_names.shape == ():  # None or empty array
             bounds_item_names = spatial(data).names
-        lower = wrap(stored['lower'], channel(vector=tuple(bounds_item_names))) if stored['lower'].ndim > 0 else wrap(stored['lower'])
+        lower = wrap(stored['lower'], channel(vector=tuple(bounds_item_names))) if stored['lower'].ndim > 0 else wrap(
+            stored['lower'])
         upper = wrap(stored['upper'], channel(vector=tuple(bounds_item_names)))
         extr = extrapolation.from_dict(stored['extrapolation'][()])
         if ftype == 'CenteredGrid':

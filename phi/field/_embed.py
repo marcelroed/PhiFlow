@@ -33,7 +33,8 @@ class FieldEmbedding(Extrapolation):
     def valid_outer_faces(self, dim) -> tuple:
         return False, False
 
-    def pad_values(self, value: Tensor, width: int, dim: str, upper_edge: bool, bounds: Box = None, already_padded: dict = None, **kwargs) -> Tensor:
+    def pad_values(self, value: Tensor, width: int, dim: str, upper_edge: bool, bounds: Box = None,
+                   already_padded: dict = None, **kwargs) -> Tensor:
         assert bounds is not None, f"{type(self)}.pad() requires 'bounds' argument"
         if already_padded:
             padded_res = spatial(**{dim: lo + up for dim, (lo, up) in already_padded.items()})
@@ -47,7 +48,7 @@ class FieldEmbedding(Extrapolation):
             pad_grid = value_grid.padded({dim: (width, 0)})[{dim: slice(0, width)}]
         result = sample(self.field, pad_grid)
         return result
-    
+
     @property
     def is_flexible(self) -> bool:
         return False
@@ -62,7 +63,8 @@ class FieldEmbedding(Extrapolation):
         return Undefined(self)
 
     def _op(self, other, op):
-        if isinstance(other, ConstantExtrapolation):  # some operations can be handled by ConstantExtrapolation, e.g. * 0
+        if isinstance(other,
+                      ConstantExtrapolation):  # some operations can be handled by ConstantExtrapolation, e.g. * 0
             op = getattr(other, op.__name__)
             result = op(self)
             return Undefined(self) if result is NotImplemented else result

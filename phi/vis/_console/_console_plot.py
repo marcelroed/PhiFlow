@@ -35,7 +35,6 @@ class ConsolePlots(PlottingLibrary):
 
 CONSOLE = ConsolePlots()
 
-
 FILLED = [' ', '.', ':', '-', '=', '+', '*', '#', '%', '@']
 
 
@@ -54,8 +53,8 @@ def heatmap(grid: Grid, cols: int, rows: int, title: str):
     lines.append("   " + underline(padded_title) + "\033[0m ")
     for index_row in col_indices[::-1]:
         line = [FILLED[col_index] for col_index in index_row]
-        lines.append("  |" + "".join(line)+"|")
-    lines[-1] = lines[-1][:3] + underline(lines[-1][3:inner_cols+3]) + lines[-1][inner_cols+3:]
+        lines.append("  |" + "".join(line) + "|")
+    lines[-1] = lines[-1][:3] + underline(lines[-1][3:inner_cols + 3]) + lines[-1][inner_cols + 3:]
     return lines
 
 
@@ -80,6 +79,6 @@ def quiver(grid: Grid, cols: int, rows: int, title: str, threshold: float, basic
             else:
                 arrow = get_arrow(u, v, thick=len_squared >= thick_threshold, basic_char=basic_chars)
             line += arrow
-        lines.append("  |" + "".join(line)+"|")
-    lines[-1] = lines[-1][:3] + underline(lines[-1][3:inner_cols+3]) + lines[-1][inner_cols+3:]
+        lines.append("  |" + "".join(line) + "|")
+    lines[-1] = lines[-1][:3] + underline(lines[-1][3:inner_cols + 3]) + lines[-1][inner_cols + 3:]
     return lines

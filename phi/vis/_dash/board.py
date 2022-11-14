@@ -2,8 +2,8 @@ import logging
 import os
 import traceback
 
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 from dash.dependencies import Output, Input
 from dash.exceptions import PreventUpdate
 from plotly import graph_objects
@@ -79,9 +79,11 @@ def build_tf_profiler(dashapp):
         if step_count != step_count:
             output += 'The profiling run was stopped prematurely.  \n'
         output += 'Finished %d steps in %.03f seconds.' % (step_count, time_elapsed)
-        output += '  \n*Average*: %.04f seconds per step, %.02f steps per second.' % (time_elapsed / step_count, step_count / time_elapsed)
+        output += '  \n*Average*: %.04f seconds per step, %.02f steps per second.' % (
+        time_elapsed / step_count, step_count / time_elapsed)
         output += '  \nProfile saved. Open  \n*chrome://tracing/*  \n and load file  \n *%s*' % timeline_file
         return output
+
     return layout
 
 
@@ -97,14 +99,16 @@ def build_tensorboard_launcher(dashapp):
         html.Div(style={'display': 'none'}, id=TENSORBOARD_STATUS.component_id),
     ])
 
-    @dashapp.dash.callback(Output('tensorboard-div', 'children'), [Input('tensorboard-init', 'n_intervals'), TENSORBOARD_STATUS])
+    @dashapp.dash.callback(Output('tensorboard-div', 'children'),
+                           [Input('tensorboard-init', 'n_intervals'), TENSORBOARD_STATUS])
     def update(*_):
         if 'tensorboard_url' in dashapp.config:
             return html.A('TensorBoard', href=dashapp.config['tensorboard_url'], id='tensorboard-href')
         else:
             return html.Button('Launch TensorBoard', id='launch-tensorboard')
 
-    @dashapp.dash.callback(Output(TENSORBOARD_STATUS.component_id, TENSORBOARD_STATUS.component_property), [Input('launch-tensorboard', 'n_clicks')])
+    @dashapp.dash.callback(Output(TENSORBOARD_STATUS.component_id, TENSORBOARD_STATUS.component_property),
+                           [Input('launch-tensorboard', 'n_clicks')])
     def launch_tensorboard(clicks):
         if clicks:
             logging.info('Launching TensorBoard...')
@@ -148,12 +152,16 @@ def build_graph_view(dashapp):
         html.H2("Graphs"),
         html.Div([
             html.Button('Refresh now', id=REFRESH_GRAPHS_BUTTON.component_id),
-            dcc.Checklist(id='auto-refresh-checkbox', options=[{'label': 'Auto-refresh', 'value': 'refresh'}], value=['refresh'], style={'display': 'inline-block'}),
-            dcc.Checklist(id='subplots-checkbox', options=[{'label': 'Subplots', 'value': 'subplots'}], value=['subplots'], style={'display': 'inline-block'}),
+            dcc.Checklist(id='auto-refresh-checkbox', options=[{'label': 'Auto-refresh', 'value': 'refresh'}],
+                          value=['refresh'], style={'display': 'inline-block'}),
+            dcc.Checklist(id='subplots-checkbox', options=[{'label': 'Subplots', 'value': 'subplots'}],
+                          value=['subplots'], style={'display': 'inline-block'}),
             html.Div(style={'display': 'inline-block', 'width': '200px'}, children=[
                 dcc.Slider(id='smooth-slider', min=1, max=10, marks={1: 'Off', 5: '25 steps', 10: '100'}),
             ]),
-            dcc.Checklist(id='log-graph-checkbox', options=[{'label': 'Log(x)', 'value': 'x'}, {'label': 'Log(y)', 'value': 'y'}], value=['y'], style={'display': 'inline-block'}),
+            dcc.Checklist(id='log-graph-checkbox',
+                          options=[{'label': 'Log(x)', 'value': 'x'}, {'label': 'Log(y)', 'value': 'y'}], value=['y'],
+                          style={'display': 'inline-block'}),
         ]),
         dcc.Interval(id='graph-update', interval=5000, disabled=False),
         html.Div(id='graph-figure-container', style={'height': 600, 'width': '100%'}, children=[
@@ -161,12 +169,16 @@ def build_graph_view(dashapp):
         ])
     ])
 
-    @dashapp.dash.callback(Output('board-graph', 'figure'), [Input('subplots-checkbox', 'value'), Input('smooth-slider', 'value'), Input('log-graph-checkbox', 'value'), REFRESH_GRAPHS_BUTTON, Input('graph-update', 'n_intervals')])
+    @dashapp.dash.callback(Output('board-graph', 'figure'),
+                           [Input('subplots-checkbox', 'value'), Input('smooth-slider', 'value'),
+                            Input('log-graph-checkbox', 'value'), REFRESH_GRAPHS_BUTTON,
+                            Input('graph-update', 'n_intervals')])
     def update_figure(subplots, smooth, log_scale, _n1, _n2):
         curves = [dashapp.model.get_curve(n) for n in dashapp.model.curve_names]
         labels = [display_name(n) for n in dashapp.model.curve_names]
         try:
-            figure = plot_scalars(curves, labels, subplots=bool(subplots), log_scale=log_scale, smooth=(smooth or 1) ** 2)
+            figure = plot_scalars(curves, labels, subplots=bool(subplots), log_scale=log_scale,
+                                  smooth=(smooth or 1) ** 2)
             return figure
         except BaseException as err:
             traceback.print_exc()

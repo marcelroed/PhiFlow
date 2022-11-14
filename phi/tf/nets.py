@@ -59,7 +59,7 @@ def get_parameters(model: keras.Model, wrap=True) -> dict:
     return result
 
 
-def save_state(obj: keras.models.Model or keras.optimizers.Optimizer, path: str):
+def save_state(obj: keras.models.Model | keras.optimizers.Optimizer, path: str):
     """
     Write the state of a module or optimizer to a file.
 
@@ -84,7 +84,7 @@ def save_state(obj: keras.models.Model or keras.optimizers.Optimizer, path: str)
         raise ValueError("obj must be a Keras model or optimizer")
 
 
-def load_state(obj: keras.models.Model or keras.optimizers.Optimizer, path: str):
+def load_state(obj: keras.models.Model | keras.optimizers.Optimizer, path: str):
     """
     Read the state of a module or optimizer from a file.
 
@@ -109,7 +109,8 @@ def load_state(obj: keras.models.Model or keras.optimizers.Optimizer, path: str)
         raise ValueError("obj must be a Keras model or optimizer")
 
 
-def update_weights(net: keras.Model, optimizer: keras.optimizers.Optimizer, loss_function: Callable, *loss_args, **loss_kwargs):
+def update_weights(net: keras.Model, optimizer: keras.optimizers.Optimizer, loss_function: Callable, *loss_args,
+                   **loss_kwargs):
     """
     Computes the gradients of `loss_function` w.r.t. the parameters of `net` and updates its weights using `optimizer`.
 
@@ -149,7 +150,8 @@ def sgd(net: keras.Model, learning_rate: float = 1e-3, momentum=0, dampening=0, 
     return keras.optimizers.SGD(learning_rate, momentum, nesterov)
 
 
-def adagrad(net: keras.Model, learning_rate: float = 1e-3, lr_decay=0, weight_decay=0, initial_accumulator_value=0, eps=1e-10):
+def adagrad(net: keras.Model, learning_rate: float = 1e-3, lr_decay=0, weight_decay=0, initial_accumulator_value=0,
+            eps=1e-10):
     """
     Creates an Adagrad optimizer for 'net', alias for ['keras.optimizers.Adagrad'](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/Adagrad)
     Analogous functions exist for other learning frameworks.
@@ -157,7 +159,8 @@ def adagrad(net: keras.Model, learning_rate: float = 1e-3, lr_decay=0, weight_de
     return keras.optimizers.Adagrad(learning_rate, initial_accumulator_value, eps)
 
 
-def rmsprop(net: keras.Model, learning_rate: float = 1e-3, alpha=0.99, eps=1e-08, weight_decay=0, momentum=0, centered=False):
+def rmsprop(net: keras.Model, learning_rate: float = 1e-3, alpha=0.99, eps=1e-08, weight_decay=0, momentum=0,
+            centered=False):
     """
     Creates an RMSProp optimizer for 'net', alias for ['keras.optimizers.RMSprop'](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/RMSprop)
     Analogous functions exist for other learning frameworks.
@@ -202,16 +205,29 @@ def u_net(in_channels: int,
         filters = (filters,) * levels
     # --- Construct the U-Net ---
     x = inputs = keras.Input(shape=in_spatial + (in_channels,))
-    x = resnet_block(x, x.shape[-1], filters[0], batch_norm, activation, d) if use_res_blocks else double_conv(x, d, filters[0], filters[0], batch_norm, activation)
+    x = resnet_block(x, x.shape[-1], filters[0], batch_norm, activation, d) if use_res_blocks else double_conv(x, d,
+                                                                                                               filters[
+                                                                                                                   0],
+                                                                                                               filters[
+                                                                                                                   0],
+                                                                                                               batch_norm,
+                                                                                                               activation)
     xs = [x]
     for i in range(1, levels):
         x = MAX_POOL[d](2, padding="same")(x)
-        x = resnet_block(x, x.shape[-1], filters[i], batch_norm, activation, d) if use_res_blocks else double_conv(x, d, filters[i], filters[i], batch_norm, activation)
+        x = resnet_block(x, x.shape[-1], filters[i], batch_norm, activation, d) if use_res_blocks else double_conv(x, d,
+                                                                                                                   filters[
+                                                                                                                       i],
+                                                                                                                   filters[
+                                                                                                                       i],
+                                                                                                                   batch_norm,
+                                                                                                                   activation)
         xs.insert(0, x)
     for i in range(1, levels):
         x = UPSAMPLE[d](2)(x)
         x = kl.Concatenate()([x, xs[i]])
-        x = resnet_block(x, x.shape[-1], filters[i - 1], batch_norm, activation, d) if use_res_blocks else double_conv(x, d, filters[i - 1], filters[i - 1], batch_norm, activation)
+        x = resnet_block(x, x.shape[-1], filters[i - 1], batch_norm, activation, d) if use_res_blocks else double_conv(
+            x, d, filters[i - 1], filters[i - 1], batch_norm, activation)
     x = CONV[d](out_channels, 1)(x)
     return keras.Model(inputs, x)
 
@@ -343,7 +359,7 @@ def res_net(in_channels: int,
     return keras.Model(inputs, out)
 
 
-def conv_classifier(input_shape: list, num_classes: int, batch_norm: bool, in_spatial: int or tuple):
+def conv_classifier(input_shape: list, num_classes: int, batch_norm: bool, in_spatial: int | tuple):
     if isinstance(in_spatial, int):
         d = in_spatial
         in_spatial = (None,) * d

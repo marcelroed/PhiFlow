@@ -19,7 +19,8 @@ class Grid(SampledField):
     Base class for `CenteredGrid` and `StaggeredGrid`.
     """
 
-    def __init__(self, elements: Geometry, values: Tensor, extrapolation: float or Extrapolation, resolution: Shape or int, bounds: Box or float):
+    def __init__(self, elements: Geometry, values: Tensor, extrapolation: float | Extrapolation,
+                 resolution: Shape | int, bounds: Box | float):
         assert isinstance(bounds, Box)
         assert isinstance(resolution, Shape)
         if bounds.size.vector.item_names is None:
@@ -73,7 +74,8 @@ class Grid(SampledField):
     def __eq__(self, other):
         if not type(self) == type(other):
             return False
-        if not (self._bounds == other._bounds and self._resolution == other._resolution and self._extrapolation == other._extrapolation):
+        if not (
+                self._bounds == other._bounds and self._resolution == other._resolution and self._extrapolation == other._extrapolation):
             return False
         if self.values is None:
             return other.values is None
@@ -224,7 +226,8 @@ class CenteredGrid(Grid):
         local_points = self.box.global_to_local(points) * self.resolution - 0.5
         resampled_values = math.grid_sample(self.values, local_points, self.extrapolation, bounds=self.bounds)
         if isinstance(self._extrapolation, FieldEmbedding):
-            if isinstance(geometry, GridCell) and ((geometry.bounds.upper <= self.bounds.upper).all or (geometry.bounds.lower >= self.bounds.lower).all):
+            if isinstance(geometry, GridCell) and ((geometry.bounds.upper <= self.bounds.upper).all or (
+                    geometry.bounds.lower >= self.bounds.lower).all):
                 # geometry is a subgrid of self
                 return resampled_values
             else:  # otherwise we also sample the extrapolation Field
@@ -303,7 +306,8 @@ class StaggeredGrid(Grid):
         extrapolation = as_extrapolation(extrapolation)
         if resolution is None and not resolution_:
             assert isinstance(values, Tensor), "Grid resolution must be specified when 'values' is not a Tensor."
-            if not all(extrapolation.valid_outer_faces(d)[0] != extrapolation.valid_outer_faces(d)[1] for d in spatial(values).names):  # non-uniform values required
+            if not all(extrapolation.valid_outer_faces(d)[0] != extrapolation.valid_outer_faces(d)[1] for d in
+                       spatial(values).names):  # non-uniform values required
                 if values.shape.is_uniform:
                     values = unstack_staggered_tensor(values, extrapolation)
                 resolution = resolution_from_staggered_tensor(values, extrapolation)
@@ -319,11 +323,13 @@ class StaggeredGrid(Grid):
             if isinstance(values, math.Tensor):
                 if not spatial(values):
                     values = expand_staggered(values, resolution, extrapolation)
-                if not all(extrapolation.valid_outer_faces(d)[0] != extrapolation.valid_outer_faces(d)[1] for d in resolution.names):  # non-uniform values required
+                if not all(extrapolation.valid_outer_faces(d)[0] != extrapolation.valid_outer_faces(d)[1] for d in
+                           resolution.names):  # non-uniform values required
                     if values.shape.is_uniform:
                         values = unstack_staggered_tensor(values, extrapolation)
                     else:  # Keep dim order from data and check it matches resolution
-                        assert set(resolution_from_staggered_tensor(values, extrapolation)) == set(resolution), f"Failed to create StaggeredGrid: values {values.shape} do not match given resolution {resolution} for extrapolation {extrapolation}. See https://tum-pbs.github.io/PhiFlow/Staggered_Grids.html"
+                        assert set(resolution_from_staggered_tensor(values, extrapolation)) == set(
+                            resolution), f"Failed to create StaggeredGrid: values {values.shape} do not match given resolution {resolution} for extrapolation {extrapolation}. See https://tum-pbs.github.io/PhiFlow/Staggered_Grids.html"
             elif isinstance(values, Geometry):
                 values = reduce_sample(HardGeometryMask(values), elements, scheme=scheme)
             elif isinstance(values, Field):
@@ -331,10 +337,12 @@ class StaggeredGrid(Grid):
             elif callable(values):
                 values = _sample_function(values, elements)
                 if elements.shape.shape.rank > 1:  # Different number of X and Y faces
-                    assert isinstance(values, TensorStack), f"values function must return a staggered Tensor but returned {type(values)}"
+                    assert isinstance(values,
+                                      TensorStack), f"values function must return a staggered Tensor but returned {type(values)}"
                 assert 'staggered_direction' in values.shape
                 if 'vector' in values.shape:
-                    values = math.stack([values.staggered_direction[i].vector[i] for i in range(resolution.rank)], channel(vector=resolution))
+                    values = math.stack([values.staggered_direction[i].vector[i] for i in range(resolution.rank)],
+                                        channel(vector=resolution))
                 else:
                     values = values.staggered_direction.as_channel('vector')
             else:
@@ -350,7 +358,8 @@ class StaggeredGrid(Grid):
 
     def with_extrapolation(self, extrapolation: Extrapolation):
         extrapolation = as_extrapolation(extrapolation)
-        if all([extrapolation.valid_outer_faces(dim) == self.extrapolation.valid_outer_faces(dim) for dim in self.resolution.names]):
+        if all([extrapolation.valid_outer_faces(dim) == self.extrapolation.valid_outer_faces(dim) for dim in
+                self.resolution.names]):
             return StaggeredGrid(self.values, extrapolation=extrapolation, bounds=self.bounds)
         else:
             values = []
@@ -447,7 +456,8 @@ class StaggeredGrid(Grid):
         return result
 
     def _op2(self, other, operator):
-        if isinstance(other, StaggeredGrid) and self.bounds == other.bounds and self.shape.spatial == other.shape.spatial:
+        if isinstance(other,
+                      StaggeredGrid) and self.bounds == other.bounds and self.shape.spatial == other.shape.spatial:
             values = operator(self._values, other.values)
             extrapolation_ = operator(self._extrapolation, other.extrapolation)
             return StaggeredGrid(values=values, extrapolation=extrapolation_, bounds=self.bounds)
@@ -522,11 +532,12 @@ def _sample_function(f, elements: Geometry):
     return values
 
 
-def _get_bounds(bounds: Box or float or None, resolution: Shape):
+def _get_bounds(bounds: Box | float | None, resolution: Shape):
     if bounds is None:
         return Box(math.const_vec(0, resolution), math.wrap(resolution, channel(vector=resolution.names)))
     if isinstance(bounds, Box):
-        assert set(bounds.vector.item_names) == set(resolution.names), f"bounds dimensions {bounds.vector.item_names} must match resolution {resolution}"
+        assert set(bounds.vector.item_names) == set(
+            resolution.names), f"bounds dimensions {bounds.vector.item_names} must match resolution {resolution}"
         return bounds
     if isinstance(bounds, (int, float)):
         return Box(math.const_vec(0, resolution), math.const_vec(bounds, resolution))
@@ -541,5 +552,6 @@ def _get_resolution(resolution: Shape, resolution_: dict, bounds: Box):
     try:
         resolution_ = spatial(**resolution_)
     except AssertionError as err:
-        raise ValueError(f"Invalid grid resolution: {', '.join(f'{dim}={size}' for dim, size in resolution_.items())}. Pass an int for all sizes.") from err
+        raise ValueError(
+            f"Invalid grid resolution: {', '.join(f'{dim}={size}' for dim, size in resolution_.items())}. Pass an int for all sizes.") from err
     return (resolution or math.EMPTY_SHAPE) & resolution_

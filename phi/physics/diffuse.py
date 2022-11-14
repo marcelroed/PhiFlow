@@ -56,6 +56,7 @@ def implicit(field: FieldType,
     Returns:
         Diffused field of same type as `field`.
     """
+
     @jit_compile_linear
     def sharpen(x):
         return explicit(x, diffusivity, -dt, substeps=order)

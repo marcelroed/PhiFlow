@@ -55,7 +55,8 @@ def convert(x, backend: Backend = None, use_dlpack=True):
     if isinstance(x, Tensor):
         return x._op1(lambda native: b_convert(native, backend, use_dlpack=use_dlpack))
     elif isinstance(x, PhiTreeNode):
-        return copy_with(x, **{a: convert(getattr(x, a), backend, use_dlpack=use_dlpack) for a in variable_attributes(x)})
+        return copy_with(x,
+                         **{a: convert(getattr(x, a), backend, use_dlpack=use_dlpack) for a in variable_attributes(x)})
     else:
         return choose_backend(x).as_tensor(x)
 
@@ -108,7 +109,7 @@ def seed(seed: int):
     random.seed(0)
 
 
-def native(value: Tensor or Number or tuple or list or Any):
+def native(value: Tensor | Number | tuple | list | Any):
     """
     Returns the native tensor representation of `value`.
     If `value` is a `phi.math.Tensor`, this is equal to calling `phi.math.Tensor.native()`.
@@ -130,7 +131,7 @@ def native(value: Tensor or Number or tuple or list or Any):
         return value
 
 
-def numpy(value: Tensor or Number or tuple or list or Any):
+def numpy(value: Tensor | Number | tuple | list | Any):
     """
     Converts `value` to a `numpy.ndarray` where value must be a `Tensor`, backend tensor or tensor-like.
     If `value` is a `phi.math.Tensor`, this is equal to calling `phi.math.Tensor.numpy()`.
@@ -183,7 +184,8 @@ def reshaped_native(value: Tensor,
     for i, group in enumerate(groups):
         if isinstance(group, Shape):
             present = value.shape.only(group)
-            if force_expand is True or present.volume > 1 or (force_expand is not False and group.only(force_expand).volume > 1):
+            if force_expand is True or present.volume > 1 or (
+                    force_expand is not False and group.only(force_expand).volume > 1):
                 value = expand(value, group)
             value = pack_dims(value, group, batch(f"group{i}"))
             order.append(f"group{i}")
@@ -193,7 +195,7 @@ def reshaped_native(value: Tensor,
     return value.numpy(order) if to_numpy else value.native(order)
 
 
-def reshaped_numpy(value: Tensor, groups: tuple or list, force_expand: Any = False):
+def reshaped_numpy(value: Tensor, groups: tuple | list, force_expand: Any = False):
     """
     Returns the NumPy representation of `value` where dimensions are laid out according to `groups`.
 
@@ -305,7 +307,8 @@ def native_call(f: Callable, *inputs: Tensor, channels_last=None, channel_dim='v
     spatial = merge_shapes(*[i.shape.spatial for i in inputs])
     natives = []
     for i in inputs:
-        groups = (batch, *i.shape.spatial.names, i.shape.channel) if channels_last else (batch, i.shape.channel, *i.shape.spatial.names)
+        groups = (batch, *i.shape.spatial.names, i.shape.channel) if channels_last else (
+        batch, i.shape.channel, *i.shape.spatial.names)
         natives.append(reshaped_native(i, groups))
     output = f(*natives)
     if isinstance(channel_dim, str):
@@ -327,7 +330,7 @@ def native_call(f: Callable, *inputs: Tensor, channels_last=None, channel_dim='v
         return result
 
 
-def print_(obj: Tensor or PhiTreeNode or Number or tuple or list or None = None, name: str = ""):
+def print_(obj: Tensor | PhiTreeNode | Number | tuple | list | None = None, name: str = ""):
     """
     Print a tensor with no more than two spatial dimensions, slicing it along all batch and channel dimensions.
     
@@ -342,6 +345,7 @@ def print_(obj: Tensor or PhiTreeNode or Number or tuple or list or None = None,
     Returns:
 
     """
+
     def variables(obj) -> dict:
         if hasattr(obj, '__variable_attrs__') or hasattr(obj, '__value_attrs__'):
             return {f".{a}": getattr(obj, a) for a in variable_attributes(obj)}
@@ -365,7 +369,7 @@ def print_(obj: Tensor or PhiTreeNode or Number or tuple or list or None = None,
         print(f"{wrap(obj):full}")
 
 
-def map_(function, *values, **kwargs) -> Tensor or None:
+def map_(function, *values, **kwargs) -> Tensor | None:
     """
     Calls `function` on all elements of `value`.
 
@@ -417,10 +421,11 @@ def zeros(*shape: Shape, dtype=None) -> Tensor:
     Returns:
         `Tensor`
     """
-    return _initialize(lambda shape: CollapsedTensor(NativeTensor(default_backend().zeros((), dtype=DType.as_dtype(dtype)), EMPTY_SHAPE), shape), shape)
+    return _initialize(lambda shape: CollapsedTensor(
+        NativeTensor(default_backend().zeros((), dtype=DType.as_dtype(dtype)), EMPTY_SHAPE), shape), shape)
 
 
-def zeros_like(obj: Tensor or PhiTreeNode) -> Tensor or PhiTreeNode:
+def zeros_like(obj: Tensor | PhiTreeNode) -> Tensor | PhiTreeNode:
     """ Create a `Tensor` containing only `0.0` / `0` / `False` with the same shape and dtype as `obj`. """
     nest, values = disassemble_tree(obj)
     zeros_ = []
@@ -447,7 +452,8 @@ def ones(*shape: Shape, dtype=None) -> Tensor:
     Returns:
         `Tensor`
     """
-    return _initialize(lambda shape: CollapsedTensor(NativeTensor(default_backend().ones((), dtype=DType.as_dtype(dtype)), EMPTY_SHAPE), shape), shape)
+    return _initialize(lambda shape: CollapsedTensor(
+        NativeTensor(default_backend().ones((), dtype=DType.as_dtype(dtype)), EMPTY_SHAPE), shape), shape)
 
 
 def ones_like(value: Tensor) -> Tensor:
@@ -498,8 +504,10 @@ def random_uniform(*shape: Shape,
     Returns:
         `Tensor`
     """
+
     def uniform_random_uniform(shape):
-        native = choose_backend(low, high, *shape.sizes, prefer_default=True).random_uniform(shape.sizes, low, high, DType.as_dtype(dtype))
+        native = choose_backend(low, high, *shape.sizes, prefer_default=True).random_uniform(shape.sizes, low, high,
+                                                                                             DType.as_dtype(dtype))
         return NativeTensor(native, shape)
 
     return _initialize(uniform_random_uniform, shape)
@@ -555,7 +563,7 @@ def cumulative_sum(x: Tensor, dim: DimFilter):
     return NativeTensor(native_result, x.shape)
 
 
-def fftfreq(resolution: Shape, dx: Tensor or float = 1, dtype: DType = None):
+def fftfreq(resolution: Shape, dx: Tensor | float = 1, dtype: DType = None):
     """
     Returns the discrete Fourier transform sample frequencies.
     These are the frequencies corresponding to the components of the result of `math.fft` on a tensor of shape `resolution`.
@@ -573,7 +581,8 @@ def fftfreq(resolution: Shape, dx: Tensor or float = 1, dtype: DType = None):
     return to_float(k) if dtype is None else cast(k, dtype)
 
 
-def meshgrid(dim_type=spatial, stack_dim=channel('vector'), assign_item_names=True, **dimensions: int or Tensor) -> Tensor:
+def meshgrid(dim_type=spatial, stack_dim=channel('vector'), assign_item_names=True,
+             **dimensions: int | Tensor) -> Tensor:
     """
     Generate a mesh-grid `Tensor` from keyword dimensions.
 
@@ -614,7 +623,7 @@ def meshgrid(dim_type=spatial, stack_dim=channel('vector'), assign_item_names=Tr
         return stack_tensors(channels, stack_dim)
 
 
-def linspace(start: int or Tensor, stop, dim: Shape) -> Tensor:
+def linspace(start: int | Tensor, stop, dim: Shape) -> Tensor:
     """
     Returns `number` evenly spaced numbers between `start` and `stop`.
 
@@ -639,7 +648,7 @@ def linspace(start: int or Tensor, stop, dim: Shape) -> Tensor:
         return map_(linspace, start, stop, dim=dim)
 
 
-def arange(dim: Shape, start_or_stop: int or None = None, stop: int or None = None, step=1):
+def arange(dim: Shape, start_or_stop: int | None = None, stop: int | None = None, step=1):
     """
     Returns evenly spaced values between `start` and `stop`.
     If only one limit is given, `0` is used for the start.
@@ -687,7 +696,7 @@ def range_tensor(shape: Shape):
     return unpack_dim(data, 'range', shape)
 
 
-def stack_tensors(values: tuple or list, dim: Shape):
+def stack_tensors(values: tuple | list, dim: Shape):
     values = [wrap(v) for v in values]
     values = cast_same(*values)
 
@@ -698,24 +707,26 @@ def stack_tensors(values: tuple or list, dim: Shape):
     return result
 
 
-def concat_tensor(values: tuple or list, dim: str) -> Tensor:
+def concat_tensor(values: tuple | list, dim: str) -> Tensor:
     assert len(values) > 0, "concat() got empty sequence"
     assert isinstance(dim, str), f"dim must be a single-dimension Shape but got '{dim}' of type {type(dim)}"
 
     def inner_concat(*values):
-        broadcast_shape = merge_shapes(*[t.shape._with_item_name(dim, None).with_sizes([None] * t.shape.rank) for t in values])
+        broadcast_shape = merge_shapes(
+            *[t.shape._with_item_name(dim, None).with_sizes([None] * t.shape.rank) for t in values])
         natives = [v.native(order=broadcast_shape.names) for v in values]
         backend = choose_backend(*natives)
         concatenated = backend.concat(natives, broadcast_shape.index(dim))
         if all([v.shape.get_item_names(dim) is not None for v in values]):
-            broadcast_shape = broadcast_shape._with_item_name(dim, sum([v.shape.get_item_names(dim) for v in values], ()))
+            broadcast_shape = broadcast_shape._with_item_name(dim,
+                                                              sum([v.shape.get_item_names(dim) for v in values], ()))
         return NativeTensor(concatenated, broadcast_shape.with_sizes(backend.staticshape(concatenated)))
 
     result = broadcast_op(inner_concat, values)
     return result
 
 
-def pad(value: Tensor, widths: dict, mode: 'e_.Extrapolation' or Tensor or Number, **kwargs) -> Tensor:
+def pad(value: Tensor, widths: dict, mode: 'e_.Extrapolation' | Tensor | Number, **kwargs) -> Tensor:
     """
     Pads a tensor along the specified dimensions, determining the added values using the given extrapolation.
     Unlike `Extrapolation.pad()`, this function can handle negative widths which slice off outer values.
@@ -763,7 +774,9 @@ def closest_grid_values(grid: Tensor,
       Tensor of shape (batch, coord_spatial, grid_spatial=(2, 2,...), grid_channel)
 
     """
-    return broadcast_op(functools.partial(_closest_grid_values, extrap=extrap, stack_dim_prefix=stack_dim_prefix, pad_kwargs=kwargs), [grid, coordinates])
+    return broadcast_op(
+        functools.partial(_closest_grid_values, extrap=extrap, stack_dim_prefix=stack_dim_prefix, pad_kwargs=kwargs),
+        [grid, coordinates])
 
 
 def _closest_grid_values(grid: Tensor,
@@ -773,7 +786,8 @@ def _closest_grid_values(grid: Tensor,
                          pad_kwargs: dict):
     # alternative method: pad array for all 2^d combinations, then stack to simplify gather.
     # --- Pad tensor where transform is not possible ---
-    non_copy_pad = {dim: (0 if extrap.is_copy_pad(dim, False) else 1, 0 if extrap.is_copy_pad(dim, True) else 1) for dim in grid.shape.spatial.names}
+    non_copy_pad = {dim: (0 if extrap.is_copy_pad(dim, False) else 1, 0 if extrap.is_copy_pad(dim, True) else 1) for dim
+                    in grid.shape.spatial.names}
     grid = extrap.pad(grid, non_copy_pad, **pad_kwargs)
     coordinates += wrap([not extrap.is_copy_pad(dim, False) for dim in grid.shape.spatial.names], channel('vector'))
     # --- Transform coordiantes ---
@@ -791,7 +805,8 @@ def _closest_grid_values(grid: Tensor,
         else:
             values_left = left_right(is_hi_by_axis_left, ax_idx + 1)
             values_right = left_right(is_hi_by_axis_right, ax_idx + 1)
-        return stack_tensors([values_left, values_right], channel(f"{stack_dim_prefix}{grid.shape.spatial.names[ax_idx]}"))
+        return stack_tensors([values_left, values_right],
+                             channel(f"{stack_dim_prefix}{grid.shape.spatial.names[ax_idx]}"))
 
     result = left_right(np.array([False] * grid.shape.spatial_rank), 0)
     return result
@@ -820,7 +835,7 @@ def grid_sample(grid: Tensor, coordinates: Tensor, extrap: 'e_.Extrapolation', *
     return result
 
 
-def _grid_sample(grid: Tensor, coordinates: Tensor, extrap: 'e_.Extrapolation' or None, pad_kwargs: dict):
+def _grid_sample(grid: Tensor, coordinates: Tensor, extrap: 'e_.Extrapolation' | None, pad_kwargs: dict):
     if grid.shape.batch == coordinates.shape.batch or grid.shape.batch.volume == 1 or coordinates.shape.batch.volume == 1:
         # call backend.grid_sample()
         batch = grid.shape.batch & coordinates.shape.batch
@@ -828,11 +843,13 @@ def _grid_sample(grid: Tensor, coordinates: Tensor, extrap: 'e_.Extrapolation' o
         result = NotImplemented
         if extrap is None:
             result = backend.grid_sample(reshaped_native(grid, [batch, *grid.shape.spatial, grid.shape.channel]),
-                                         reshaped_native(coordinates, [batch, *coordinates.shape.instance, *coordinates.shape.spatial, 'vector']),
+                                         reshaped_native(coordinates, [batch, *coordinates.shape.instance,
+                                                                       *coordinates.shape.spatial, 'vector']),
                                          'undefined')
         elif extrap.native_grid_sample_mode:
             result = backend.grid_sample(reshaped_native(grid, [batch, *grid.shape.spatial, grid.shape.channel]),
-                                         reshaped_native(coordinates, [batch, *coordinates.shape.instance, *coordinates.shape.spatial, 'vector']),
+                                         reshaped_native(coordinates, [batch, *coordinates.shape.instance,
+                                                                       *coordinates.shape.spatial, 'vector']),
                                          extrap.native_grid_sample_mode)
         if result is NotImplemented:
             # pad one layer
@@ -845,15 +862,19 @@ def _grid_sample(grid: Tensor, coordinates: Tensor, extrap: 'e_.Extrapolation' o
                     inner_coordinates = extrap.transform_coordinates(coordinates + 1, grid_padded.shape)
             else:
                 inner_coordinates = coordinates + 1
-            result = backend.grid_sample(reshaped_native(grid_padded, [batch, *grid_padded.shape.spatial.names, grid.shape.channel]),
-                                         reshaped_native(inner_coordinates, [batch, *coordinates.shape.instance, *coordinates.shape.spatial, 'vector']),
-                                         'boundary')
+            result = backend.grid_sample(
+                reshaped_native(grid_padded, [batch, *grid_padded.shape.spatial.names, grid.shape.channel]),
+                reshaped_native(inner_coordinates,
+                                [batch, *coordinates.shape.instance, *coordinates.shape.spatial, 'vector']),
+                'boundary')
         if result is not NotImplemented:
-            result = reshaped_tensor(result, [grid.shape.batch & coordinates.shape.batch, *coordinates.shape.instance, *coordinates.shape.spatial, grid.shape.channel])
+            result = reshaped_tensor(result, [grid.shape.batch & coordinates.shape.batch, *coordinates.shape.instance,
+                                              *coordinates.shape.spatial, grid.shape.channel])
             return result
     # fallback to slower grid sampling
     neighbors = _closest_grid_values(grid, coordinates, extrap or e_.ZERO, '_closest_', pad_kwargs)
-    binary = meshgrid(**{f'_closest_{dim}': (0, 1) for dim in grid.shape.spatial.names}, dim_type=channel, assign_item_names=False)
+    binary = meshgrid(**{f'_closest_{dim}': (0, 1) for dim in grid.shape.spatial.names}, dim_type=channel,
+                      assign_item_names=False)
     right_weights = coordinates % 1
     binary, right_weights = join_spaces(binary, right_weights)
     weights = prod(binary * right_weights + (1 - binary) * (1 - right_weights), 'vector')
@@ -917,7 +938,7 @@ def broadcast_op(operation: Callable,
             return TensorStack(result_unstacked, Shape((None,), (dim,), (dim_type,), (item_names,)))
 
 
-def where(condition: Tensor or float or int, value_true: Tensor or float or int, value_false: Tensor or float or int):
+def where(condition: Tensor | float | int, value_true: Tensor | float | int, value_false: Tensor | float | int):
     """
     Builds a tensor by choosing either values from `value_true` or `value_false` depending on `condition`.
     If `condition` is not of type boolean, non-zero values are interpreted as True.
@@ -947,7 +968,7 @@ def where(condition: Tensor or float or int, value_true: Tensor or float or int,
     return broadcast_op(inner_where, [condition, value_true, value_false])
 
 
-def nonzero(value: Tensor, list_dim: Shape or str = instance('nonzero'), index_dim: Shape = channel('vector')):
+def nonzero(value: Tensor, list_dim: Shape | str = instance('nonzero'), index_dim: Shape = channel('vector')):
     """
     Get spatial indices of non-zero / True values.
     
@@ -980,7 +1001,8 @@ def nonzero(value: Tensor, list_dim: Shape or str = instance('nonzero'), index_d
         native = reshaped_native(value, [*value.shape.spatial])
         backend = choose_backend(native)
         indices = backend.nonzero(native)
-        indices_shape = Shape(backend.staticshape(indices), (list_dim.name, index_dim.name), (list_dim.type, index_dim.type), (None, value.shape.spatial.names))
+        indices_shape = Shape(backend.staticshape(indices), (list_dim.name, index_dim.name),
+                              (list_dim.type, index_dim.type), (None, value.shape.spatial.names))
         return NativeTensor(indices, indices_shape)
 
     return broadcast_op(unbatched_nonzero, [value], iter_dims=value.shape.batch.names)
@@ -1014,7 +1036,7 @@ def _reduce(value: Tensor or list or tuple,
         return value._tensor_reduce(dims.names, dtype, native_function, collapsed_function, unaffected_function)
 
 
-def sum_(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
+def sum_(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
     """
     Sums `values` along the specified dimensions.
 
@@ -1037,7 +1059,7 @@ def sum_(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
                    collapsed_function=lambda inner, red_shape: inner * red_shape.volume)
 
 
-def prod(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
+def prod(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
     """
     Multiplies `values` along the specified dimensions.
 
@@ -1060,7 +1082,7 @@ def prod(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
                    collapsed_function=lambda inner, red_shape: inner ** red_shape.volume)
 
 
-def mean(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
+def mean(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
     """
     Computes the mean over `values` along the specified dimensions.
 
@@ -1081,7 +1103,7 @@ def mean(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
     return _reduce(value, dim, float, native_function=lambda backend, native, dim: backend.mean(native, dim))
 
 
-def std(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
+def std(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
     """
     Computes the standard deviation over `values` along the specified dimensions.
 
@@ -1107,7 +1129,7 @@ def std(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
                    unaffected_function=lambda value: value * 0)
 
 
-def any_(boolean_tensor: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
+def any_(boolean_tensor: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
     """
     Tests whether any entry of `boolean_tensor` is `True` along the specified dimensions.
 
@@ -1128,7 +1150,7 @@ def any_(boolean_tensor: Tensor or list or tuple, dim: DimFilter = non_batch) ->
     return _reduce(boolean_tensor, dim, bool, native_function=lambda backend, native, dim: backend.any(native, dim))
 
 
-def all_(boolean_tensor: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
+def all_(boolean_tensor: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
     """
     Tests whether all entries of `boolean_tensor` are `True` along the specified dimensions.
 
@@ -1149,7 +1171,7 @@ def all_(boolean_tensor: Tensor or list or tuple, dim: DimFilter = non_batch) ->
     return _reduce(boolean_tensor, dim, bool, native_function=lambda backend, native, dim: backend.all(native, dim))
 
 
-def max_(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
+def max_(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
     """
     Determines the maximum value of `values` along the specified dimensions.
 
@@ -1170,7 +1192,7 @@ def max_(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
     return _reduce(value, dim, None, native_function=lambda backend, native, dim: backend.max(native, dim))
 
 
-def min_(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
+def min_(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
     """
     Determines the minimum value of `values` along the specified dimensions.
 
@@ -1191,7 +1213,7 @@ def min_(value: Tensor or list or tuple, dim: DimFilter = non_batch) -> Tensor:
     return _reduce(value, dim, None, native_function=lambda backend, native, dim: backend.min(native, dim))
 
 
-def finite_min(value, dim: DimFilter = non_batch, default: complex or float = float('NaN')):
+def finite_min(value, dim: DimFilter = non_batch, default: complex | float = float('NaN')):
     """
     Finds the minimum along `dim` ignoring all non-finite values.
 
@@ -1216,7 +1238,7 @@ def finite_min(value, dim: DimFilter = non_batch, default: complex or float = fl
     return where(is_finite(result_inf), result_inf, default)
 
 
-def finite_max(value, dim: DimFilter = non_batch, default: complex or float = float('NaN')):
+def finite_max(value, dim: DimFilter = non_batch, default: complex | float = float('NaN')):
     """
     Finds the maximum along `dim` ignoring all non-finite values.
 
@@ -1241,7 +1263,7 @@ def finite_max(value, dim: DimFilter = non_batch, default: complex or float = fl
     return where(is_finite(result_inf), result_inf, default)
 
 
-def finite_sum(value, dim: DimFilter = non_batch, default: complex or float = float('NaN')):
+def finite_sum(value, dim: DimFilter = non_batch, default: complex | float = float('NaN')):
     """
     Sums all finite values in `value` along `dim`.
 
@@ -1266,7 +1288,7 @@ def finite_sum(value, dim: DimFilter = non_batch, default: complex or float = fl
     return where(any_(finite, dim), summed, default)
 
 
-def finite_mean(value, dim: DimFilter = non_batch, default: complex or float = float('NaN')):
+def finite_mean(value, dim: DimFilter = non_batch, default: complex | float = float('NaN')):
     """
     Computes the mean value of all finite values in `value` along `dim`.
 
@@ -1418,14 +1440,16 @@ def dot(x: Tensor,
         keep_letters = list('abcdefgh')[:-len(KEEP_LETTERS)]
         subscripts = f'{"".join(x_letters)},{"".join(y_letters)}->{"".join(keep_letters)}'
         result_native = backend.einsum(subscripts, x_native, y_native)
-        result_shape = merge_shapes(x.shape.without(x_dims), y.shape.without(y_dims))  # don't check group match  ToDo the order might be incorrect here
+        result_shape = merge_shapes(x.shape.without(x_dims), y.shape.without(
+            y_dims))  # don't check group match  ToDo the order might be incorrect here
     return NativeTensor(result_native, result_shape)
 
 
-def _backend_op1(x, unbound_method) -> Tensor or PhiTreeNode:
+def _backend_op1(x, unbound_method) -> Tensor | PhiTreeNode:
     if isinstance(x, Tensor):
         def apply_op(native_tensor):
             return getattr(choose_backend(native_tensor), unbound_method.__name__)(native_tensor)
+
         apply_op.__name__ = unbound_method.__name__
         return x._op1(apply_op)
     elif isinstance(x, PhiTreeNode):
@@ -1436,7 +1460,7 @@ def _backend_op1(x, unbound_method) -> Tensor or PhiTreeNode:
         return y
 
 
-def abs_(x) -> Tensor or PhiTreeNode:
+def abs_(x) -> Tensor | PhiTreeNode:
     """
     Computes *||x||<sub>1</sub>*.
     Complex `x` result in matching precision float values.
@@ -1453,7 +1477,7 @@ def abs_(x) -> Tensor or PhiTreeNode:
     return _backend_op1(x, Backend.abs)
 
 
-def sign(x) -> Tensor or PhiTreeNode:
+def sign(x) -> Tensor | PhiTreeNode:
     """
     The sign of positive numbers is 1 and -1 for negative numbers.
     The sign of 0 is undefined.
@@ -1467,32 +1491,32 @@ def sign(x) -> Tensor or PhiTreeNode:
     return _backend_op1(x, Backend.sign)
 
 
-def round_(x) -> Tensor or PhiTreeNode:
+def round_(x) -> Tensor | PhiTreeNode:
     """ Rounds the `Tensor` or `PhiTreeNode` `x` to the closest integer. """
     return _backend_op1(x, Backend.round)
 
 
-def ceil(x) -> Tensor or PhiTreeNode:
+def ceil(x) -> Tensor | PhiTreeNode:
     """ Computes *⌈x⌉* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.ceil)
 
 
-def floor(x) -> Tensor or PhiTreeNode:
+def floor(x) -> Tensor | PhiTreeNode:
     """ Computes *⌊x⌋* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.floor)
 
 
-def sqrt(x) -> Tensor or PhiTreeNode:
+def sqrt(x) -> Tensor | PhiTreeNode:
     """ Computes *sqrt(x)* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.sqrt)
 
 
-def exp(x) -> Tensor or PhiTreeNode:
+def exp(x) -> Tensor | PhiTreeNode:
     """ Computes *exp(x)* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.exp)
 
 
-def to_float(x) -> Tensor or PhiTreeNode:
+def to_float(x) -> Tensor | PhiTreeNode:
     """
     Converts the given tensor to floating point format with the currently specified precision.
     
@@ -1512,17 +1536,17 @@ def to_float(x) -> Tensor or PhiTreeNode:
     return _backend_op1(x, Backend.to_float)
 
 
-def to_int32(x) -> Tensor or PhiTreeNode:
+def to_int32(x) -> Tensor | PhiTreeNode:
     """ Converts the `Tensor` or `PhiTreeNode` `x` to 32-bit integer. """
     return _backend_op1(x, Backend.to_int32)
 
 
-def to_int64(x) -> Tensor or PhiTreeNode:
+def to_int64(x) -> Tensor | PhiTreeNode:
     """ Converts the `Tensor` or `PhiTreeNode` `x` to 64-bit integer. """
     return _backend_op1(x, Backend.to_int64)
 
 
-def to_complex(x) -> Tensor or PhiTreeNode:
+def to_complex(x) -> Tensor | PhiTreeNode:
     """
     Converts the given tensor to complex floating point format with the currently specified precision.
 
@@ -1542,12 +1566,12 @@ def to_complex(x) -> Tensor or PhiTreeNode:
     return _backend_op1(x, Backend.to_complex)
 
 
-def is_finite(x) -> Tensor or PhiTreeNode:
+def is_finite(x) -> Tensor | PhiTreeNode:
     """ Returns a `Tensor` or `PhiTreeNode` matching `x` with values `True` where `x` has a finite value and `False` otherwise. """
     return _backend_op1(x, Backend.isfinite)
 
 
-def real(x) -> Tensor or PhiTreeNode:
+def real(x) -> Tensor | PhiTreeNode:
     """
     See Also:
         `imag()`, `conjugate()`.
@@ -1561,7 +1585,7 @@ def real(x) -> Tensor or PhiTreeNode:
     return _backend_op1(x, Backend.real)
 
 
-def imag(x) -> Tensor or PhiTreeNode:
+def imag(x) -> Tensor | PhiTreeNode:
     """
     Returns the imaginary part of `x`.
     If `x` does not store complex numbers, returns a zero tensor with the same shape and dtype as this tensor.
@@ -1578,7 +1602,7 @@ def imag(x) -> Tensor or PhiTreeNode:
     return _backend_op1(x, Backend.imag)
 
 
-def conjugate(x) -> Tensor or PhiTreeNode:
+def conjugate(x) -> Tensor | PhiTreeNode:
     """
     See Also:
         `imag()`, `real()`.
@@ -1597,51 +1621,51 @@ def degrees(deg):
     return deg * (3.1415 / 180.)
 
 
-def sin(x) -> Tensor or PhiTreeNode:
+def sin(x) -> Tensor | PhiTreeNode:
     """ Computes *sin(x)* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.sin)
 
 
-def arcsin(x) -> Tensor or PhiTreeNode:
+def arcsin(x) -> Tensor | PhiTreeNode:
     """ Computes the inverse of *sin(x)* of the `Tensor` or `PhiTreeNode` `x`.
     For real arguments, the result lies in the range [-π/2, π/2].
     """
     return _backend_op1(x, Backend.arcsin)
 
 
-def cos(x) -> Tensor or PhiTreeNode:
+def cos(x) -> Tensor | PhiTreeNode:
     """ Computes *cos(x)* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.cos)
 
 
-def arccos(x) -> Tensor or PhiTreeNode:
+def arccos(x) -> Tensor | PhiTreeNode:
     """ Computes the inverse of *cos(x)* of the `Tensor` or `PhiTreeNode` `x`.
     For real arguments, the result lies in the range [0, π].
     """
     return _backend_op1(x, Backend.cos)
 
 
-def tan(x) -> Tensor or PhiTreeNode:
+def tan(x) -> Tensor | PhiTreeNode:
     """ Computes *tan(x)* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.tan)
 
 
-def log(x) -> Tensor or PhiTreeNode:
+def log(x) -> Tensor | PhiTreeNode:
     """ Computes the natural logarithm of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.log)
 
 
-def log2(x) -> Tensor or PhiTreeNode:
+def log2(x) -> Tensor | PhiTreeNode:
     """ Computes *log(x)* of the `Tensor` or `PhiTreeNode` `x` with base 2. """
     return _backend_op1(x, Backend.log2)
 
 
-def log10(x) -> Tensor or PhiTreeNode:
+def log10(x) -> Tensor | PhiTreeNode:
     """ Computes *log(x)* of the `Tensor` or `PhiTreeNode` `x` with base 10. """
     return _backend_op1(x, Backend.log10)
 
 
-def sigmoid(x) -> Tensor or PhiTreeNode:
+def sigmoid(x) -> Tensor | PhiTreeNode:
     """ Computes the sigmoid function of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.sigmoid)
 
@@ -1667,7 +1691,7 @@ def cast_same(*values: Tensor) -> Tuple[Tensor]:
         return values
 
 
-def divide_no_nan(x: float or Tensor, y: float or Tensor):
+def divide_no_nan(x: float | Tensor, y: float | Tensor):
     """ Computes *x/y* with the `Tensor`s `x` and `y` but returns 0 where *y=0*. """
     return custom_op2(x, y,
                       l_operator=divide_no_nan,
@@ -1677,17 +1701,17 @@ def divide_no_nan(x: float or Tensor, y: float or Tensor):
                       op_name='divide_no_nan')
 
 
-def maximum(x: Tensor or float, y: Tensor or float):
+def maximum(x: Tensor | float, y: Tensor | float):
     """ Computes the element-wise maximum of `x` and `y`. """
     return custom_op2(x, y, maximum, lambda x_, y_: choose_backend(x_, y_).maximum(x_, y_), op_name='maximum')
 
 
-def minimum(x: Tensor or float, y: Tensor or float):
+def minimum(x: Tensor | float, y: Tensor | float):
     """ Computes the element-wise minimum of `x` and `y`. """
     return custom_op2(x, y, minimum, lambda x_, y_: choose_backend(x_, y_).minimum(x_, y_), op_name='minimum')
 
 
-def clip(x: Tensor, lower_limit: float or Tensor, upper_limit: float or Tensor):
+def clip(x: Tensor, lower_limit: float | Tensor, upper_limit: float | Tensor):
     """ Limits the values of the `Tensor` `x` to lie between `lower_limit` and `upper_limit` (inclusive). """
     if isinstance(lower_limit, Number) and isinstance(upper_limit, Number):
 
@@ -1716,7 +1740,8 @@ def convolve(value: Tensor,
     Returns:
         `Tensor`
     """
-    assert all(dim in value.shape for dim in kernel.shape.spatial.names), f"Value must have all spatial dimensions of kernel but got value {value} kernel {kernel}"
+    assert all(dim in value.shape for dim in
+               kernel.shape.spatial.names), f"Value must have all spatial dimensions of kernel but got value {value} kernel {kernel}"
     conv_shape = kernel.shape.spatial
     in_channels = value.shape.channel
     out_channels = kernel.shape.channel.without(in_channels)
@@ -1724,7 +1749,8 @@ def convolve(value: Tensor,
     if extrapolation is not None and extrapolation != e_.ZERO:
         value = pad(value, {dim: (kernel.shape.get_size(dim) // 2, (kernel.shape.get_size(dim) - 1) // 2)
                             for dim in conv_shape.name}, extrapolation)
-    native_kernel = reshaped_native(kernel, (batch, out_channels, in_channels, *conv_shape.names), force_expand=in_channels)
+    native_kernel = reshaped_native(kernel, (batch, out_channels, in_channels, *conv_shape.names),
+                                    force_expand=in_channels)
     native_value = reshaped_native(value, (batch, in_channels, *conv_shape.names), force_expand=batch)
     backend = choose_backend(native_value, native_kernel)
     native_result = backend.conv(native_value, native_kernel, zero_padding=extrapolation == e_.ZERO)
@@ -1755,7 +1781,7 @@ def boolean_mask(x: Tensor, dim: str, mask: Tensor):
         Selected values of `x` as `Tensor` with dimensions from `x` and `mask`.
     """
     assert dim in mask.shape, f"mask dimension '{dim}' must be present on the mask but got {mask.shape}"
-    
+
     def uniform_boolean_mask(x: Tensor, mask_1d: Tensor):
         if dim in x.shape:
             x_native = x.native(x.shape.names)  # order does not matter
@@ -1772,7 +1798,7 @@ def boolean_mask(x: Tensor, dim: str, mask: Tensor):
     return broadcast_op(uniform_boolean_mask, [x, mask], iter_dims=mask.shape.without(dim))
 
 
-def gather(values: Tensor, indices: Tensor, dims: DimFilter or None = None):
+def gather(values: Tensor, indices: Tensor, dims: DimFilter | None = None):
     """
     Gathers the entries of `values` at positions described by `indices`.
 
@@ -1852,7 +1878,8 @@ def scatter(base_grid: Tensor or Shape,
     assert outside_handling in ('discard', 'clamp', 'undefined')
     assert isinstance(indices_gradient, bool)
     grid_shape = base_grid if isinstance(base_grid, Shape) else base_grid.shape
-    assert indices.shape.channel.names == ('vector',) or (grid_shape.spatial_rank + grid_shape.instance_rank == 1 and indices.shape.channel_rank == 0)
+    assert indices.shape.channel.names == ('vector',) or (
+                grid_shape.spatial_rank + grid_shape.instance_rank == 1 and indices.shape.channel_rank == 0)
     values = wrap(values)
     batches = values.shape.non_channel.non_instance & indices.shape.non_channel.non_instance
     channels = grid_shape.channel & values.shape.channel
@@ -1867,7 +1894,9 @@ def scatter(base_grid: Tensor or Shape,
         indices = clip(indices, 0, tensor(grid_shape.spatial, channel('vector')) - 1)
     elif outside_handling == 'discard':
         indices_linear = pack_dims(indices, instance, instance(_scatter_instance=1))
-        indices_inside = min_((round_(indices_linear) >= 0) & (round_(indices_linear) < tensor(grid_shape.spatial, channel('vector'))), 'vector')
+        indices_inside = min_(
+            (round_(indices_linear) >= 0) & (round_(indices_linear) < tensor(grid_shape.spatial, channel('vector'))),
+            'vector')
         indices_linear = boolean_mask(indices_linear, '_scatter_instance', indices_inside)
         if instance(values).rank > 0:
             values_linear = pack_dims(values, instance, instance(_scatter_instance=1))
@@ -1880,7 +1909,9 @@ def scatter(base_grid: Tensor or Shape,
 
     def scatter_forward(base_grid, indices, values):
         indices = to_int32(round_(indices))
-        native_grid = reshaped_native(base_grid, [batches, *base_grid.shape.instance, *base_grid.shape.spatial, channels], force_expand=True)
+        native_grid = reshaped_native(base_grid,
+                                      [batches, *base_grid.shape.instance, *base_grid.shape.spatial, channels],
+                                      force_expand=True)
         native_values = reshaped_native(values, [batches, lists, channels], force_expand=True)
         native_indices = reshaped_native(indices, [batches, lists, 'vector'], force_expand=True)
         backend = choose_backend(native_indices, native_values, native_grid)
@@ -1892,7 +1923,8 @@ def scatter(base_grid: Tensor or Shape,
             count = backend.scatter(zero_grid, native_indices, backend.ones_like(native_values), mode='add')
             native_result = summed / backend.maximum(count, 1)
             native_result = backend.where(count == 0, native_grid, native_result)
-        return reshaped_tensor(native_result, [batches, *instance(base_grid), *spatial(base_grid), channels], check_sizes=True)
+        return reshaped_tensor(native_result, [batches, *instance(base_grid), *spatial(base_grid), channels],
+                               check_sizes=True)
 
     def scatter_backward(shaped_base_grid_, shaped_indices_, shaped_values_, output, d_output):
         from ._nd import spatial_gradient
@@ -1977,7 +2009,7 @@ def dtype(x) -> DType:
         return choose_backend(x).dtype(x)
 
 
-def expand_tensor(value: float or Tensor, dims: Shape):
+def expand_tensor(value: float | Tensor, dims: Shape):
     value = wrap(value)
     shape = value.shape
     for dim in reversed(dims):
@@ -2043,7 +2075,8 @@ def assert_close(*values,
         return
     phi_tensors = [t for t in values if isinstance(t, Tensor)]
     if phi_tensors:
-        values = [compatible_tensor(t, phi_tensors[0].shape)._simplify() for t in values]  # use Tensor to infer dimensions
+        values = [compatible_tensor(t, phi_tensors[0].shape)._simplify() for t in
+                  values]  # use Tensor to infer dimensions
         for other in values[1:]:
             _assert_close(values[0], other, rel_tolerance, abs_tolerance, msg, verbose)
     elif all(isinstance(v, PhiTreeNode) for v in values):
@@ -2059,7 +2092,8 @@ def assert_close(*values,
             np.testing.assert_allclose(np_values[0], other, rel_tolerance, abs_tolerance, err_msg=msg, verbose=verbose)
 
 
-def _assert_close(tensor1: Tensor, tensor2: Tensor, rel_tolerance: float, abs_tolerance: float, msg: str, verbose: bool):
+def _assert_close(tensor1: Tensor, tensor2: Tensor, rel_tolerance: float, abs_tolerance: float, msg: str,
+                  verbose: bool):
     if tensor2 is tensor1:
         return
     # if isinstance(tensor2, (int, float, bool)):

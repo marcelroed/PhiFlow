@@ -56,7 +56,7 @@ class MatplotlibPlots(PlottingLibrary):
                         axis.set_aspect('equal', adjustable='box')
                     elif bounds.spatial_rank == 3:
                         axis.remove()
-                        axis = axes[row, col] = figure.add_subplot(rows, cols, cols*row + col + 1, projection='3d')
+                        axis = axes[row, col] = figure.add_subplot(rows, cols, cols * row + col + 1, projection='3d')
                         axis.set_xlabel(bounds.vector.item_names[0])
                         axis.set_ylabel(bounds.vector.item_names[1])
                         axis.set_zlabel(bounds.vector.item_names[2])
@@ -72,7 +72,8 @@ class MatplotlibPlots(PlottingLibrary):
             rc('animation', html='html5')
 
         base_axes = tuple(fig.axes)
-        positions = {a: (a.get_subplotspec().get_position(a.figure).p0, a.get_subplotspec().get_position(a.figure).p1) for a in base_axes}
+        positions = {a: (a.get_subplotspec().get_position(a.figure).p0, a.get_subplotspec().get_position(a.figure).p1)
+                     for a in base_axes}
         # titles = {a: a.get_title() for a in base_axes}
         specs = {a: a.get_subplotspec() for a in base_axes}
 
@@ -199,7 +200,8 @@ def _plot(axis, data: SampledField, space: Box, show_color_bar, vmin, vmax, **pl
             x, y = math.reshaped_numpy(data.points, [vector, *spatial(data)])
             im = axis.plot_surface(x, y, z, **plt_args)
         else:  # heatmap
-            im = axis.imshow(data.values.numpy(dims.reversed), origin='lower', extent=extent, vmin=vmin, vmax=vmax, **plt_args)
+            im = axis.imshow(data.values.numpy(dims.reversed), origin='lower', extent=extent, vmin=vmin, vmax=vmax,
+                             **plt_args)
         if show_color_bar:
             figure_has_color_bar = any(['colorbar' in ax.get_label() for ax in axis.figure.axes])
             if vmin is None or vmax is None or not figure_has_color_bar:
@@ -208,7 +210,8 @@ def _plot(axis, data: SampledField, space: Box, show_color_bar, vmin, vmax, **pl
         if isinstance(data, StaggeredGrid):
             data = data.at_centers()
         x, y = math.reshaped_numpy(data.points.vector[dims], [vector, data.shape.non_channel])
-        u, v = math.reshaped_numpy(data.values.vector[dims], [vector, extra_channels, data.shape.non_channel], force_expand=True)
+        u, v = math.reshaped_numpy(data.values.vector[dims], [vector, extra_channels, data.shape.non_channel],
+                                   force_expand=True)
         color = axis.xaxis.label.get_color()
         for ch in range(u.shape[0]):
             axis.quiver(x, y, u[ch], v[ch], color=color, units='xy', scale=1)
@@ -216,11 +219,13 @@ def _plot(axis, data: SampledField, space: Box, show_color_bar, vmin, vmax, **pl
         if isinstance(data, StaggeredGrid):
             data = data.at_centers()
         x, y, z = math.reshaped_numpy(data.points.vector[dims], [vector, data.shape.non_channel])
-        u, v, w = math.reshaped_numpy(data.values.vector[dims], [vector, extra_channels, data.shape.non_channel], force_expand=True)
+        u, v, w = math.reshaped_numpy(data.values.vector[dims], [vector, extra_channels, data.shape.non_channel],
+                                      force_expand=True)
         for ch in range(u.shape[0]):
             axis.quiver(x, y, z, u[ch], v[ch], w[ch])
     elif isinstance(data, Grid) and channel(data).volume == 1 and data.spatial_rank == 3:  # 3D heatmap
-        x, y, z = StaggeredGrid(lambda x: x, math.extrapolation.BOUNDARY, data.bounds, data.resolution).staggered_tensor().numpy(('vector',) + dims)
+        x, y, z = StaggeredGrid(lambda x: x, math.extrapolation.BOUNDARY, data.bounds,
+                                data.resolution).staggered_tensor().numpy(('vector',) + dims)
         values = data.values.numpy(dims)
         cmap = plt.get_cmap('viridis')
         norm = matplotlib.colors.Normalize(vmin=np.min(values), vmax=np.max(values))
@@ -262,11 +267,11 @@ def _plot(axis, data: SampledField, space: Box, show_color_bar, vmin, vmax, **pl
                 size = math.mean(data.elements.bounding_half_extent(), 'vector').numpy() * 0.35
             elif isinstance(data.elements, Point):
                 symbol = 'x'
-                size = 6 / (0.5 * (x_scale+y_scale+z_scale)/3)
+                size = 6 / (0.5 * (x_scale + y_scale + z_scale) / 3)
             else:
                 symbol = 'X'
                 size = data.elements.bounding_radius().numpy()
-            axis.scatter(x, y, z, marker=symbol, color=color, s=(size * 0.5 * (x_scale+y_scale+z_scale)/3) ** 2)
+            axis.scatter(x, y, z, marker=symbol, color=color, s=(size * 0.5 * (x_scale + y_scale + z_scale) / 3) ** 2)
     else:
         raise NotImplementedError(f"No figure recipe for {data}")
 
@@ -279,13 +284,17 @@ def _plot_points(axis, data: PointCloud, dims, vector, **plt_args):
     else:
         if isinstance(data.elements, Sphere):
             rad = math.reshaped_numpy(data.elements.bounding_radius(), [data.shape.non_channel], force_expand=True)
-            shapes = [plt.Circle((xi, yi), radius=ri, linewidth=0, alpha=0.8, facecolor=ci) for xi, yi, ri, ci in zip(x, y, rad, color)]
+            shapes = [plt.Circle((xi, yi), radius=ri, linewidth=0, alpha=0.8, facecolor=ci) for xi, yi, ri, ci in
+                      zip(x, y, rad, color)]
         elif isinstance(data.elements, BaseBox):
-            w2, h2 = math.reshaped_numpy(data.elements.bounding_half_extent(), ['vector', data.shape.non_channel], force_expand=True)
-            shapes = [plt.Rectangle((xi-w2i, yi-h2i), w2i*2, h2i*2, linewidth=1, edgecolor='white', alpha=0.8, facecolor=ci) for xi, yi, w2i, h2i, ci in zip(x, y, w2, h2, color)]
+            w2, h2 = math.reshaped_numpy(data.elements.bounding_half_extent(), ['vector', data.shape.non_channel],
+                                         force_expand=True)
+            shapes = [plt.Rectangle((xi - w2i, yi - h2i), w2i * 2, h2i * 2, linewidth=1, edgecolor='white', alpha=0.8,
+                                    facecolor=ci) for xi, yi, w2i, h2i, ci in zip(x, y, w2, h2, color)]
         else:
             rad = math.reshaped_numpy(data.elements.bounding_radius(), [data.shape.non_channel], force_expand=True)
-            shapes = [plt.Circle((xi, yi), radius=ri, linewidth=0, alpha=0.8, facecolor=ci) for xi, yi, ri, ci in zip(x, y, rad, color)]
+            shapes = [plt.Circle((xi, yi), radius=ri, linewidth=0, alpha=0.8, facecolor=ci) for xi, yi, ri, ci in
+                      zip(x, y, rad, color)]
         c = matplotlib.collections.PatchCollection(shapes, match_original=True)
         axis.add_collection(c)
     if non_channel(data).rank == 1 and non_channel(data).item_names[0]:
@@ -294,13 +303,13 @@ def _plot_points(axis, data: PointCloud, dims, vector, **plt_args):
 
 def _annotate_points(axis, points: math.Tensor, labelled_dim: math.Shape):
     if points.shape['vector'].size == 2:
-        x, y = math.reshaped_native(points, ['vector', points.shape.without('vector')], to_numpy=True, force_expand=True)
+        x, y = math.reshaped_native(points, ['vector', points.shape.without('vector')], to_numpy=True,
+                                    force_expand=True)
         if labelled_dim.item_names[0]:
             x_view = axis.get_xlim()[1] - axis.get_xlim()[0]
             y_view = axis.get_ylim()[1] - axis.get_ylim()[0]
             for x_, y_, label in zip(x, y, labelled_dim.item_names[0]):
                 axis.annotate(label, (x_ + .01 * x_view, y_ + .01 * y_view))
-
 
 
 def _get_pixels_per_unit(fig: plt.Figure, axis: plt.Axes, dpi=90):
@@ -313,7 +322,6 @@ def _get_pixels_per_unit(fig: plt.Figure, axis: plt.Axes, dpi=90):
     # result_x = subplot_width * dpi / units_x
     # result_y = subplot_height * dpi / units_y
     return min(x_scale, y_scale)
-
 
 
 def plot_scalars(scene: str or tuple or list or Scene or math.Tensor,
@@ -429,8 +437,8 @@ def plot_scalars(scene: str or tuple or list or Scene or math.Tensor,
                 assert x == 'time', f"x must be 'steps' or 'time' but got {x}"
                 PHI_LOGGER.debug(f"Reading {os.path.join(path, 'log_step_time.txt')}")
                 _, x_values, *_ = numpy.loadtxt(os.path.join(path, "log_step_time.txt")).T
-                values = values[:len(x_values+1)]
-                x_values = np.cumsum(x_values[:len(values)-1])
+                values = values[:len(x_values + 1)]
+                x_values = np.cumsum(x_values[:len(values) - 1])
                 x_values = np.concatenate([[0.], x_values])
             if transform:
                 x_values, values = transform(np.stack([x_values, values]))
@@ -446,7 +454,8 @@ def plot_scalars(scene: str or tuple or list or Scene or math.Tensor,
             if smooth > 1:
                 axis.plot(x_values, values, color=color, alpha=smooth_alpha, linewidth=1)
                 curve = np.stack([x_values, values], -1)
-                axis.plot(*smooth_uniform_curve(curve, smooth).T, *(['--'] if dashed_ else []), color=color, linewidth=smooth_linewidth, label=label)
+                axis.plot(*smooth_uniform_curve(curve, smooth).T, *(['--'] if dashed_ else []), color=color,
+                          linewidth=smooth_linewidth, label=label)
             else:
                 axis.plot(x_values, values, *(['--'] if dashed_ else []), color=color, linewidth=1, label=label)
             if grid:
@@ -469,7 +478,8 @@ def plot_scalars(scene: str or tuple or list or Scene or math.Tensor,
                 axis.set_ylabel(ylabel)
             return name
 
-        math.map(single_plot, names[b], scene.paths[b], curve_labels, math.range_tensor(shape.after_gather(b)), colors, dashed, smooth)
+        math.map(single_plot, names[b], scene.paths[b], curve_labels, math.range_tensor(shape.after_gather(b)), colors,
+                 dashed, smooth)
         if legend:
             axis.legend(loc=legend)
     # Final touches

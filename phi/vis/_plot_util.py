@@ -13,7 +13,7 @@ def smooth_uniform_curve(curve, n: int):
         return const_curve
     else:  # smooth kernel
         result = np.convolve(values, np.ones((n,)) / n, mode='valid')
-        valid = x[n//2-1:-n//2 or None]
+        valid = x[n // 2 - 1:-n // 2 or None]
         return np.stack([valid, result], -1)
 
 

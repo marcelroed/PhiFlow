@@ -40,8 +40,6 @@ def get_arrow(x, y, thick=False, basic_char=False):
             return charset[3]  # 🡣
 
 
-
-
 def underline(text):
     return f"\033[4m{text}\033[0m"
 

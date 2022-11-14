@@ -62,19 +62,24 @@ class PointCloud(SampledField):
         return PointCloud(elements, values, extrapolation, self._add_overlapping, self._bounds, color)
 
     def with_elements(self, elements: Geometry):
-        return PointCloud(elements=elements, values=self.values, extrapolation=self.extrapolation, add_overlapping=self._add_overlapping, bounds=self._bounds, color=self._color)
+        return PointCloud(elements=elements, values=self.values, extrapolation=self.extrapolation,
+                          add_overlapping=self._add_overlapping, bounds=self._bounds, color=self._color)
 
     def with_values(self, values):
-        return PointCloud(elements=self.elements, values=values, extrapolation=self.extrapolation, add_overlapping=self._add_overlapping, bounds=self._bounds, color=self._color)
+        return PointCloud(elements=self.elements, values=values, extrapolation=self.extrapolation,
+                          add_overlapping=self._add_overlapping, bounds=self._bounds, color=self._color)
 
     def with_extrapolation(self, extrapolation: Extrapolation):
-        return PointCloud(elements=self.elements, values=self.values, extrapolation=extrapolation, add_overlapping=self._add_overlapping, bounds=self._bounds, color=self._color)
+        return PointCloud(elements=self.elements, values=self.values, extrapolation=extrapolation,
+                          add_overlapping=self._add_overlapping, bounds=self._bounds, color=self._color)
 
-    def with_color(self, color: str or Tensor or tuple or list):
-        return PointCloud(elements=self.elements, values=self.values, extrapolation=self.extrapolation, add_overlapping=self._add_overlapping, bounds=self._bounds, color=color)
+    def with_color(self, color: str | Tensor | tuple | list):
+        return PointCloud(elements=self.elements, values=self.values, extrapolation=self.extrapolation,
+                          add_overlapping=self._add_overlapping, bounds=self._bounds, color=color)
 
     def with_bounds(self, bounds: Box):
-        return PointCloud(elements=self.elements, values=self.values, extrapolation=self.extrapolation, add_overlapping=self._add_overlapping, bounds=bounds, color=self._color)
+        return PointCloud(elements=self.elements, values=self.values, extrapolation=self.extrapolation,
+                          add_overlapping=self._add_overlapping, bounds=bounds, color=self._color)
 
     def __value_attrs__(self):
         return '_values', '_extrapolation'
@@ -170,7 +175,8 @@ class PointCloud(SampledField):
 def nonzero(field: SampledField):
     indices = math.nonzero(field.values, list_dim=instance('points'))
     elements = field.elements[indices]
-    return PointCloud(elements, values=math.tensor(1.), extrapolation=math.extrapolation.ZERO, add_overlapping=False, bounds=field.bounds, color=None)
+    return PointCloud(elements, values=math.tensor(1.), extrapolation=math.extrapolation.ZERO, add_overlapping=False,
+                      bounds=field.bounds, color=None)
 
 
 def distribute_points(geometries: tuple or list or Geometry or float,
@@ -207,7 +213,8 @@ def distribute_points(geometries: tuple or list or Geometry or float,
         from phi.field._field_math import data_bounds
         radius = math.mean(data_bounds(initial_points).size) * 0.005
     from phi.geom import Sphere
-    return PointCloud(Sphere(initial_points, radius=radius), extrapolation=geometries.extrapolation, color=color, bounds=geometries.bounds)
+    return PointCloud(Sphere(initial_points, radius=radius), extrapolation=geometries.extrapolation, color=color,
+                      bounds=geometries.bounds)
 
 
 def _distribute_points(mask: math.Tensor, dim: Shape, points_per_cell: int = 1, center: bool = False) -> math.Tensor:

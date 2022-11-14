@@ -39,7 +39,7 @@ class BackendCall:
                 'name': name,
                 'ph': 'X',
                 'pid': 1,
-                'tid': backend_index+1,
+                'tid': backend_index + 1,
                 'ts': int(round(self._start * 1000000)),
                 'dur': int(round((self._stop - self._start) * 1000000)),
                 'args': self._args
@@ -92,7 +92,7 @@ class ExtCall:
         if len(stack) < self._level:
             return self._parent.common_call(stack)
         for i in range(self._level - 1):
-            if self._parents[i+1]._function != stack[-1-i].function:
+            if self._parents[i + 1]._function != stack[-1 - i].function:
                 return self._parents[i]
         return self
 
@@ -157,7 +157,7 @@ class ExtCall:
 
     def _calling_code(self, backtrack=0):
         if self._level > backtrack + 1:
-            call: ExtCall = self._parents[-backtrack-1]
+            call: ExtCall = self._parents[-backtrack - 1]
             return call._code_context[0].strip(), call._file_name, call._function, call._line_number
         else:
             return "", "", "", -1
@@ -166,14 +166,15 @@ class ExtCall:
         if self._duration < min_duration:
             return
         if len(self._children) == 1 and isinstance(self._children[0], ExtCall):
-            self._children[0].print(include_parents + ((self,) if self._parent is not None else ()), depth, min_duration, code_col, code_len)
+            self._children[0].print(include_parents + ((self,) if self._parent is not None else ()), depth,
+                                    min_duration, code_col, code_len)
         else:
             funcs = [par._name for par in include_parents] + [self._name]
             text = f"{'. ' * depth}-> {' -> '.join(funcs)} ({1000 * self._duration:.2f} ms)"
-            if self._level > len(include_parents)+1:
+            if self._level > len(include_parents) + 1:
                 code = self._calling_code(backtrack=len(include_parents))[0]
                 if len(code) > code_len:
-                    code = code[:code_len-3] + "..."
+                    code = code[:code_len - 3] + "..."
                 text += " " + "." * max(0, (code_col - len(text))) + " > " + code
             print(text)
             for child in self._children:
@@ -201,7 +202,8 @@ class ExtCall:
         else:
             name = ' -> '.join([par._name for par in include_parents] + [self._name])
             eff_parent_count = self._eff_parent_count()
-            calling_code, calling_filename, calling_function, lineno = self._calling_code(backtrack=self._empty_parent_count())
+            calling_code, calling_filename, calling_function, lineno = self._calling_code(
+                backtrack=self._empty_parent_count())
             result = [
                 {
                     'name': name,
@@ -232,7 +234,7 @@ class Profile:
     Profiles can be printed or saved to disc.
     """
 
-    def __init__(self, trace: bool, backends: tuple or list, subtract_trace_time: bool):
+    def __init__(self, trace: bool, backends: tuple | list, subtract_trace_time: bool):
         self._start = perf_counter()
         self._stop = None
         self._root = ExtCall(None, "", 0, "", "", "", -1)
@@ -263,7 +265,8 @@ class Profile:
             args.update(kwargs)
             backend_call.add_arg("Inputs", _format_values(args, backend_call._backend))
             if isinstance(result, (tuple, list)):
-                backend_call.add_arg("Outputs", _format_values({i: res for i, res in enumerate(result)}, backend_call._backend))
+                backend_call.add_arg("Outputs",
+                                     _format_values({i: res for i, res in enumerate(result)}, backend_call._backend))
             else:
                 backend_call.add_arg("Outputs", _format_values({0: result}, backend_call._backend))
             if self._trace:
@@ -272,7 +275,8 @@ class Profile:
                 for i in range(call._level, len(stack)):
                     stack_frame = stack[len(stack) - i - 1]
                     name = ExtCall.determine_name(stack_frame)  # if len(stack) - i > 1 else ""
-                    sub_call = ExtCall(call, name, i + 1, stack_frame.function, stack_frame.code_context, stack_frame.filename, stack_frame.lineno)
+                    sub_call = ExtCall(call, name, i + 1, stack_frame.function, stack_frame.code_context,
+                                       stack_frame.filename, stack_frame.lineno)
                     call.add(sub_call)
                     call = sub_call
                 call.add(backend_call)
@@ -301,7 +305,8 @@ class Profile:
             code_col: Formatting option for where the context code is printed.
             code_len: Formatting option for cropping the context code
         """
-        print(f"Profile: {self.duration:.4f} seconds total. Skipping elements shorter than {1000 * min_duration:.2f} ms")
+        print(
+            f"Profile: {self.duration:.4f} seconds total. Skipping elements shorter than {1000 * min_duration:.2f} ms")
         if self._messages:
             print("External profiling:")
             for message in self._messages:
@@ -320,12 +325,12 @@ class Profile:
             json_file: filename
         """
         data = [
-            {'name': "process_name", 'ph': 'M', 'pid': 0, 'tid': 0, "args": {"name": "0 Python calls"}},
-            {'name': "process_name", 'ph': 'M', 'pid': 1, 'tid': 1, "args": {"name": "1 Operations"}},
-        ] + [
-            {'name': "thread_name", 'ph': 'M', 'pid': 1, 'tid': i + 1, "args": {"name": backend.name}}
-            for i, backend in enumerate(self._backends)
-        ]
+                   {'name': "process_name", 'ph': 'M', 'pid': 0, 'tid': 0, "args": {"name": "0 Python calls"}},
+                   {'name': "process_name", 'ph': 'M', 'pid': 1, 'tid': 1, "args": {"name": "1 Operations"}},
+               ] + [
+                   {'name': "thread_name", 'ph': 'M', 'pid': 1, 'tid': i + 1, "args": {"name": backend.name}}
+                   for i, backend in enumerate(self._backends)
+               ]
         if self._trace:
             if len(self._root._children) > 0:
                 data.extend(self._root.trace_json_events())
@@ -384,7 +389,6 @@ class Profile:
 
 
 def _format_values(values: dict, backend):
-
     def format_val(value):
         if isinstance(value, str):
             return f'"{value}"'
@@ -438,7 +442,9 @@ class ProfilingBackend:
                         stop = perf_counter()
                         prof._add_call(BackendCall(start, stop, profiling_backend, item_name), args, kwargs, result)
                         return result
+
                     return call_fun
+
                 setattr(self, item_name, context())
 
     def call(self, f: Callable, *args, name=None):
@@ -469,7 +475,7 @@ _PROFILE = []
 
 
 @contextmanager
-def profile(backends=None, trace=True, subtract_trace_time=True, save: str or None = None) -> Profile:
+def profile(backends=None, trace=True, subtract_trace_time=True, save: str | None = None) -> Profile:
     """
     To be used in `with` statements, `with math.backend.profile() as prof: ...`.
     Creates a `Profile` for the code executed within the context by tracking calls to the `backends` and optionally tracing the call.
@@ -538,7 +544,7 @@ def profile_function(fun: Callable,
     return prof
 
 
-def _start_profiling(prof: Profile, backends: tuple or list):
+def _start_profiling(prof: Profile, backends: tuple | list):
     _PROFILE.append(prof)
     original_default = _DEFAULT[-1]
     original_backends = tuple(BACKENDS)

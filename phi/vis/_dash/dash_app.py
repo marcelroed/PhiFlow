@@ -1,6 +1,6 @@
 import dash
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 from dash.dependencies import Input, Output
 from dash.exceptions import PreventUpdate
 
@@ -19,7 +19,7 @@ class DashApp:
         self.field_minmax = {}
         self.minmax_decay = 0.975
         self.play_status = None
-        
+
         # The index page encapsulates the specific pages.
         self.dash.layout = html.Div([
             dcc.Location(id='url', refresh=False),
@@ -56,6 +56,7 @@ class DashApp:
                     func(search)
                 else:
                     raise PreventUpdate()
+
         return decorator
 
     def consumes(self, href):

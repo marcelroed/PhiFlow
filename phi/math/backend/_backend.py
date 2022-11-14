@@ -10,7 +10,6 @@ import numpy
 
 from ._dtype import DType, combine_types
 
-
 SolveResult = namedtuple('SolveResult', [
     'method', 'x', 'residual', 'iterations', 'function_evaluations', 'converged', 'diverged', 'message',
 ])
@@ -23,7 +22,8 @@ class ComputeDevice:
     A physical device that can be selected to perform backend computations.
     """
 
-    def __init__(self, backend: 'Backend', name: str, device_type: str, memory: int, processor_count: int, description: str, ref):
+    def __init__(self, backend: 'Backend', name: str, device_type: str, memory: int, processor_count: int,
+                 description: str, ref):
         assert device_type in ('CPU', 'GPU', 'TPU')
         self.name: str = name
         """ Name of the compute device. CPUs are typically called `'CPU'`. """
@@ -84,7 +84,7 @@ class Backend:
     def name(self) -> str:
         return self._name
 
-    def supports(self, feature: str or Callable) -> bool:
+    def supports(self, feature: str | Callable) -> bool:
         """
         Tests if this backend supports the given feature.
         Features correspond to a method of this backend that must be implemented if the feature is supported.
@@ -162,7 +162,7 @@ class Backend:
     def __repr__(self):
         return self.name
 
-    def list_devices(self, device_type: str or None = None) -> List[ComputeDevice]:
+    def list_devices(self, device_type: str | None = None) -> List[ComputeDevice]:
         """
         Fetches information about all available compute devices this backend can use.
 
@@ -191,7 +191,7 @@ class Backend:
     def get_default_device(self) -> ComputeDevice:
         return self._default_device
 
-    def set_default_device(self, device: ComputeDevice or str) -> bool:
+    def set_default_device(self, device: ComputeDevice | str) -> bool:
         """
         Sets the device new tensors will be allocated on.
         This function will do nothing if the target device type is not available.
@@ -208,7 +208,8 @@ class Backend:
         if isinstance(device, str):
             devices = self.list_devices(device)
             if not devices:
-                warnings.warn(f"{self.name}: Cannot select '{device}' because no device of this type is available.", RuntimeWarning)
+                warnings.warn(f"{self.name}: Cannot select '{device}' because no device of this type is available.",
+                              RuntimeWarning)
                 return False
             device = devices[0]
         assert device.backend is self, f"Cannot set default device to {device.name} for backend {self.name} because the devices belongs to backend {device.backend.name}"
@@ -348,7 +349,7 @@ class Backend:
     def jit_compile(self, f: Callable) -> Callable:
         return NotImplemented
 
-    def jacobian(self, f: Callable, wrt: tuple or list, get_output: bool, is_f_scalar: bool):
+    def jacobian(self, f: Callable, wrt: tuple | list, get_output: bool, is_f_scalar: bool):
         """
         Args:
             f: Function to differentiate. Returns a tuple containing `(reduced_loss, output)`
@@ -363,7 +364,7 @@ class Backend:
         """
         raise NotImplementedError(self)
 
-    def hessian(self, f: Callable, wrt: tuple or list, get_output: bool, get_gradient: bool) -> tuple:
+    def hessian(self, f: Callable, wrt: tuple | list, get_output: bool, get_gradient: bool) -> tuple:
         """
         First dimension of all inputs/outputs of `f` is assumed to be a batch dimension.
         Element-wise Hessians will be computed along the batch dimension.
@@ -381,7 +382,8 @@ class Backend:
         """
         raise NotImplementedError(self)
 
-    def custom_gradient(self, f: Callable, gradient: Callable, get_external_cache: Callable = None, on_call_skipped: Callable = None) -> Callable:
+    def custom_gradient(self, f: Callable, gradient: Callable, get_external_cache: Callable = None,
+                        on_call_skipped: Callable = None) -> Callable:
         """
         Creates a function based on `f` that uses a custom gradient for backprop.
 
@@ -394,17 +396,17 @@ class Backend:
         """
         return NotImplemented
 
-    def jit_compile_grad(self, f: Callable, wrt: tuple or list, get_output: bool, is_f_scalar: bool):
+    def jit_compile_grad(self, f: Callable, wrt: tuple | list, get_output: bool, is_f_scalar: bool):
         raise NotImplementedError()
 
-    def jit_compile_hessian(self, f: Callable, wrt: tuple or list, get_output: bool, get_gradient: bool):
+    def jit_compile_hessian(self, f: Callable, wrt: tuple | list, get_output: bool, get_gradient: bool):
         raise NotImplementedError()
 
     def transpose(self, tensor, axes):
         """ Transposes the dimensions of `tensor` given the new axes order. The tensor will be cast to the default precision in the process. """
         raise NotImplementedError()
 
-    def random_uniform(self, shape, low, high, dtype: DType or None):
+    def random_uniform(self, shape, low, high, dtype: DType | None):
         """ Float tensor of selected precision containing random values in the range [0, 1) """
         raise NotImplementedError(self)
 
@@ -440,7 +442,7 @@ class Backend:
     def reshape(self, value, shape):
         raise NotImplementedError(self)
 
-    def flip(self, value, axes: tuple or list):
+    def flip(self, value, axes: tuple | list):
         slices = tuple(slice(None, None, -1 if i in axes else None) for i in range(self.ndims(value)))
         return value[slices]
 
@@ -491,7 +493,7 @@ class Backend:
     def linspace(self, start, stop, number):
         raise NotImplementedError(self)
 
-    def tensordot(self, a, a_axes: tuple or list, b, b_axes: tuple or list):
+    def tensordot(self, a, a_axes: tuple | list, b, b_axes: tuple | list):
         """ Multiply-sum-reduce a_axes of a with b_axes of b. """
         raise NotImplementedError(self)
 
@@ -708,7 +710,7 @@ class Backend:
         """
         raise NotImplementedError(self)
 
-    def fft(self, x, axes: tuple or list):
+    def fft(self, x, axes: tuple | list):
         """
         Computes the n-dimensional FFT along all but the first and last dimensions.
 
@@ -721,7 +723,7 @@ class Backend:
         """
         raise NotImplementedError(self)
 
-    def ifft(self, k, axes: tuple or list):
+    def ifft(self, k, axes: tuple | list):
         """
         Computes the n-dimensional inverse FFT along all but the first and last dimensions.
 
@@ -789,7 +791,7 @@ class Backend:
         """
         raise NotImplementedError(self)
 
-    def sparse_coo_tensor(self, indices: tuple or list, values, shape: tuple):
+    def sparse_coo_tensor(self, indices: tuple | list, values, shape: tuple):
         """
         Create a sparse matrix in coordinate list (COO) format.
 
@@ -911,7 +913,9 @@ class Backend:
                     if final_losses[b] is None:  # first evaluation
                         final_losses[b] = f_b_losses[b]
                         if trajectories is not None:
-                            trajectories[b].append(SolveResult(method_description, x0[b], self.numpy(f_b_losses[b]), 0, 1, False, False, ""))
+                            trajectories[b].append(
+                                SolveResult(method_description, x0[b], self.numpy(f_b_losses[b]), 0, 1, False, False,
+                                            ""))
                     return f_b_losses_np[b], f_grad_np[b]
 
                 def callback(x, *args):  # L-BFGS-B only passes x but the documentation says (x, state)
@@ -920,9 +924,12 @@ class Backend:
                     recent_b_losses.clear()
                     final_losses[b] = loss
                     if trajectories is not None:
-                        trajectories[b].append(SolveResult(method_description, x, self.numpy(loss), iterations[b], function_evaluations[b], False, False, ""))
+                        trajectories[b].append(
+                            SolveResult(method_description, x, self.numpy(loss), iterations[b], function_evaluations[b],
+                                        False, False, ""))
 
-                res = minimize(fun=b_fun, x0=x0[b], jac=True, method=method, tol=atol[b], options={'maxiter': max_iter[b]}, callback=callback)
+                res = minimize(fun=b_fun, x0=x0[b], jac=True, method=method, tol=atol[b],
+                               options={'maxiter': max_iter[b]}, callback=callback)
                 assert isinstance(res, OptimizeResult)
                 # res.nit, res.nfev
                 xs[b] = res.x
@@ -954,8 +961,11 @@ class Backend:
 
         if trj:
             max_trajectory_length = max([len(t) for t in trajectories])
-            last_points = [SolveResult(method_description, xs[b], self.numpy(final_losses[b]), iterations[b], function_evaluations[b], converged[b], diverged[b], "") for b in range(batch_size)]
-            trajectories = [t[:-1] + [last_point] * (max_trajectory_length - len(t) + 1) for t, last_point in zip(trajectories, last_points)]
+            last_points = [SolveResult(method_description, xs[b], self.numpy(final_losses[b]), iterations[b],
+                                       function_evaluations[b], converged[b], diverged[b], "") for b in
+                           range(batch_size)]
+            trajectories = [t[:-1] + [last_point] * (max_trajectory_length - len(t) + 1) for t, last_point in
+                            zip(trajectories, last_points)]
             trajectory = []
             for states in zip(*trajectories):
                 x = numpy.stack([state.x for state in states])
@@ -964,12 +974,15 @@ class Backend:
                 function_evaluations = [state.function_evaluations for state in states]
                 converged = [state.converged for state in states]
                 diverged = [state.diverged for state in states]
-                trajectory.append(SolveResult(method_description, x, residual, iterations, function_evaluations, converged, diverged, messages))
+                trajectory.append(
+                    SolveResult(method_description, x, residual, iterations, function_evaluations, converged, diverged,
+                                messages))
             return trajectory
         else:
             x = self.stack(xs)
             residual = self.stack(final_losses)
-            return SolveResult(method_description, x, residual, iterations, function_evaluations, converged, diverged, messages)
+            return SolveResult(method_description, x, residual, iterations, function_evaluations, converged, diverged,
+                               messages)
 
     def _minimize_gradient_descent(self, f, x0, atol, max_iter, trj: bool, step_size='adaptive'):
         assert self.supports(Backend.jacobian)
@@ -988,7 +1001,8 @@ class Backend:
         loss, grad = fg(x0)  # Evaluate function and gradient
         diverged = self.any(~self.isfinite(x0), axis=(1,))
         converged = self.zeros([batch_size], DType(bool))
-        trajectory = [SolveResult(method, x0, loss, iterations, function_evaluations, converged, diverged, [""] * batch_size)] if trj else None
+        trajectory = [SolveResult(method, x0, loss, iterations, function_evaluations, converged, diverged,
+                                  [""] * batch_size)] if trj else None
         continue_ = ~converged & ~diverged & (iterations < max_iter)
 
         def gd_step(continue_, x, loss, grad, iterations, function_evaluations, step_size, converged, diverged):
@@ -1000,7 +1014,8 @@ class Backend:
                     dx = - grad * self.expand_dims(step_size * self.to_float(continue_1), -1)
                     next_x = x + dx
                     predicted_loss_decrease = - self.sum(grad * dx, -1)  # >= 0
-                    next_loss, next_grad = fg(next_x); function_evaluations += continue_1
+                    next_loss, next_grad = fg(next_x);
+                    function_evaluations += continue_1
                     converged = converged | (self.sum(next_grad ** 2, axis=-1) < atol ** 2)
                     PHI_LOGGER.debug(f"Gradient: {self.numpy(next_grad)} with step_size={self.numpy(step_size)}")
                     actual_loss_decrease = loss - next_loss  # we want > 0
@@ -1020,23 +1035,29 @@ class Backend:
                 x, loss, grad = next_x, next_loss, next_grad
             else:
                 x -= grad * self.expand_dims(step_size * self.to_float(continue_1), -1)
-                loss, grad = fg(x); function_evaluations += continue_1
+                loss, grad = fg(x);
+                function_evaluations += continue_1
                 diverged = self.any(~self.isfinite(x), axis=(1,)) | (loss > prev_loss)
                 converged = ~diverged & (prev_loss - loss < atol)
             if trj:
-                trajectory.append(SolveResult(method, self.numpy(x), self.numpy(loss), self.numpy(iterations), self.numpy(function_evaluations), self.numpy(diverged), self.numpy(converged), [""] * batch_size))
+                trajectory.append(SolveResult(method, self.numpy(x), self.numpy(loss), self.numpy(iterations),
+                                              self.numpy(function_evaluations), self.numpy(diverged),
+                                              self.numpy(converged), [""] * batch_size))
             continue_ = ~converged & ~diverged & (iterations < max_iter)
             return continue_, x, loss, grad, iterations, function_evaluations, step_size, converged, diverged
 
-        not_converged, x, loss, grad, iterations, function_evaluations, step_size, converged, diverged = self.while_loop(gd_step, (continue_, x0, loss, grad, iterations, function_evaluations, step_size, converged, diverged))
+        not_converged, x, loss, grad, iterations, function_evaluations, step_size, converged, diverged = self.while_loop(
+            gd_step, (continue_, x0, loss, grad, iterations, function_evaluations, step_size, converged, diverged))
 
         if trj:
-            trajectory.append(SolveResult(method, x, loss, iterations, function_evaluations + 1, converged, diverged, [""] * batch_size))
+            trajectory.append(SolveResult(method, x, loss, iterations, function_evaluations + 1, converged, diverged,
+                                          [""] * batch_size))
             return trajectory
         else:
-            return SolveResult(method, x, loss, iterations, function_evaluations, converged, diverged, [""] * batch_size)
+            return SolveResult(method, x, loss, iterations, function_evaluations, converged, diverged,
+                               [""] * batch_size)
 
-    def linear_solve(self, method: str, lin, y, x0, rtol, atol, max_iter, trj: bool) -> SolveResult or List[SolveResult]:
+    def linear_solve(self, method: str, lin, y, x0, rtol, atol, max_iter, trj: bool) -> SolveResult | List[SolveResult]:
         """
         Solve the system of linear equations A · x = y.
         This method need not provide a gradient for the operation.
@@ -1066,7 +1087,7 @@ class Backend:
         else:
             raise NotImplementedError(f"Method '{method}' not supported for linear solve.")
 
-    def conjugate_gradient(self, lin, y, x0, rtol, atol, max_iter, trj: bool) -> SolveResult or List[SolveResult]:
+    def conjugate_gradient(self, lin, y, x0, rtol, atol, max_iter, trj: bool) -> SolveResult | List[SolveResult]:
         """ Standard conjugate gradient algorithm. Signature matches to `Backend.linear_solve()`. """
         # Based on "An Introduction to the Conjugate Gradient Method Without the Agonizing Pain" by Jonathan Richard Shewchuk
         # symbols: dx=d, dy=q, step_size=alpha, residual_squared=delta, residual=r, y=b
@@ -1082,17 +1103,22 @@ class Backend:
         residual_squared = rsq0 = self.sum(residual ** 2, -1, keepdims=True)
         diverged = self.any(~self.isfinite(x), axis=(1,))
         converged = self.all(residual_squared <= tolerance_sq, axis=(1,))
-        trajectory = [SolveResult(method, x, residual, iterations, function_evaluations, converged, diverged, "")] if trj else None
+        trajectory = [SolveResult(method, x, residual, iterations, function_evaluations, converged, diverged,
+                                  "")] if trj else None
         continue_ = ~converged & ~diverged & (iterations < max_iter)
 
-        def cg_loop_body(continue_, it_counter, x, dx, residual_squared, residual, iterations, function_evaluations, _converged, _diverged):
+        def cg_loop_body(continue_, it_counter, x, dx, residual_squared, residual, iterations, function_evaluations,
+                         _converged, _diverged):
             continue_1 = self.to_int32(continue_)
-            it_counter += 1; iterations += continue_1
+            it_counter += 1;
+            iterations += continue_1
             with spatial_derivative_evaluation(1):
-                dy = self.linear(lin, dx); function_evaluations += continue_1
+                dy = self.linear(lin, dx);
+                function_evaluations += continue_1
             dx_dy = self.sum(dx * dy, axis=-1, keepdims=True)
             step_size = self.divide_no_nan(residual_squared, dx_dy)
-            step_size *= self.expand_dims(self.to_float(continue_1), -1)  # this is not really necessary but ensures batch-independence
+            step_size *= self.expand_dims(self.to_float(continue_1),
+                                          -1)  # this is not really necessary but ensures batch-independence
             x += step_size * dx
             # if it_counter % 50 == 0:
             #     residual = y - self.linear(lin, x); function_evaluations += 1
@@ -1104,16 +1130,21 @@ class Backend:
             diverged = self.any(residual_squared / rsq0 > 1e5, axis=(1,)) & (iterations >= 8)
             converged = self.all(residual_squared <= tolerance_sq, axis=(1,))
             if trajectory is not None:
-                trajectory.append(SolveResult(method, x, residual, iterations, function_evaluations, converged, diverged, ""))
+                trajectory.append(
+                    SolveResult(method, x, residual, iterations, function_evaluations, converged, diverged, ""))
                 x = self.copy(x)
                 iterations = self.copy(iterations)
             continue_ = ~converged & ~diverged & (iterations < max_iter)
             return continue_, it_counter, x, dx, residual_squared, residual, iterations, function_evaluations, converged, diverged
 
-        _, _, x, _, _, residual, iterations, function_evaluations, converged, diverged = self.while_loop(cg_loop_body, (continue_, 0, x, dx, residual_squared, residual, iterations, function_evaluations, converged, diverged))
-        return trajectory if trj else SolveResult(method, x, residual, iterations, function_evaluations, converged, diverged, "")
+        _, _, x, _, _, residual, iterations, function_evaluations, converged, diverged = self.while_loop(cg_loop_body, (
+            continue_, 0, x, dx, residual_squared, residual, iterations, function_evaluations, converged, diverged))
+        return trajectory if trj else SolveResult(method, x, residual, iterations, function_evaluations, converged,
+                                                  diverged, "")
 
-    def conjugate_gradient_adaptive(self, lin, y, x0, rtol, atol, max_iter, trj: bool) -> SolveResult or List[SolveResult]:
+    def conjugate_gradient_adaptive(
+            self, lin, y, x0, rtol, atol, max_iter, trj: bool
+    ) -> SolveResult | List[SolveResult]:
         """ Conjugate gradient algorithm with adaptive step size. Signature matches to `Backend.linear_solve()`. """
         # Based on the variant described in "Methods of Conjugate Gradients for Solving Linear Systems" by Magnus R. Hestenes and Eduard Stiefel
         # https://nvlpubs.nist.gov/nistpubs/jres/049/jresv49n6p409_A1b.pdf
@@ -1130,16 +1161,19 @@ class Backend:
         residual_squared = rsq0 = self.sum(residual ** 2, -1, keepdims=True)
         diverged = self.any(~self.isfinite(x), axis=(1,))
         converged = self.all(residual_squared <= tolerance_sq, axis=(1,))
-        trajectory = [SolveResult(method, x, residual, iterations, function_evaluations, converged, diverged, "")] if trj else None
+        trajectory = [SolveResult(method, x, residual, iterations, function_evaluations, converged, diverged,
+                                  "")] if trj else None
         continue_ = ~converged & ~diverged & (iterations < max_iter)
 
-        def acg_loop_body(continue_, it_counter, x, dx, dy, residual, iterations, function_evaluations, _converged, _diverged):
+        def acg_loop_body(continue_, it_counter, x, dx, dy, residual, iterations, function_evaluations, _converged,
+                          _diverged):
             continue_1 = self.to_int32(continue_)
             it_counter += 1
             iterations += continue_1
             dx_dy = self.sum(dx * dy, axis=-1, keepdims=True)
             step_size = self.divide_no_nan(self.sum(dx * residual, axis=-1, keepdims=True), dx_dy)
-            step_size *= self.expand_dims(self.to_float(continue_1), -1)  # this is not really necessary but ensures batch-independence
+            step_size *= self.expand_dims(self.to_float(continue_1),
+                                          -1)  # this is not really necessary but ensures batch-independence
             x += step_size * dx
             # if it_counter % 50 == 0:  # Not traceable since Python bool
             #     residual = y - self.linear(lin, x); function_evaluations += 1
@@ -1148,18 +1182,28 @@ class Backend:
             residual_squared = self.sum(residual ** 2, -1, keepdims=True)
             dx = residual - self.divide_no_nan(self.sum(residual * dy, axis=-1, keepdims=True) * dx, dx_dy)
             with spatial_derivative_evaluation(1):
-                dy = self.linear(lin, dx); function_evaluations += continue_1
+                dy = self.linear(lin, dx);
+                function_evaluations += continue_1
             diverged = self.any(residual_squared / rsq0 > 1e5, axis=(1,)) & (iterations >= 8)
             converged = self.all(residual_squared <= tolerance_sq, axis=(1,))
             if trajectory is not None:
-                trajectory.append(SolveResult(method, x, residual, iterations, function_evaluations, converged, diverged, ""))
+                trajectory.append(
+                    SolveResult(method, x, residual, iterations, function_evaluations, converged, diverged, ""))
                 x = self.copy(x)
                 iterations = self.copy(iterations)
             continue_ = ~converged & ~diverged & (iterations < max_iter)
             return continue_, it_counter, x, dx, dy, residual, iterations, function_evaluations, converged, diverged
 
-        _, _, x, _, _, residual, iterations, function_evaluations, converged, diverged = self.while_loop(acg_loop_body, (continue_, 0, x, dx, dy, residual, iterations, function_evaluations, converged, diverged))
-        return trajectory if trj else SolveResult(method, x, residual, iterations, function_evaluations, converged, diverged, "")
+        _, _, x, _, _, residual, iterations, function_evaluations, converged, diverged = self.while_loop(acg_loop_body,
+                                                                                                         (continue_, 0,
+                                                                                                          x, dx, dy,
+                                                                                                          residual,
+                                                                                                          iterations,
+                                                                                                          function_evaluations,
+                                                                                                          converged,
+                                                                                                          diverged))
+        return trajectory if trj else SolveResult(method, x, residual, iterations, function_evaluations, converged,
+                                                  diverged, "")
 
     def linear(self, lin, vector):
         if callable(lin):
@@ -1174,7 +1218,8 @@ class Backend:
             assert len(lin_shape) == 2, f"A must be a matrix but got shape {lin_shape}"
             return self.matmul(lin, vector)
 
-    def matrix_solve_least_squares(self, matrix: TensorType, rhs: TensorType) -> Tuple[TensorType, TensorType, TensorType, TensorType]:
+    def matrix_solve_least_squares(self, matrix: TensorType, rhs: TensorType) -> Tuple[
+        TensorType, TensorType, TensorType, TensorType]:
         """
         Args:
             matrix: Shape (batch, vec, constraints)
@@ -1238,7 +1283,8 @@ class Backend:
         result = []
         for slice_idx in range(tensor.shape[axis]):
             if keepdims:
-                component = tensor[tuple([slice(slice_idx, slice_idx + 1) if d == axis else slice(None) for d in range(len(tensor.shape))])]
+                component = tensor[tuple(
+                    [slice(slice_idx, slice_idx + 1) if d == axis else slice(None) for d in range(len(tensor.shape))])]
             else:
                 component = tensor[tuple([slice_idx if d == axis else slice(None) for d in range(len(tensor.shape))])]
             result.append(component)
@@ -1327,7 +1373,8 @@ def choose_backend(*values, prefer_default=False) -> Backend:
     # --- Filter out non-applicable ---
     backends = [backend for backend in BACKENDS if _is_applicable(backend, values)]
     if len(backends) == 0:
-        raise NoBackendFound(f"No backend found for types {[type(v).__name__ for v in values]}; registered backends are {BACKENDS}")
+        raise NoBackendFound(
+            f"No backend found for types {[type(v).__name__ for v in values]}; registered backends are {BACKENDS}")
     # --- Native tensors? ---
     for backend in backends:
         if _is_specific(backend, values):
@@ -1356,7 +1403,7 @@ def default_backend() -> Backend:
     return _DEFAULT[-1]
 
 
-def context_backend() -> Backend or None:
+def context_backend() -> Backend | None:
     """
     Returns the backend set by the inner-most surrounding `with backend:` block.
     If called outside a backend context, returns `None`.

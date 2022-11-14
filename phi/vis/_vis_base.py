@@ -220,7 +220,7 @@ class AsyncPlay:
         return status_message(self.model, self)
 
 
-def status_message(model: VisModel, play_status: AsyncPlay or None):
+def status_message(model: VisModel, play_status: AsyncPlay | None):
     pausing = "/Pausing" if (play_status and play_status.paused) else ""
     current_action = "Running" if model.is_progressing else "Waiting"
     action = current_action if play_status else "Idle"
@@ -321,7 +321,7 @@ class Gui:
 
 class PlottingLibrary:
 
-    def __init__(self, name: str, figure_classes: tuple or list):
+    def __init__(self, name: str, figure_classes: tuple | list):
         self.name = name
         self.figure_classes = tuple(figure_classes)
         self.current_figure = None
@@ -402,7 +402,7 @@ def display_name(python_name):
         return text
 
 
-def select_channel(value: SampledField or Tensor or tuple or list, channel: str or None):
+def select_channel(value: SampledField | Tensor | tuple | list, channel: str | None):
     if isinstance(value, (tuple, list)):
         return [select_channel(v, channel) for v in value]
     if channel is None:

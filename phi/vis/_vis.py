@@ -97,11 +97,10 @@ def close(figure=None):
         plots.close(figure)
 
 
-
 RECORDINGS = {}
 
 
-def record(*fields: str or SampledField) -> Viewer:
+def record(*fields: str | SampledField) -> Viewer:
     user_namespace = get_user_namespace(1)
     variables = _default_field_variables(user_namespace, fields)
     viewer = create_viewer(user_namespace, variables, "record", "", scene=None, asynchronous=False, controls=(),
@@ -309,7 +308,8 @@ def plot(*fields: SampledField or Tensor or Layout,
 
         In case of an animation, a displayable animation object will be returned instead of a `Tensor`.
     """
-    nrows, ncols, fig_shape, positioning, indices = layout_sub_figures(math.layout(fields, batch('args')), row_dims, col_dims, animate, 0, 0, {}, {})
+    nrows, ncols, fig_shape, positioning, indices = layout_sub_figures(math.layout(fields, batch('args')), row_dims,
+                                                                       col_dims, animate, 0, 0, {}, {})
     animate = fig_shape.only(animate)
     fig_shape = fig_shape.without(animate)
     plots = default_plots() if lib is None else get_plots(lib)
@@ -329,7 +329,8 @@ def plot(*fields: SampledField or Tensor or Layout,
         title = {(row, col): title.rows[row].cols[col].native() for (row, col) in positioning}
     else:
         assert title is None, f"title must be a str or Tensor but got {title}"
-        title = {pos: ", ".join([i for dim, i in index.items() if isinstance(i, str)]) for pos, index in indices.items()}
+        title = {pos: ", ".join([i for dim, i in index.items() if isinstance(i, str)]) for pos, index in
+                 indices.items()}
     if fig_shape.volume == 1:
         figure, axes = plots.create_figure(size, nrows, ncols, subplots, title)
         if animate:
@@ -337,7 +338,9 @@ def plot(*fields: SampledField or Tensor or Layout,
                 for pos, fields in positioning.items():
                     for f in fields:
                         f = f[{animate.name: frame}]
-                        plots.plot(f, figure, axes[pos], subplots[pos], min_val=min_val, max_val=max_val, show_color_bar=show_color_bar, **plt_args)
+                        plots.plot(f, figure, axes[pos], subplots[pos], min_val=min_val, max_val=max_val,
+                                   show_color_bar=show_color_bar, **plt_args)
+
             anim = plots.animate(figure, animate.size, plot_frame, frame_time, repeat)
             LAST_FIGURE[0] = anim
             plots.close(figure)
@@ -345,11 +348,13 @@ def plot(*fields: SampledField or Tensor or Layout,
         else:
             for pos, fields in positioning.items():
                 for f in fields:
-                    plots.plot(f, figure, axes[pos], subplots[pos], min_val=min_val, max_val=max_val, show_color_bar=show_color_bar, **plt_args)
+                    plots.plot(f, figure, axes[pos], subplots[pos], min_val=min_val, max_val=max_val,
+                               show_color_bar=show_color_bar, **plt_args)
             LAST_FIGURE[0] = figure
             return layout(figure)
     else:
-        raise NotImplementedError(f"Figure batches not yet supported. Use rows and cols to reduce all batch dimensions. Not reduced. {fig_shape}")
+        raise NotImplementedError(
+            f"Figure batches not yet supported. Use rows and cols to reduce all batch dimensions. Not reduced. {fig_shape}")
 
 
 def layout_sub_figures(data: Tensor or Layout or SampledField,
@@ -374,7 +379,9 @@ def layout_sub_figures(data: Tensor or Layout or SampledField,
         indices = {}
         if not batch(data):  # overlay
             for d in data:  # overlay these fields
-                e_rows, e_cols, d_non_reduced, positioning, indices = layout_sub_figures(d, row_dims, col_dims, animate, offset_row, offset_col, positioning, base_index)
+                e_rows, e_cols, d_non_reduced, positioning, indices = layout_sub_figures(d, row_dims, col_dims, animate,
+                                                                                         offset_row, offset_col,
+                                                                                         positioning, base_index)
                 rows = max(rows, e_rows)
                 cols = max(cols, e_cols)
                 non_reduced &= d_non_reduced
@@ -382,20 +389,32 @@ def layout_sub_figures(data: Tensor or Layout or SampledField,
             dim0 = data.shape[0]
             if dim0.only(animate):
                 data = math.stack(data.native(), dim0)
-                return layout_sub_figures(data, row_dims, col_dims, animate, offset_row, offset_col, positioning, base_index)
+                return layout_sub_figures(data, row_dims, col_dims, animate, offset_row, offset_col, positioning,
+                                          base_index)
             elements = data.unstack(dim0.name)
             for item_name, e in zip(dim0.get_item_names(dim0.name) or range(dim0.size), elements):
                 index = dict(base_index, **{dim0.name: item_name})
                 if dim0.only(row_dims):
-                    e_rows, e_cols, e_non_reduced, positioning, e_indices = layout_sub_figures(e.native(), row_dims, col_dims, animate, offset_row + rows, offset_col, positioning, index)
+                    e_rows, e_cols, e_non_reduced, positioning, e_indices = layout_sub_figures(e.native(), row_dims,
+                                                                                               col_dims, animate,
+                                                                                               offset_row + rows,
+                                                                                               offset_col, positioning,
+                                                                                               index)
                     rows += e_rows
                     cols = max(cols, e_cols)
                 elif dim0.only(col_dims):
-                    e_rows, e_cols, e_non_reduced, positioning, e_indices = layout_sub_figures(e.native(), row_dims, col_dims, animate, offset_row, offset_col + cols, positioning, index)
+                    e_rows, e_cols, e_non_reduced, positioning, e_indices = layout_sub_figures(e.native(), row_dims,
+                                                                                               col_dims, animate,
+                                                                                               offset_row,
+                                                                                               offset_col + cols,
+                                                                                               positioning, index)
                     cols += e_cols
                     rows = max(rows, e_rows)
                 else:
-                    e_rows, e_cols, e_non_reduced, positioning, e_indices = layout_sub_figures(e.native(), row_dims, col_dims, animate, offset_row, offset_col, positioning, index)
+                    e_rows, e_cols, e_non_reduced, positioning, e_indices = layout_sub_figures(e.native(), row_dims,
+                                                                                               col_dims, animate,
+                                                                                               offset_row, offset_col,
+                                                                                               positioning, index)
                     cols = max(cols, e_cols)
                     rows = max(rows, e_rows)
                 non_reduced &= e_non_reduced
@@ -435,7 +454,7 @@ def _space(fields: Tuple[Field, ...], ignore_dims: Shape) -> Box:
     return Box(lower, upper)
 
 
-def overlay(*fields: SampledField or Tensor) -> Tensor:
+def overlay(*fields: SampledField | Tensor) -> Tensor:
     """
     Specify that multiple fields should be drawn on top of one another in the same figure.
     The fields will be plotted in the order they are given, i.e. the last field on top.
@@ -474,18 +493,20 @@ def default_gui() -> Gui:
     if GUI_OVERRIDES:
         return GUI_OVERRIDES[-1]
     if 'google.colab' in sys.modules or 'ipykernel' in sys.modules:
-        raise NotImplementedError("There is currently no GUI support for Python notebooks. Use `vis.plot()` to display plots or animations instead.")
+        raise NotImplementedError(
+            "There is currently no GUI support for Python notebooks. Use `vis.plot()` to display plots or animations instead.")
     else:
         options = ['dash', 'console']
     for option in options:
         try:
             return get_gui(option)
         except ImportError as import_error:
-            warnings.warn(f"{option} user interface is unavailable because of missing dependency: {import_error}.", ImportWarning)
+            warnings.warn(f"{option} user interface is unavailable because of missing dependency: {import_error}.",
+                          ImportWarning)
     raise RuntimeError("No user interface available.")
 
 
-def get_gui(gui: str or Gui) -> Gui:
+def get_gui(gui: str | Gui) -> Gui:
     if GUI_OVERRIDES:
         return GUI_OVERRIDES[-1]
     if isinstance(gui, str):
@@ -527,11 +548,12 @@ def default_plots() -> PlottingLibrary:
         try:
             return get_plots(option)
         except ImportError as import_error:
-            warnings.warn(f"{option} user interface is unavailable because of missing dependency: {import_error}.", ImportWarning)
+            warnings.warn(f"{option} user interface is unavailable because of missing dependency: {import_error}.",
+                          ImportWarning)
     raise RuntimeError("No user interface available.")
 
 
-def get_plots(lib: str or PlottingLibrary) -> PlottingLibrary:
+def get_plots(lib: str | PlottingLibrary) -> PlottingLibrary:
     if isinstance(lib, PlottingLibrary):
         return lib
     for loaded_lib in _LOADED_PLOTTING_LIBRARIES:
@@ -559,4 +581,3 @@ def get_plots_by_figure(figure):
             return loaded_lib
     else:
         raise ValueError(f"No library found matching figure {figure} from list {_LOADED_PLOTTING_LIBRARIES}")
-

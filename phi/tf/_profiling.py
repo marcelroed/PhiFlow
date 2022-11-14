@@ -49,12 +49,13 @@ def launch_tensorboard(log_dir, same_process=False, port=6006):
         threading.Thread(target=tb.main).start()
     else:
         def run_tb():
-            os.system('tensorboard --logdir=%s --port=%d' % (log_dir,port))
+            os.system('tensorboard --logdir=%s --port=%d' % (log_dir, port))
+
         threading.Thread(target=run_tb).start()
     try:
         import phi.local.hostname
         host = phi.local.hostname.hostname
     except (ImportError, AttributeError):
         host = 'localhost'  # socket.gethostname()
-    url = "http://%s:%d/" % (host,port)
+    url = "http://%s:%d/" % (host, port)
     return url

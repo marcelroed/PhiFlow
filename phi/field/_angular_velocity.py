@@ -19,13 +19,14 @@ class AngularVelocity(Field):
     """
 
     def __init__(self,
-                 location: math.Tensor or tuple or list or Number,
-                 strength: math.Tensor or Number = 1.0,
+                 location: math.Tensor | tuple | list | Number,
+                 strength: math.Tensor | Number = 1.0,
                  falloff: Callable = None,
                  component: str = None):
         location = math.wrap(location)
         strength = math.wrap(strength)
-        assert location.shape.channel.names == ('vector',), "location must have a single channel dimension called 'vector'"
+        assert location.shape.channel.names == (
+        'vector',), "location must have a single channel dimension called 'vector'"
         assert location.shape.spatial.is_empty, "location tensor cannot have any spatial dimensions"
         assert not instance(location), "AngularVelocity does not support instance dimensions"
         self.location = location

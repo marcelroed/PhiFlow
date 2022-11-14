@@ -32,7 +32,8 @@ def get_fieldnames(simpath) -> tuple:
 
 def get_frames(path: str, field_name: str = None, mode=set.intersection) -> tuple:
     if field_name is not None:
-        all_frames = {int(f[-10:-4]) for f in os.listdir(path) if _str(f).startswith(field_name) and _str(f).endswith(".npz")}
+        all_frames = {int(f[-10:-4]) for f in os.listdir(path) if
+                      _str(f).startswith(field_name) and _str(f).endswith(".npz")}
         return tuple(sorted(all_frames))
     else:
         fields = get_fieldnames(path)
@@ -57,7 +58,7 @@ class Scene:
     To list all scenes within a directory, use `Scene.list()`.
     """
 
-    def __init__(self, paths: str or math.Tensor):
+    def __init__(self, paths: str | math.Tensor):
         self._paths = math.wrap(paths)
         self._properties: dict or None = None
 
@@ -128,7 +129,7 @@ class Scene:
             os.makedirs(abs_dir)
             next_id = 0
         else:
-            indices = [int(f[len(name)+1:]) for f in os.listdir(abs_dir) if f.startswith(f"{name}_")]
+            indices = [int(f[len(name) + 1:]) for f in os.listdir(abs_dir) if f.startswith(f"{name}_")]
             next_id = max([-1] + indices) + 1
         ids = unpack_dim(wrap(tuple(range(next_id, next_id + shape.volume))), 'vector', shape)
         paths = math.map(lambda id_: join(parent_directory, f"{name}_{id_:06d}"), ids)
@@ -145,7 +146,7 @@ class Scene:
     def list(parent_directory: str,
              name='sim',
              include_other: bool = False,
-             dim: Shape or None = None) -> 'Scene' or tuple:
+             dim: Shape or None = None) -> 'Scene' | tuple:
         """
         Lists all scenes inside the given directory.
 
@@ -165,7 +166,8 @@ class Scene:
         abs_dir = abspath(parent_directory)
         if not isdir(abs_dir):
             return ()
-        names = [sim for sim in os.listdir(abs_dir) if sim.startswith(f"{name}_") or (include_other and isdir(join(abs_dir, sim)))]
+        names = [sim for sim in os.listdir(abs_dir) if
+                 sim.startswith(f"{name}_") or (include_other and isdir(join(abs_dir, sim)))]
         if dim is None:
             return tuple(Scene(join(parent_directory, n)) for n in names)
         else:
@@ -173,7 +175,7 @@ class Scene:
             return Scene(paths)
 
     @staticmethod
-    def at(directory: str or tuple or list or math.Tensor or 'Scene', id: int or math.Tensor or None = None) -> 'Scene':
+    def at(directory: str | tuple | list | math.Tensor | 'Scene', id: int | math.Tensor | None = None) -> 'Scene':
         """
         Creates a `Scene` for an existing directory.
 
@@ -204,7 +206,7 @@ class Scene:
                 raise IOError(f"There is no scene at '{path}'")
         return Scene(paths)
 
-    def subpath(self, name: str, create: bool = False) -> str or tuple:
+    def subpath(self, name: str, create: bool = False) -> str | tuple:
         """
         Resolves the relative path `name` with this `Scene` as the root folder.
 
@@ -216,6 +218,7 @@ class Scene:
             Relative path including the path to this `Scene`.
             In batch mode, returns a `tuple`, else a `str`.
         """
+
         def single_subpath(path):
             path = join(path, name)
             if create and not isdir(path):
@@ -251,7 +254,8 @@ class Scene:
             dicts = [read_json(p) for p in self._paths]
             keys = set(sum([tuple(d.keys()) for d in dicts], ()))
             for key in keys:
-                assert all(key in d for d in dicts), f"Failed to create batched Scene because property '{key}' is present in some scenes but not all."
+                assert all(key in d for d in
+                           dicts), f"Failed to create batched Scene because property '{key}' is present in some scenes but not all."
                 if all([math.all(d[key] == dicts[0][key]) for d in dicts]):
                     self._properties[key] = dicts[0][key]
                 else:
@@ -504,30 +508,30 @@ def slugify(value):
 
 
 greek = {
-    u'Α': 'Alpha',      u'α': 'alpha',
-    u'Β': 'Beta',       u'β': 'beta',
-    u'Γ': 'Gamma',      u'γ': 'gamma',
-    u'Δ': 'Delta',      u'δ': 'delta',
-    u'Ε': 'Epsilon',    u'ε': 'epsilon',
-    u'Ζ': 'Zeta',       u'ζ': 'zeta',
-    u'Η': 'Eta',        u'η': 'eta',
-    u'Θ': 'Theta',      u'θ': 'theta',
-    u'Ι': 'Iota',       u'ι': 'iota',
-    u'Κ': 'Kappa',      u'κ': 'kappa',
-    u'Λ': 'Lambda',     u'λ': 'lambda',
-    u'Μ': 'Mu',         u'μ': 'mu',
-    u'Ν': 'Nu',         u'ν': 'nu',
-    u'Ξ': 'Xi',         u'ξ': 'xi',
-    u'Ο': 'Omicron',    u'ο': 'omicron',
-    u'Π': 'Pi',         u'π': 'pi',
-    u'Ρ': 'Rho',        u'ρ': 'rho',
-    u'Σ': 'Sigma',      u'σ': 'sigma',
-    u'Τ': 'Tau',        u'τ': 'tau',
-    u'Υ': 'Upsilon',    u'υ': 'upsilon',
-    u'Φ': 'Phi',        u'φ': 'phi',
-    u'Χ': 'Chi',        u'χ': 'chi',
-    u'Ψ': 'Psi',        u'ψ': 'psi',
-    u'Ω': 'Omega',      u'ω': 'omega',
+    u'Α': 'Alpha', u'α': 'alpha',
+    u'Β': 'Beta', u'β': 'beta',
+    u'Γ': 'Gamma', u'γ': 'gamma',
+    u'Δ': 'Delta', u'δ': 'delta',
+    u'Ε': 'Epsilon', u'ε': 'epsilon',
+    u'Ζ': 'Zeta', u'ζ': 'zeta',
+    u'Η': 'Eta', u'η': 'eta',
+    u'Θ': 'Theta', u'θ': 'theta',
+    u'Ι': 'Iota', u'ι': 'iota',
+    u'Κ': 'Kappa', u'κ': 'kappa',
+    u'Λ': 'Lambda', u'λ': 'lambda',
+    u'Μ': 'Mu', u'μ': 'mu',
+    u'Ν': 'Nu', u'ν': 'nu',
+    u'Ξ': 'Xi', u'ξ': 'xi',
+    u'Ο': 'Omicron', u'ο': 'omicron',
+    u'Π': 'Pi', u'π': 'pi',
+    u'Ρ': 'Rho', u'ρ': 'rho',
+    u'Σ': 'Sigma', u'σ': 'sigma',
+    u'Τ': 'Tau', u'τ': 'tau',
+    u'Υ': 'Upsilon', u'υ': 'upsilon',
+    u'Φ': 'Phi', u'φ': 'phi',
+    u'Χ': 'Chi', u'χ': 'chi',
+    u'Ψ': 'Psi', u'ψ': 'psi',
+    u'Ω': 'Omega', u'ω': 'omega',
 }
 
 

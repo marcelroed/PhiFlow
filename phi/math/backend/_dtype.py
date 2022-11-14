@@ -36,7 +36,8 @@ class DType:
             bits = int(np.round(np.log2(sys.maxsize))) + 1
         elif precision is not None:
             assert bits is None, "Specify either bits or precision when creating a DType but not both."
-            assert kind in [float, complex], f"Precision may only be specified for float or complex but got {kind}, precision={precision}"
+            assert kind in [float,
+                            complex], f"Precision may only be specified for float or complex but got {kind}, precision={precision}"
             if kind == float:
                 bits = precision
             else:
@@ -77,7 +78,7 @@ class DType:
         return f"{self.kind.__name__}{self.bits}"
 
     @staticmethod
-    def as_dtype(value: 'DType' or tuple or type or None) -> 'DType' or None:
+    def as_dtype(value: 'DType' | tuple | type | None) -> 'DType' | None:
         if isinstance(value, DType):
             return value
         elif value is int:

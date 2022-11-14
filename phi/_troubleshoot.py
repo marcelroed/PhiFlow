@@ -23,10 +23,10 @@ def assert_minimal_config():  # raises AssertionError
 
 def troubleshoot():
     import phi
-    return f"PhiFlow {phi.__version__} at {dirname(__file__)}\n"\
-           f"Web interface: {troubleshoot_dash()}\n"\
-           f"PyTorch: {troubleshoot_torch()}\n"\
-           f"Jax: {troubleshoot_jax()}\n"\
+    return f"PhiFlow {phi.__version__} at {dirname(__file__)}\n" \
+           f"Web interface: {troubleshoot_dash()}\n" \
+           f"PyTorch: {troubleshoot_torch()}\n" \
+           f"Jax: {troubleshoot_jax()}\n" \
            f"TensorFlow: {troubleshoot_tensorflow()}\n"  # TF last so avoid VRAM issues
 
 

@@ -49,7 +49,7 @@ def get_parameters(net: nn.Module, wrap=True) -> dict:
     return result
 
 
-def save_state(obj: nn.Module or optim.Optimizer, path: str):
+def save_state(obj: nn.Module | optim.Optimizer, path: str):
     """
     Write the state of a module or optimizer to a file.
 
@@ -65,7 +65,7 @@ def save_state(obj: nn.Module or optim.Optimizer, path: str):
     torch.save(obj.state_dict(), path)
 
 
-def load_state(obj: nn.Module or optim.Optimizer, path: str):
+def load_state(obj: nn.Module | optim.Optimizer, path: str):
     """
     Read the state of a module or optimizer from a file.
 
@@ -328,7 +328,8 @@ class ConvNet(nn.Module):
                 CONV[in_spatial](layers[i - 1], layers[i], kernel_size=3, padding=1, padding_mode='circular'),
                 NORM[in_spatial](layers[i]) if batch_norm else nn.Identity(),
                 activation()))
-        self.add_module(f'Conv_out', CONV[in_spatial](layers[len(layers) - 1], out_channels, kernel_size=3, padding=1, padding_mode='circular'))
+        self.add_module(f'Conv_out', CONV[in_spatial](layers[len(layers) - 1], out_channels, kernel_size=3, padding=1,
+                                                      padding_mode='circular'))
 
     def forward(self, x):
         x = getattr(self, f'Conv_in')(x)
@@ -426,7 +427,7 @@ def res_net(in_channels: int,
     return net
 
 
-def conv_classifier(input_shape: list, num_classes: int, batch_norm: bool, in_spatial: int or tuple):
+def conv_classifier(input_shape: list, num_classes: int, batch_norm: bool, in_spatial: int | tuple):
     if isinstance(in_spatial, int):
         d = in_spatial
     else:

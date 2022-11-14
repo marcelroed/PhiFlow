@@ -30,11 +30,13 @@ class SoftGeometryMask(HardGeometryMask):
     """
     When sampled given another geometry, the approximate overlap between the geometries is computed, allowing for fractional values between 0 and 1.
     """
-    def __init__(self, geometry: Geometry, balance: Tensor or float = 0.5):
+
+    def __init__(self, geometry: Geometry, balance: Tensor | float = 0.5):
         super().__init__(geometry)
         self.balance = balance
 
     def _sample(self, geometry: Geometry, scheme: Scheme) -> Tensor:
+        """ Returns the approximate overlap between the geometries, allowing for fractional values between 0 and 1. """
         return self.geometry.approximate_fraction_inside(geometry, self.balance)
 
     def __getitem__(self, item: dict):

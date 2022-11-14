@@ -1,6 +1,5 @@
-
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 
 from .player_controls import STEP_COMPLETE
 from .dash_app import DashApp
@@ -17,7 +16,8 @@ def build_log(dashapp):
         dcc.Interval(id='initialize-log', interval=200, max_intervals=1)
     ])
 
-    @dashapp.dash.callback(Output('log-dump', 'children'), [STEP_COMPLETE, Input('initialize-log', 'n_intervals'), Input('log-refresh', 'n_clicks')])
+    @dashapp.dash.callback(Output('log-dump', 'children'),
+                           [STEP_COMPLETE, Input('initialize-log', 'n_intervals'), Input('log-refresh', 'n_clicks')])
     def refresh_log(*args):
         try:
             log_file = dashapp.model.log_file

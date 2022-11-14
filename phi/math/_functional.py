@@ -12,8 +12,10 @@ import numpy as np
 from . import _ops as math
 from ._ops import choose_backend_t, zeros_like, all_available, print_, reshaped_native, reshaped_tensor, to_float
 from ._magic_ops import stack, unpack_dim, copy_with
-from ._shape import EMPTY_SHAPE, Shape, parse_dim_order, vector_add, merge_shapes, spatial, instance, batch, concat_shapes, non_batch, shape
-from ._tensors import Tensor, NativeTensor, disassemble_tree, assemble_tree, disassemble_tensors, assemble_tensors, variable_attributes, wrap, cached
+from ._shape import EMPTY_SHAPE, Shape, parse_dim_order, vector_add, merge_shapes, spatial, instance, batch, \
+    concat_shapes, non_batch, shape
+from ._tensors import Tensor, NativeTensor, disassemble_tree, assemble_tree, disassemble_tensors, assemble_tensors, \
+    variable_attributes, wrap, cached
 from .magic import PhiTreeNode
 from .backend import choose_backend, Backend, NUMPY
 from .backend._backend import SolveResult, get_spatial_derivative_order, functional_derivative_evaluation, PHI_LOGGER
@@ -61,12 +63,14 @@ class SignatureKey:
         cond_equal = self.auxiliary_kwargs == other.auxiliary_kwargs
         if isinstance(cond_equal, Tensor):
             cond_equal = cond_equal.all
-        return self.tree == other.tree and all(s1.names == s2.names for s1, s2 in zip(self.shapes, other.shapes)) and self.backend == other.backend and cond_equal
+        return self.tree == other.tree and all(s1.names == s2.names for s1, s2 in zip(self.shapes,
+                                                                                      other.shapes)) and self.backend == other.backend and cond_equal
 
     def extrapolate(self, rec_in: 'SignatureKey', new_in: 'SignatureKey') -> 'SignatureKey':
         assert self.source_function is not None, "extrapolate() must be called on output keys"
         shapes = [self._extrapolate_shape(s, rec_in, new_in) for s in self.shapes]
-        return SignatureKey(self.source_function, self.tree, shapes, self.native_dims, self.backend, self.tracing, self.auxiliary_kwargs)
+        return SignatureKey(self.source_function, self.tree, shapes, self.native_dims, self.backend, self.tracing,
+                            self.auxiliary_kwargs)
 
     @staticmethod
     def _extrapolate_shape(shape_: Shape, rec_in: 'SignatureKey', new_in: 'SignatureKey') -> Shape:
@@ -81,7 +85,8 @@ class SignatureKey:
         return shape_.with_sizes(sizes)
 
 
-def match_output_signature(new_in: SignatureKey, recorded_mappings: Dict[SignatureKey, SignatureKey], source) -> SignatureKey:
+def match_output_signature(new_in: SignatureKey, recorded_mappings: Dict[SignatureKey, SignatureKey],
+                           source) -> SignatureKey:
     for rec_in, rec_out in recorded_mappings.items():
         if rec_in == new_in:  # exact match
             return rec_out
@@ -94,7 +99,8 @@ def match_output_signature(new_in: SignatureKey, recorded_mappings: Dict[Signatu
                        f"Registered transforms:\n{transforms_str}")  # KeyError does not support \n
 
 
-def key_from_args(args: tuple, kwargs: Dict[str, Any], parameters: Tuple[str, ...], cache=False, aux: Set[str] = ()) -> Tuple[SignatureKey, List[Tensor], list, Dict[str, Any]]:
+def key_from_args(args: tuple, kwargs: Dict[str, Any], parameters: Tuple[str, ...], cache=False, aux: Set[str] = ()) -> \
+Tuple[SignatureKey, List[Tensor], list, Dict[str, Any]]:
     kwargs = {**kwargs, **{parameters[i]: v for i, v in enumerate(args)}}
     aux_kwargs = {}
     if aux:
@@ -110,7 +116,8 @@ def key_from_args(args: tuple, kwargs: Dict[str, Any], parameters: Tuple[str, ..
     return key, tensors, natives, kwargs
 
 
-def key_from_args_pack_batch(args, kwargs, parameters: Tuple[str, ...], cache=False) -> Tuple[SignatureKey, List[Tensor], list, Dict[str, Any], Shape]:
+def key_from_args_pack_batch(args, kwargs, parameters: Tuple[str, ...], cache=False) -> Tuple[
+    SignatureKey, List[Tensor], list, Dict[str, Any], Shape]:
     kwargs = {**kwargs, **{parameters[i]: v for i, v in enumerate(args)}}
     tree, tensors = disassemble_tree(kwargs)
     tracing = not all_available(*tensors)
@@ -133,7 +140,8 @@ def function_parameters(f):
     elif hasattr(f, '__wrapped__') and f.__wrapped__ is not None:
         inner_params = function_parameters(f.__wrapped__)
         outer_parameters = dict(inspect.signature(f, follow_wrapped=False).parameters)
-        args_param = [name for name, param in outer_parameters.items() if param.kind == inspect.Parameter.VAR_POSITIONAL]
+        args_param = [name for name, param in outer_parameters.items() if
+                      param.kind == inspect.Parameter.VAR_POSITIONAL]
         assert args_param, f"Wrapping function {f.__name__} must have a varargs parameter"
         kwargs_param = [name for name, param in outer_parameters.items() if param.kind == inspect.Parameter.VAR_KEYWORD]
         outer_params = list(outer_parameters.keys())
@@ -155,10 +163,12 @@ class JitFunction:
         self.auxiliary_args = auxiliary_args
         self.traces: Dict[SignatureKey, Callable] = {}
         self.recorded_mappings: Dict[SignatureKey, SignatureKey] = {}
-        self.grad_jit = GradientFunction(f.f, f.wrt, f.get_output, f.is_f_scalar, jit=True) if isinstance(f, GradientFunction) else None
+        self.grad_jit = GradientFunction(f.f, f.wrt, f.get_output, f.is_f_scalar, jit=True) if isinstance(f,
+                                                                                                          GradientFunction) else None
 
     def _jit_compile(self, in_key: SignatureKey):
-        PHI_LOGGER.debug(f"Φ-jit: '{self.f.__name__}' called with new key. shapes={[s.volume for s in in_key.shapes]}, args={in_key.tree}")
+        PHI_LOGGER.debug(
+            f"Φ-jit: '{self.f.__name__}' called with new key. shapes={[s.volume for s in in_key.shapes]}, args={in_key.tree}")
 
         def jit_f_native(*natives):
             PHI_LOGGER.debug(f"Φ-jit: Tracing '{self.f.__name__}'")
@@ -167,7 +177,8 @@ class JitFunction:
             result = self.f(**kwargs, **in_key.auxiliary_kwargs)  # Tensor or tuple/list of Tensors
             tree, out_tensors = disassemble_tree(result)
             result_natives, result_shapes, _ = disassemble_tensors(out_tensors, expand=True)
-            self.recorded_mappings[in_key] = SignatureKey(jit_f_native, tree, result_shapes, None, in_key.backend, in_key.tracing)
+            self.recorded_mappings[in_key] = SignatureKey(jit_f_native, tree, result_shapes, None, in_key.backend,
+                                                          in_key.tracing)
             return result_natives
 
         jit_f_native.__name__ = f"native({self.f.__name__ if isinstance(self.f, types.FunctionType) else str(self.f)})"
@@ -178,7 +189,8 @@ class JitFunction:
         if isinstance(self.f, GradientFunction) and key.backend.supports(Backend.jit_compile_grad):
             return self.grad_jit(*args, **kwargs)
         if not key.backend.supports(Backend.jit_compile):
-            warnings.warn(f"jit_copmile() not supported by {key.backend}. Running function '{self.f.__name__}' as-is.", RuntimeWarning)
+            warnings.warn(f"jit_copmile() not supported by {key.backend}. Running function '{self.f.__name__}' as-is.",
+                          RuntimeWarning)
             return self.f(*args, **kwargs)
         if key not in self.traces:
             self.traces[key] = self._jit_compile(key)
@@ -241,7 +253,8 @@ def jit_compile(f: Callable, auxiliary_args: str = '') -> Callable:
         Function with similar signature and return values as `f`.
     """
     auxiliary_args = set(s.strip() for s in auxiliary_args.split(',') if s.strip())
-    return f if isinstance(f, (JitFunction, LinearFunction)) and f.auxiliary_args == auxiliary_args else JitFunction(f, auxiliary_args)
+    return f if isinstance(f, (JitFunction, LinearFunction)) and f.auxiliary_args == auxiliary_args else JitFunction(f,
+                                                                                                                     auxiliary_args)
 
 
 class LinearFunction(Generic[X, Y], Callable[[X], Y]):
@@ -259,7 +272,8 @@ class LinearFunction(Generic[X, Y], Callable[[X], Y]):
         self.nl_jit = JitFunction(f, self.auxiliary_args)  # for backends that do not support sparse matrices
 
     def _trace(self, in_key: SignatureKey, prefer_numpy: bool) -> 'ShiftLinTracer':
-        assert in_key.shapes[0].is_uniform, f"math.jit_compile_linear() only supports uniform tensors for function input and output but input shape was {in_key.shapes[0]}"
+        assert in_key.shapes[
+            0].is_uniform, f"math.jit_compile_linear() only supports uniform tensors for function input and output but input shape was {in_key.shapes[0]}"
         with NUMPY if prefer_numpy else in_key.backend:
             x = math.ones(in_key.shapes[0])
             tracer = ShiftLinTracer(x, {EMPTY_SHAPE: math.ones()}, x.shape, math.zeros(x.shape))
@@ -268,7 +282,8 @@ class LinearFunction(Generic[X, Y], Callable[[X], Y]):
         _, result_tensors = disassemble_tree(result)
         assert len(result_tensors) == 1, f"Linear function must return a single Tensor or tensor-like but got {result}"
         result_tensor = result_tensors[0]
-        assert isinstance(result_tensor, ShiftLinTracer), f"Tracing linear function '{self.f.__name__}' failed. Make sure only linear operations are used."
+        assert isinstance(result_tensor,
+                          ShiftLinTracer), f"Tracing linear function '{self.f.__name__}' failed. Make sure only linear operations are used."
         return result_tensor
 
     def _get_or_trace(self, key: SignatureKey, prefer_numpy: bool):
@@ -279,11 +294,13 @@ class LinearFunction(Generic[X, Y], Callable[[X], Y]):
             if not key.tracing:
                 self.tracers[key] = tracer
                 if len(self.tracers) >= 4:
-                    warnings.warn(f"""Φ-lin: The compiled linear function '{self.f.__name__}' was traced {len(self.tracers)} times.
+                    warnings.warn(
+                        f"""Φ-lin: The compiled linear function '{self.f.__name__}' was traced {len(self.tracers)} times.
 Performing many traces may be slow and cause memory leaks.
 Tensors in conditioning arguments (all except the first parameter unless specified otherwise) are compared by reference, not by tensor values.
 Auxiliary arguments: {key.auxiliary_kwargs}
-Multiple linear traces can be avoided by jit-compiling the code that calls the linear function.""", RuntimeWarning, stacklevel=3)
+Multiple linear traces can be avoided by jit-compiling the code that calls the linear function.""", RuntimeWarning,
+                        stacklevel=3)
             return tracer
 
     def __call__(self, *args: X, **kwargs) -> Y:
@@ -294,8 +311,10 @@ Multiple linear traces can be avoided by jit-compiling the code that calls the l
             return self.f(*args, **kwargs)
         if not key.backend.supports(Backend.sparse_coo_tensor):
             # warnings.warn(f"Sparse matrices are not supported by {backend}. Falling back to regular jit compilation.", RuntimeWarning)
-            if not all_available(*tensors):  # avoid nested tracing, Typical case jax.scipy.sparse.cg(LinearFunction). Nested traces cannot be reused which results in lots of traces per cg.
-                PHI_LOGGER.debug(f"Φ-lin: Running '{self.f.__name__}' as-is with {key.backend} because it is being traced.")
+            if not all_available(
+                    *tensors):  # avoid nested tracing, Typical case jax.scipy.sparse.cg(LinearFunction). Nested traces cannot be reused which results in lots of traces per cg.
+                PHI_LOGGER.debug(
+                    f"Φ-lin: Running '{self.f.__name__}' as-is with {key.backend} because it is being traced.")
                 return self.f(*args, **kwargs)
             else:
                 return self.nl_jit(*args, **kwargs)
@@ -305,7 +324,8 @@ Multiple linear traces can be avoided by jit-compiling the code that calls the l
     def sparse_matrix(self, *args, format: str = None, prefer_numpy=False, **kwargs):
         key, *_ = key_from_args(args, kwargs, self.f_params, cache=False, aux=self.auxiliary_args)
         tracer = self._get_or_trace(key, prefer_numpy=prefer_numpy)
-        assert math.close(tracer.bias, 0), "This is an affine function and cannot be represented by a single matrix. Use sparse_matrix_and_bias() instead."
+        assert math.close(tracer.bias,
+                          0), "This is an affine function and cannot be represented by a single matrix. Use sparse_matrix_and_bias() instead."
         return tracer.get_sparse_matrix(format)
 
     def sparse_matrix_and_bias(self, *args, format: str = None, prefer_numpy=False, **kwargs):
@@ -319,7 +339,8 @@ Multiple linear traces can be avoided by jit-compiling the code that calls the l
 
         def print_stencil(**indices):
             pos = spatial(**indices)
-            print(f"{self.f.__name__}: {pos} = {' + '.join(f'{val[indices]} * {vector_add(pos, offset)}' for offset, val in tracer.val.items() if (val[indices] != 0).all)}")
+            print(
+                f"{self.f.__name__}: {pos} = {' + '.join(f'{val[indices]} * {vector_add(pos, offset)}' for offset, val in tracer.val.items() if (val[indices] != 0).all)}")
 
         return print_stencil
 
@@ -327,7 +348,8 @@ Multiple linear traces can be avoided by jit-compiling the code that calls the l
         return f"lin({self.f.__name__})"
 
 
-def jit_compile_linear(f: Callable[[X], Y], auxiliary_args: str = None) -> 'LinearFunction[X, Y]':  # TODO add cache control method, e.g. max_traces
+def jit_compile_linear(f: Callable[[X], Y],
+                       auxiliary_args: str = None) -> 'LinearFunction[X, Y]':  # TODO add cache control method, e.g. max_traces
     """
     Compile an optimized representation of the linear function `f`.
     For backends that support sparse tensors, a sparse matrix will be constructed for `f`.
@@ -359,10 +381,11 @@ def jit_compile_linear(f: Callable[[X], Y], auxiliary_args: str = None) -> 'Line
         assert auxiliary_args is None
         f_params = function_parameters(f)
         auxiliary_args = f_params[1:]
-    return f if isinstance(f, LinearFunction) and f.auxiliary_args == auxiliary_args else LinearFunction(f, auxiliary_args)
+    return f if isinstance(f, LinearFunction) and f.auxiliary_args == auxiliary_args else LinearFunction(f,
+                                                                                                         auxiliary_args)
 
 
-def simplify_wrt(f, wrt: str or int or tuple or list):
+def simplify_wrt(f, wrt: str | int | tuple | list):
     f_params = function_parameters(f)
     if wrt is None:  # Old default
         wrt = f_params[0],
@@ -378,16 +401,19 @@ def simplify_wrt(f, wrt: str or int or tuple or list):
         elif isinstance(wrt, (tuple, list)) and all(isinstance(i, int) for i in wrt):
             wrt = tuple(f_params[i] for i in wrt)
         else:
-            raise ValueError(f"Invalid value given as wrt: {wrt}. Please pass a comma-separated string of parameter names.")
-        warnings.warn("Specifying wrt by position is deprecated in phi.math.funcitonal_gradient() and phi.math.jacobian(). Please pass a list or comma-separated string of parameter names.",
-                      SyntaxWarning, stacklevel=4)
+            raise ValueError(
+                f"Invalid value given as wrt: {wrt}. Please pass a comma-separated string of parameter names.")
+        warnings.warn(
+            "Specifying wrt by position is deprecated in phi.math.funcitonal_gradient() and phi.math.jacobian(). Please pass a list or comma-separated string of parameter names.",
+            SyntaxWarning, stacklevel=4)
     return f_params, wrt
 
 
 class GradientFunction:
     """ Jacobian or Gradient of a function. """
 
-    def __init__(self, f: Callable, f_params, wrt: str or Tuple[str, ...], get_output: bool, is_f_scalar: bool, jit=False):
+    def __init__(self, f: Callable, f_params, wrt: str | Tuple[str, ...], get_output: bool, is_f_scalar: bool,
+                 jit=False):
         self.f = f
         self.f_params = f_params
         self.wrt = wrt
@@ -416,19 +442,24 @@ class GradientFunction:
                     loss_shape) == 0, f"Only scalar losses are allowed when returning a native tensor but {self.f.__name__} returned {type(loss_native).__name__} of shape {loss_shape}. For higher-dimensional values, use Φ-Tensors instead."
             nest, out_tensors = disassemble_tree(result)
             result_natives, result_shapes, _ = disassemble_tensors(out_tensors, expand=True)
-            self.recorded_mappings[in_key] = SignatureKey(f_native, nest, result_shapes, None, in_key.backend, in_key.tracing)
+            self.recorded_mappings[in_key] = SignatureKey(f_native, nest, result_shapes, None, in_key.backend,
+                                                          in_key.tracing)
             return loss_native, result_natives
 
         if self.jit:
-            return in_key.backend.jit_compile_grad(f_native, wrt=wrt_natives, get_output=self.get_output, is_f_scalar=self.is_f_scalar)
+            return in_key.backend.jit_compile_grad(f_native, wrt=wrt_natives, get_output=self.get_output,
+                                                   is_f_scalar=self.is_f_scalar)
         else:
-            return in_key.backend.jacobian(f_native, wrt=wrt_natives, get_output=self.get_output, is_f_scalar=self.is_f_scalar)
+            return in_key.backend.jacobian(f_native, wrt=wrt_natives, get_output=self.get_output,
+                                           is_f_scalar=self.is_f_scalar)
 
     def __call__(self, *args, **kwargs):
         key, tensors, natives, kwargs = key_from_args(args, kwargs, self.f_params, cache=True)
         if not key.backend.supports(Backend.jacobian):
             if math.default_backend().supports(Backend.jacobian):
-                warnings.warn(f"Using {math.default_backend()} for gradient computation because {key.backend} does not support jacobian()", RuntimeWarning)
+                warnings.warn(
+                    f"Using {math.default_backend()} for gradient computation because {key.backend} does not support jacobian()",
+                    RuntimeWarning)
                 key.backend = math.default_backend()
             else:
                 raise AssertionError(f"jacobian() not supported by {key.backend}.")
@@ -443,7 +474,8 @@ class GradientFunction:
         if self.get_output:
             result_shapes = list(output_key.shapes) + wrt_shapes
             output_tensors = assemble_tensors(native_result, result_shapes, None)
-            output_structure, grad_tuple = assemble_tree((output_key.tree, [key.tree[i] for i in self._wrt_tuple]), output_tensors)
+            output_structure, grad_tuple = assemble_tree((output_key.tree, [key.tree[i] for i in self._wrt_tuple]),
+                                                         output_tensors)
             return output_structure, grad_tuple if isinstance(self.wrt, tuple) else grad_tuple[0]
         else:
             output_tensors = assemble_tensors(native_result, wrt_shapes, None)
@@ -559,7 +591,8 @@ def functional_gradient(f: Callable, wrt: str = None, get_output=True) -> Callab
 
 class HessianFunction:
 
-    def __init__(self, f: Callable, f_params, wrt: tuple, get_output: bool, get_gradient: bool, dim_suffixes: tuple, jit=False):
+    def __init__(self, f: Callable, f_params, wrt: tuple, get_output: bool, get_gradient: bool, dim_suffixes: tuple,
+                 jit=False):
         assert isinstance(dim_suffixes, tuple) and len(dim_suffixes) == 2
         self.f = f
         self.f_params = f_params
@@ -581,7 +614,8 @@ class HessianFunction:
                 result = self.f(**kwargs)
             nest, out_tensors = disassemble_tree(result)
             result_natives, result_shapes, _ = disassemble_tensors(out_tensors, expand=True)
-            self.recorded_mappings[in_key] = SignatureKey(f_native, nest, result_shapes, None, in_key.backend, in_key.tracing)
+            self.recorded_mappings[in_key] = SignatureKey(f_native, nest, result_shapes, None, in_key.backend,
+                                                          in_key.tracing)
             return result_natives
 
         hessian_generator = in_key.backend.jit_compile_hessian if self.jit else in_key.backend.hessian
@@ -591,7 +625,9 @@ class HessianFunction:
         key, tensors, natives, kwargs, batch_shape = key_from_args_pack_batch(args, kwargs, self.f_params, cache=True)
         if not key.backend.supports(Backend.jacobian):
             if math.default_backend().supports(Backend.jacobian):
-                warnings.warn(f"Using {math.default_backend()} for gradient computation because {key.backend} does not support jacobian()", RuntimeWarning)
+                warnings.warn(
+                    f"Using {math.default_backend()} for gradient computation because {key.backend} does not support jacobian()",
+                    RuntimeWarning)
                 key.backend = math.default_backend()
             else:
                 raise AssertionError(f"jacobian() not supported by {key.backend}.")
@@ -609,7 +645,8 @@ class HessianFunction:
             # output_tensors = [math.reshaped_tensor(n, [batch_shape, *shape.non_batch]) for n, shape in zip(native_result[0], output_key.shapes)]
             result += assemble_tree(output_key.tree, output_tensors),
         if self.get_gradient:
-            grad_tensors = assemble_tensors(native_result[int(self.get_output)], [key.shapes[i] for i in wrt_tensors], None)
+            grad_tensors = assemble_tensors(native_result[int(self.get_output)], [key.shapes[i] for i in wrt_tensors],
+                                            None)
             grad_tensors = [unpack_dim(t, 'batch', batch_shape) for t in grad_tensors]
             grads = assemble_tree([key.tree[i] for i in self._wrt_tuple], grad_tensors)
             if not isinstance(self.wrt, tuple):
@@ -617,18 +654,27 @@ class HessianFunction:
             result += grads,
         if len(wrt_natives) == 1:
             native_hessian = native_result[-1][0][0]
-            hessian_tensor = math.reshaped_tensor(native_hessian, [batch_shape, *self.shape_with_suffixes(key.shapes[0].non_batch, self.dim_suffixes[0]),
-                                                                   *self.shape_with_suffixes(key.shapes[0].non_batch, self.dim_suffixes[1])], check_sizes=True)
-            hessian_tree = assemble_tree(key.tree[self.wrt[0] if isinstance(self.wrt, tuple) else self.wrt], [hessian_tensor])
+            hessian_tensor = math.reshaped_tensor(native_hessian, [batch_shape,
+                                                                   *self.shape_with_suffixes(key.shapes[0].non_batch,
+                                                                                             self.dim_suffixes[0]),
+                                                                   *self.shape_with_suffixes(key.shapes[0].non_batch,
+                                                                                             self.dim_suffixes[1])],
+                                                  check_sizes=True)
+            hessian_tree = assemble_tree(key.tree[self.wrt[0] if isinstance(self.wrt, tuple) else self.wrt],
+                                         [hessian_tensor])
             result += [hessian_tree] if isinstance(self.wrt, tuple) else hessian_tree,
         else:
-            assert all([t is None for t in key.tree]), "When computing the Hessian w.r.t. multiple tensors, all inputs must be Tensors."
+            assert all([t is None for t in
+                        key.tree]), "When computing the Hessian w.r.t. multiple tensors, all inputs must be Tensors."
             raise NotImplementedError()
             hessian_tree = [[] for _ in self.wrt]
             for i in range(len(self.wrt)):
                 for j in range(len(self.wrt)):
                     native_hessian_ij = native_result[-1][i][j]
-                    hessian_tensor_ij = math.reshaped_tensor(native_hessian_ij, [batch_shape, *key.shapes[i].non_batch, *self.dupli_shape(key.shapes[j].non_batch)], check_sizes=True)
+                    hessian_tensor_ij = math.reshaped_tensor(native_hessian_ij, [batch_shape, *key.shapes[i].non_batch,
+                                                                                 *self.dupli_shape(
+                                                                                     key.shapes[j].non_batch)],
+                                                             check_sizes=True)
                     hessian_tree[i].append(hessian_tensor_ij)
             result += tuple([tuple(col) for col in hessian_tree]),
         return result
@@ -719,7 +765,8 @@ class CustomGradientFunction:
             result = self.f(**kwargs, **in_key.auxiliary_kwargs)  # Tensor or tuple/list of Tensors
             nest, out_tensors = disassemble_tree(result)
             result_natives, result_shapes, _ = disassemble_tensors(out_tensors, expand=True)
-            self.recorded_mappings[in_key] = SignatureKey(forward_native, nest, result_shapes, None, in_key.backend, in_key.tracing)
+            self.recorded_mappings[in_key] = SignatureKey(forward_native, nest, result_shapes, None, in_key.backend,
+                                                          in_key.tracing)
             return result_natives
 
         def backward_native(x_natives, y_natives, dy_natives):
@@ -737,20 +784,25 @@ class CustomGradientFunction:
             assert isinstance(result, dict) and all(key in kwargs for key in
                                                     result.keys()), f"gradient function must return a dict containing only parameter names of the forward function. Forward '{self.f.__name__}' has arguments {kwargs}."
             full_result = tuple(result.get(name, None) for name in in_key.tree.keys())
-            result_natives = self.incomplete_tree_to_natives(full_result, tuple(in_key.tree.values()), list(in_key.shapes))
+            result_natives = self.incomplete_tree_to_natives(full_result, tuple(in_key.tree.values()),
+                                                             list(in_key.shapes))
             return result_natives
 
         forward_native.__name__ = f"forward '{self.f.__name__ if isinstance(self.f, types.FunctionType) else str(self.f)}'"
         backward_native.__name__ = f"{self.gradient.__name__ if isinstance(self.gradient, types.FunctionType) else str(self.gradient)} (of '{self.f.__name__ if isinstance(self.f, types.FunctionType) else str(self.f)}')"
 
-        return in_key.backend.custom_gradient(forward_native, backward_native, get_external_cache=lambda: self.recorded_mappings[in_key], on_call_skipped=partial(self.recorded_mappings.__setitem__, in_key))
+        return in_key.backend.custom_gradient(forward_native, backward_native,
+                                              get_external_cache=lambda: self.recorded_mappings[in_key],
+                                              on_call_skipped=partial(self.recorded_mappings.__setitem__, in_key))
 
     def __call__(self, *args, **kwargs):
         key, _, natives, _ = key_from_args(args, kwargs, self.f_params, cache=False, aux=self.auxiliary_args)
         if not key.backend.supports(Backend.jacobian) and not key.backend.supports(Backend.jacobian):
             return self.f(*args, **kwargs)  # no need to use custom gradient if gradients aren't supported anyway
         elif not key.backend.supports(Backend.custom_gradient):
-            warnings.warn(f"custom_gradient() not supported by {key.backend}. Running function '{self.f.__name__}' as-is.", RuntimeWarning)
+            warnings.warn(
+                f"custom_gradient() not supported by {key.backend}. Running function '{self.f.__name__}' as-is.",
+                RuntimeWarning)
             return self.f(*args, **kwargs)
         if key not in self.traces:
             self.traces[key] = self._trace(key)
@@ -783,16 +835,23 @@ Traces can be avoided by jit-compiling the code that calls custom gradient funct
                 return list(incomplete._natives())
         elif isinstance(tree, (tuple, list)):
             if incomplete is None:
-                return sum([CustomGradientFunction.incomplete_tree_to_natives(None, item, complete_shapes) for item in tree], [])
+                return sum(
+                    [CustomGradientFunction.incomplete_tree_to_natives(None, item, complete_shapes) for item in tree],
+                    [])
             else:
                 assert type(tree) == type(incomplete) and len(tree) == len(incomplete)
-                return sum([CustomGradientFunction.incomplete_tree_to_natives(i_item, c_item, complete_shapes) for i_item, c_item in zip(incomplete, tree)], [])
+                return sum([CustomGradientFunction.incomplete_tree_to_natives(i_item, c_item, complete_shapes) for
+                            i_item, c_item in zip(incomplete, tree)], [])
         elif isinstance(tree, dict):
             if incomplete is None:
-                return sum([CustomGradientFunction.incomplete_tree_to_natives(None, item, complete_shapes) for item in tree.values()], [])
+                return sum([CustomGradientFunction.incomplete_tree_to_natives(None, item, complete_shapes) for item in
+                            tree.values()], [])
             else:
-                assert type(tree) == type(incomplete) and len(tree) == len(incomplete) and set(tree.keys()) == set(incomplete.keys())
-                return sum([CustomGradientFunction.incomplete_tree_to_natives(incomplete[key], c_item, complete_shapes) for key, c_item in tree.items()], [])
+                assert type(tree) == type(incomplete) and len(tree) == len(incomplete) and set(tree.keys()) == set(
+                    incomplete.keys())
+                return sum(
+                    [CustomGradientFunction.incomplete_tree_to_natives(incomplete[key], c_item, complete_shapes) for
+                     key, c_item in tree.items()], [])
         elif isinstance(tree, PhiTreeNode):
             attributes = variable_attributes(tree)
             natives = []
@@ -865,7 +924,7 @@ class ShiftLinTracer(Tensor):
         self._shape = shape
         self._sparse_coo = self._sparse_csr = self._sparse_csc = None
 
-    def native(self, order: str or tuple or list or Shape = None):
+    def native(self, order: str | tuple | list | Shape = None):
         """
         Evaluates the value of the linear operation applied to the original source tensor.
 
@@ -893,7 +952,8 @@ class ShiftLinTracer(Tensor):
         order_out = concat_shapes(self._shape.only(independent_dims), self._shape.without(independent_dims))
         native_src = value.native(order=order_src.names)
         backend = choose_backend(native_src)
-        native_src = backend.reshape(native_src, (order_src.only(independent_dims).volume, order_src.without(independent_dims).volume))
+        native_src = backend.reshape(native_src, (
+        order_src.only(independent_dims).volume, order_src.without(independent_dims).volume))
         native_out = backend.matmul(mat, native_src)
         native_out = backend.reshape(native_out, order_out.sizes)
         return NativeTensor(native_out, order_out)
@@ -914,7 +974,8 @@ class ShiftLinTracer(Tensor):
             cells = list(cell_indices(out_shape))
             for missing_dim in src_shape.without(self._shape).names:
                 cells.insert(self.source.shape.index(missing_dim), np.zeros_like(cells[0]))
-            cells = [(cell + shift.get_size(dim) if dim in shift else cell) % src_shape.get_size(dim) for dim, cell in zip(src_shape.names, cells)]  # shift & wrap
+            cells = [(cell + shift.get_size(dim) if dim in shift else cell) % src_shape.get_size(dim) for dim, cell in
+                     zip(src_shape.names, cells)]  # shift & wrap
             src_indices = cell_number(cells, src_shape)
             cols.append(src_indices)
             vals.append(reshaped_native(values, [*out_shape], force_expand=True))
@@ -942,11 +1003,13 @@ class ShiftLinTracer(Tensor):
         col_indices = scipy_csr.indices
         row_ptr = scipy_csr.indptr
         if coo.values.nnz.size != len(scipy_csr.data):
-            warnings.warn("Failed to create CSR matrix because the CSR matrix contains fewer non-zero values than COO. This can happen when the `x` tensor is too small for the stencil.",
-                          RuntimeWarning)
+            warnings.warn(
+                "Failed to create CSR matrix because the CSR matrix contains fewer non-zero values than COO. This can happen when the `x` tensor is too small for the stencil.",
+                RuntimeWarning)
             return coo
         values = coo.values.nnz[wrap(scipy_csr.data - 1, instance('nnz'))]  # Change order accordingly
-        self._sparse_csr = SparseMatrixContainer('csr', coo.shape, coo.indices_key, coo.src_shape, values, row_ptr, col_indices)
+        self._sparse_csr = SparseMatrixContainer('csr', coo.shape, coo.indices_key, coo.src_shape, values, row_ptr,
+                                                 col_indices)
         return self._sparse_csr
 
     def get_sparse_csc_matrix(self) -> 'SparseMatrixContainer':
@@ -963,11 +1026,13 @@ class ShiftLinTracer(Tensor):
         row_indices = scipy_csr.indices
         col_ptr = scipy_csr.indptr
         if coo.values.nnz.size != len(scipy_csr.data):
-            warnings.warn("Failed to create CSR matrix because the CSR matrix contains fewer non-zero values than COO. This can happen when the `x` tensor is too small for the stencil.",
-                          RuntimeWarning)
+            warnings.warn(
+                "Failed to create CSR matrix because the CSR matrix contains fewer non-zero values than COO. This can happen when the `x` tensor is too small for the stencil.",
+                RuntimeWarning)
             return coo
         values = coo.values.nnz[wrap(scipy_csr.data - 1, instance('nnz'))]  # Change order accordingly
-        self._sparse_csc = SparseMatrixContainer('csc', coo.shape, coo.indices_key, coo.src_shape, values, row_indices, col_ptr)
+        self._sparse_csc = SparseMatrixContainer('csc', coo.shape, coo.indices_key, coo.src_shape, values, row_indices,
+                                                 col_ptr)
         return self._sparse_csc
 
     def get_sparse_matrix(self, matrix_format: str = None) -> 'SparseMatrixContainer':
@@ -1039,7 +1104,9 @@ class ShiftLinTracer(Tensor):
                 if dim not in values.shape:
                     values = math.expand(values, self._shape.only(dim))  # dim order may be scrambled
                 if delta:
-                    shift = shift._replace_single_size(dim, shift.get_size(dim) + delta) if dim in shift else shift._expand(spatial(**{dim: delta}))
+                    shift = shift._replace_single_size(dim,
+                                                       shift.get_size(dim) + delta) if dim in shift else shift._expand(
+                        spatial(**{dim: delta}))
             val[shift] = val_fun(values)
         bias = bias_fun(self.bias)
         return ShiftLinTracer(self.source, val, new_shape, bias)
@@ -1048,7 +1115,8 @@ class ShiftLinTracer(Tensor):
         raise NotImplementedError()
 
     def __neg__(self):
-        return ShiftLinTracer(self.source, {shift: -values for shift, values in self.val.items()}, self._shape, -self.bias)
+        return ShiftLinTracer(self.source, {shift: -values for shift, values in self.val.items()}, self._shape,
+                              -self.bias)
 
     def _op1(self, native_function):
         # __neg__ is the only proper linear op1 and is implemented above.
@@ -1077,7 +1145,8 @@ class ShiftLinTracer(Tensor):
 
         if isinstance(other, ShiftLinTracer):
             assert self.source is other.source, "Multiple linear tracers are not yet supported."
-            assert set(self._shape) == set(other._shape), f"Tracers have different shapes: {self._shape} and {other._shape}"
+            assert set(self._shape) == set(
+                other._shape), f"Tracers have different shapes: {self._shape} and {other._shape}"
             values = {}
             for dim_shift in self.val.keys():
                 if dim_shift in other.val:
@@ -1245,7 +1314,9 @@ class Solve(Generic[X, Y]):  # TODO move to phi.math._functional, put Tensors th
         In any case, the gradient solve information will be stored in `gradient_solve.result`.
         """
         if self._gradient_solve is None:
-            self._gradient_solve = Solve(self.method, self.relative_tolerance, self.absolute_tolerance, self.max_iterations, None, self.suppress, self.preprocess_y, self.preprocess_y_args)
+            self._gradient_solve = Solve(self.method, self.relative_tolerance, self.absolute_tolerance,
+                                         self.max_iterations, None, self.suppress, self.preprocess_y,
+                                         self.preprocess_y_args)
         return self._gradient_solve
 
     def __repr__(self):
@@ -1318,8 +1389,10 @@ class SolveInfo(Generic[X, Y]):
         return self.msg
 
     def snapshot(self, index):
-        return SolveInfo(self.solve, self.x.trajectory[index], self.residual.trajectory[index], self.iterations.trajectory[index], self.function_evaluations.trajectory[index],
-                         self.converged.trajectory[index], self.diverged.trajectory[index], self.method, self.msg, self.solve_time)
+        return SolveInfo(self.solve, self.x.trajectory[index], self.residual.trajectory[index],
+                         self.iterations.trajectory[index], self.function_evaluations.trajectory[index],
+                         self.converged.trajectory[index], self.diverged.trajectory[index], self.method, self.msg,
+                         self.solve_time)
 
     def convergence_check(self, only_warn: bool):
         if not all_available(self.diverged, self.converged):
@@ -1420,7 +1493,9 @@ class SolveTape:
 
     def _add(self, solve: Solve, trj: bool, result: SolveInfo):
         if any(s.solve.id == solve.id for s in self.solves):
-            warnings.warn("SolveTape contains two results for the same solve settings. SolveTape[solve] will return the first solve result.", RuntimeWarning)
+            warnings.warn(
+                "SolveTape contains two results for the same solve settings. SolveTape[solve] will return the first solve result.",
+                RuntimeWarning)
         if self.record_trajectories:
             assert trj, "Solve did not record a trajectory."
             self.solves.append(result)
@@ -1481,7 +1556,8 @@ def minimize(f: Callable[[X], Y], solve: Solve[X, Y]) -> X:
         NotConverged: If the desired accuracy was not be reached within the maximum number of iterations.
         Diverged: If the optimization failed prematurely.
     """
-    assert (solve.relative_tolerance == 0).all, f"relative_tolerance must be zero for minimize() but got {solve.relative_tolerance}"
+    assert (
+                solve.relative_tolerance == 0).all, f"relative_tolerance must be zero for minimize() but got {solve.relative_tolerance}"
     assert solve.preprocess_y is None, "minimize() does not allow preprocess_y"
     x0_nest, x0_tensors = disassemble_tree(solve.x0)
     x0_tensors = [to_float(t) for t in x0_tensors]
@@ -1500,7 +1576,8 @@ def minimize(f: Callable[[X], Y], solve: Solve[X, Y]) -> X:
         for x0_native, x0_tensor in zip(x0_natives, x0_tensors):
             vol = backend.shape(x0_native)[-1]
             flat_native = x_flat[..., i:i + vol]
-            x_tensors.append(reshaped_tensor(flat_native, [*additional_dims, batch_dims, x0_tensor.shape.non_batch], convert=convert))
+            x_tensors.append(reshaped_tensor(flat_native, [*additional_dims, batch_dims, x0_tensor.shape.non_batch],
+                                             convert=convert))
             i += vol
         x = assemble_tree(x0_nest, x_tensors)
         return x
@@ -1513,7 +1590,8 @@ def minimize(f: Callable[[X], Y], solve: Solve[X, Y]) -> X:
             y = f(x)
         _, y_tensors = disassemble_tree(y)
         assert not non_batch(
-            y_tensors[0]), f"Failed to minimize '{f.__name__}' because it returned a non-scalar output {shape(y_tensors[0])}. Reduce all non-batch dimensions, e.g. using math.l2_loss()"
+            y_tensors[
+                0]), f"Failed to minimize '{f.__name__}' because it returned a non-scalar output {shape(y_tensors[0])}. Reduce all non-batch dimensions, e.g. using math.l2_loss()"
         return y_tensors[0].sum, (reshaped_native(y_tensors[0], [batch_dims]),)
 
     atol = backend.to_float(reshaped_native(solve.absolute_tolerance, [batch_dims], force_expand=True))
@@ -1530,7 +1608,8 @@ def minimize(f: Callable[[X], Y], solve: Solve[X, Y]) -> X:
         iterations = reshaped_tensor(ret.iterations, [batch_dims])
         function_evaluations = reshaped_tensor(ret.function_evaluations, [batch_dims])
         residual = reshaped_tensor(ret.residual, [batch_dims])
-        result = SolveInfo(solve, x, residual, iterations, function_evaluations, converged, diverged, ret.method, ret.message, t)
+        result = SolveInfo(solve, x, residual, iterations, function_evaluations, converged, diverged, ret.method,
+                           ret.message, t)
     else:  # trajectory
         assert isinstance(ret, (tuple, list)) and all(isinstance(r, SolveResult) for r in ret)
         converged = reshaped_tensor(ret[-1].converged, [batch_dims])
@@ -1539,8 +1618,10 @@ def minimize(f: Callable[[X], Y], solve: Solve[X, Y]) -> X:
         x_ = unflatten_assemble(numpy.stack([r.x for r in ret]), additional_dims=batch('trajectory'), convert=False)
         residual = stack([reshaped_tensor(r.residual, [batch_dims]) for r in ret], batch('trajectory'))
         iterations = reshaped_tensor(ret[-1].iterations, [batch_dims])
-        function_evaluations = stack([reshaped_tensor(r.function_evaluations, [batch_dims]) for r in ret], batch('trajectory'))
-        result = SolveInfo(solve, x_, residual, iterations, function_evaluations, converged, diverged, ret[-1].method, ret[-1].message, t)
+        function_evaluations = stack([reshaped_tensor(r.function_evaluations, [batch_dims]) for r in ret],
+                                     batch('trajectory'))
+        result = SolveInfo(solve, x_, residual, iterations, function_evaluations, converged, diverged, ret[-1].method,
+                           ret[-1].message, t)
     for tape in _SOLVE_TAPES:
         tape._add(solve, trj, result)
     result.convergence_check(False)  # raises ConvergenceException
@@ -1626,13 +1707,15 @@ def solve_linear(f: Callable[[X], Y],
     assert len(x0_tensors) == len(y_tensors) == 1, "Only single-tensor linear solves are currently supported"
     backend = choose_backend_t(*y_tensors, *x0_tensors)
 
-    if isinstance(f, LinearFunction) and (backend.supports(Backend.sparse_coo_tensor) or backend.supports(Backend.csr_matrix)):  # Matrix solve
+    if isinstance(f, LinearFunction) and (
+            backend.supports(Backend.sparse_coo_tensor) or backend.supports(Backend.csr_matrix)):  # Matrix solve
         matrix, bias = f.sparse_matrix_and_bias(solve.x0, *f_args, **(f_kwargs or {}))
 
         def _matrix_solve_forward(y, solve: Solve, matrix: SparseMatrixContainer, is_backprop=False):
             matrix_native = matrix.native()
             active_dims = matrix.src_shape
-            result = _linear_solve_forward(y, solve, matrix_native, active_dims=active_dims, backend=backend, is_backprop=is_backprop)
+            result = _linear_solve_forward(y, solve, matrix_native, active_dims=active_dims, backend=backend,
+                                           is_backprop=is_backprop)
             return result  # must return exactly `x` so gradient isn't computed w.r.t. other quantities
 
         _matrix_solve = attach_gradient_solve(_matrix_solve_forward, auxiliary_args='is_backprop')
@@ -1650,15 +1733,19 @@ def solve_linear(f: Callable[[X], Y],
             def native_lin_f(native_x, batch_index=None):
                 if batch_index is not None and batches.volume > 1:
                     native_x = backend.tile(backend.expand_dims(native_x), [batches.volume, 1])
-                x = assemble_tree(x0_nest, [reshaped_tensor(native_x, [batches, active_dims] if backend.ndims(native_x) >= 2 else [active_dims], convert=False)])
+                x = assemble_tree(x0_nest, [
+                    reshaped_tensor(native_x, [batches, active_dims] if backend.ndims(native_x) >= 2 else [active_dims],
+                                    convert=False)])
                 y = f(x, *f_args, **f_kwargs)
                 _, (y_tensor,) = disassemble_tree(y)
-                y_native = reshaped_native(y_tensor, [batches, active_dims] if backend.ndims(native_x) >= 2 else [active_dims])
+                y_native = reshaped_native(y_tensor,
+                                           [batches, active_dims] if backend.ndims(native_x) >= 2 else [active_dims])
                 if batch_index is not None and batches.volume > 1:
                     y_native = y_native[batch_index]
                 return y_native
 
-            result = _linear_solve_forward(y, solve, native_lin_f, active_dims=active_dims, backend=backend, is_backprop=is_backprop)
+            result = _linear_solve_forward(y, solve, native_lin_f, active_dims=active_dims, backend=backend,
+                                           is_backprop=is_backprop)
             return result  # must return exactly `x` so gradient isn't computed w.r.t. other quantities
 
         _function_solve = attach_gradient_solve(_function_solve_forward, auxiliary_args='is_backprop,f_kwargs')
@@ -1698,17 +1785,23 @@ def _linear_solve_forward(y, solve: Solve, native_lin_op,
             residual = assemble_tree(y_nest, [reshaped_tensor(residual, [batch_dims, active_dims])])
         else:
             residual = None
-        result = SolveInfo(solve, x, residual, iterations, function_evaluations, converged, diverged, ret.method, ret.message, t)
+        result = SolveInfo(solve, x, residual, iterations, function_evaluations, converged, diverged, ret.method,
+                           ret.message, t)
     else:  # trajectory
-        assert isinstance(ret, (tuple, list)) and all(isinstance(r, SolveResult) for r in ret), f"Trajectory recording failed: got {type(ret)}"
+        assert isinstance(ret, (tuple, list)) and all(
+            isinstance(r, SolveResult) for r in ret), f"Trajectory recording failed: got {type(ret)}"
         converged = reshaped_tensor(ret[-1].converged, [batch_dims])
         diverged = reshaped_tensor(ret[-1].diverged, [batch_dims])
         x = assemble_tree(x0_nest, [reshaped_tensor(ret[-1].x, [batch_dims, active_dims])])
-        x_ = assemble_tree(x0_nest, [stack([reshaped_tensor(r.x, [batch_dims, active_dims]) for r in ret], batch('trajectory'))])
-        residual = assemble_tree(y_nest, [stack([reshaped_tensor(r.residual, [batch_dims, active_dims]) for r in ret], batch('trajectory'))])
+        x_ = assemble_tree(x0_nest,
+                           [stack([reshaped_tensor(r.x, [batch_dims, active_dims]) for r in ret], batch('trajectory'))])
+        residual = assemble_tree(y_nest, [
+            stack([reshaped_tensor(r.residual, [batch_dims, active_dims]) for r in ret], batch('trajectory'))])
         iterations = reshaped_tensor(ret[-1].iterations, [batch_dims])
-        function_evaluations = stack([reshaped_tensor(r.function_evaluations, [batch_dims]) for r in ret], batch('trajectory'))
-        result = SolveInfo(solve, x_, residual, iterations, function_evaluations, converged, diverged, ret[-1].method, ret[-1].message, t)
+        function_evaluations = stack([reshaped_tensor(r.function_evaluations, [batch_dims]) for r in ret],
+                                     batch('trajectory'))
+        result = SolveInfo(solve, x_, residual, iterations, function_evaluations, converged, diverged, ret[-1].method,
+                           ret[-1].message, t)
     for tape in _SOLVE_TAPES:
         tape._add(solve, trj, result)
     result.convergence_check(is_backprop and 'TensorFlow' in backend.name)  # raises ConvergenceException
@@ -1724,7 +1817,8 @@ def attach_gradient_solve(forward_solve: Callable, auxiliary_args: str):
         grad_solve_ = copy_with(solve.gradient_solve, x0=x0)
         if 'is_backprop' in kwargs:
             del kwargs['is_backprop']
-        dy = solve_with_grad(dx, grad_solve_, *matrix, is_backprop=True, **kwargs)  # this should hopefully result in implicit gradients for higher orders as well
+        dy = solve_with_grad(dx, grad_solve_, *matrix, is_backprop=True,
+                             **kwargs)  # this should hopefully result in implicit gradients for higher orders as well
         return {'y': dy}
 
     solve_with_grad = custom_gradient(forward_solve, implicit_gradient_solve, auxiliary_args=auxiliary_args)
@@ -1768,7 +1862,7 @@ def print_gradient(value: Tensor, name="", detailed=False) -> Tensor:
     return identity(value)
 
 
-def map_types(f: Callable, dims: Shape or tuple or list or str or Callable, dim_type: Callable or str) -> Callable:
+def map_types(f: Callable, dims: Shape | tuple | list | str | Callable, dim_type: Callable | str) -> Callable:
     """
     Wraps a function to change the dimension types of its `Tensor` and `PhiTreeNode` arguments.
 
@@ -1826,7 +1920,7 @@ def map_i2b(f: Callable) -> Callable:
     return map_types(f, instance, batch)
 
 
-def iterate(f: Callable, iterations: int or Shape, *x0, f_kwargs: dict = None):
+def iterate(f: Callable, iterations: int | Shape, *x0, f_kwargs: dict = None):
     """
     Repeatedly call `function`, passing the previous output as the next input.
 

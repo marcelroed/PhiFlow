@@ -80,7 +80,7 @@ class BaseBox(Geometry):  # not a Subwoofer
         bool_inside = math.any(bool_inside, self.shape.instance)  # union for instance dimensions
         return bool_inside
 
-    def approximate_signed_distance(self, location: Tensor or tuple):
+    def approximate_signed_distance(self, location: Tensor | tuple):
         """
         Computes the signed L-infinity norm (manhattan distance) from the location to the nearest side of the box.
         For an outside location `l` with the closest surface point `s`, the distance is `max(abs(l - s))`.
@@ -105,11 +105,14 @@ class BaseBox(Geometry):  # not a Subwoofer
         sgn_dist_from_surface = math.abs(loc_to_center) - self.half_size
         if outward:
             # --- get negative distances (particles are inside) towards the nearest boundary and add shift_amount ---
-            distances_of_interest = (sgn_dist_from_surface == math.max(sgn_dist_from_surface, 'vector')) & (sgn_dist_from_surface < 0)
+            distances_of_interest = (sgn_dist_from_surface == math.max(sgn_dist_from_surface, 'vector')) & (
+                        sgn_dist_from_surface < 0)
             shift = distances_of_interest * (sgn_dist_from_surface - shift_amount)
         else:
-            shift = (sgn_dist_from_surface + shift_amount) * (sgn_dist_from_surface > 0)  # get positive distances (particles are outside) and add shift_amount
-            shift = math.where(math.abs(shift) > math.abs(loc_to_center), math.abs(loc_to_center), shift)  # ensure inward shift ends at center
+            shift = (sgn_dist_from_surface + shift_amount) * (
+                        sgn_dist_from_surface > 0)  # get positive distances (particles are outside) and add shift_amount
+            shift = math.where(math.abs(shift) > math.abs(loc_to_center), math.abs(loc_to_center),
+                               shift)  # ensure inward shift ends at center
         return positions + math.where(loc_to_center < 0, 1, -1) * shift
 
     def project(self, *dimensions: str):
@@ -137,7 +140,7 @@ class BaseBox(Geometry):  # not a Subwoofer
         from ._transform import rotate
         return rotate(self, angle)
 
-    def scaled(self, factor: float or Tensor) -> 'Geometry':
+    def scaled(self, factor: float | Tensor) -> 'Geometry':
         return Cuboid(self.center, self.half_size * factor)
 
 
@@ -145,10 +148,12 @@ class BoxType(type):
     """ Deprecated. Does not support item names. """
 
     def __getitem__(self, item):
-        assert isinstance(item, tuple) and isinstance(item[0], str), "The Box constructor was updated in Φ-Flow version 2.2. Please add the dimension order as a comma-separated string as the first argument, e.g. Box['x,y', 0:1, 1:2] or use the kwargs constructor Box(x=1, y=(1, 2))"
+        assert isinstance(item, tuple) and isinstance(item[0],
+                                                      str), "The Box constructor was updated in Φ-Flow version 2.2. Please add the dimension order as a comma-separated string as the first argument, e.g. Box['x,y', 0:1, 1:2] or use the kwargs constructor Box(x=1, y=(1, 2))"
         assert len(item) <= 4, f"Box[...] can only be used for x, y, z but got {len(item)} elements"
         dim_order = parse_dim_order(item[0])
-        assert len(dim_order) == len(item) - 1, f"Dimension order '{item[0]}' does not match number of slices, {len(item) - 1}"
+        assert len(dim_order) == len(
+            item) - 1, f"Dimension order '{item[0]}' does not match number of slices, {len(item) - 1}"
         lower = []
         upper = []
         for dim_name, dim in zip(dim_order, item[1:]):
@@ -183,7 +188,7 @@ class Box(BaseBox, metaclass=BoxType):
     ```
     """
 
-    def __init__(self, lower: Tensor = None, upper: Tensor = None, **size: int or Tensor):
+    def __init__(self, lower: Tensor = None, upper: Tensor = None, **size: int | Tensor):
         """
         Args:
           lower: physical location of lower corner
@@ -223,7 +228,8 @@ class Box(BaseBox, metaclass=BoxType):
         self._lower = math.expand(self._lower, vector_shape)
         self._upper = math.expand(self._upper, vector_shape)
         if self.size.vector.item_names is None:
-            warnings.warn("Creating a Box without item names prevents certain operations like project()", DeprecationWarning, stacklevel=2)
+            warnings.warn("Creating a Box without item names prevents certain operations like project()",
+                          DeprecationWarning, stacklevel=2)
 
     def __getitem__(self, item):
         item = _keep_vector(slicing_dict(self, item))
@@ -231,15 +237,16 @@ class Box(BaseBox, metaclass=BoxType):
 
     def __stack__(self, values: tuple, dim: Shape, **kwargs) -> 'Geometry':
         if all(isinstance(v, Box) for v in values):
-            return Box(math.stack([v.lower for v in values], dim, **kwargs), math.stack([v.upper for v in values], dim, **kwargs))
+            return Box(math.stack([v.lower for v in values], dim, **kwargs),
+                       math.stack([v.upper for v in values], dim, **kwargs))
         else:
             return Geometry.__stack__(self, values, dim, **kwargs)
 
     def __eq__(self, other):
-        return isinstance(other, BaseBox)\
-               and set(self.shape) == set(other.shape)\
-               and self.size.shape.get_size('vector') == other.size.shape.get_size('vector')\
-               and math.close(self._lower, other.lower)\
+        return isinstance(other, BaseBox) \
+               and set(self.shape) == set(other.shape) \
+               and self.size.shape.get_size('vector') == other.size.shape.get_size('vector') \
+               and math.close(self._lower, other.lower) \
                and math.close(self._upper, other.upper)
 
     def without(self, dims: Tuple[str, ...]):
@@ -300,7 +307,8 @@ class Box(BaseBox, metaclass=BoxType):
             if item_names:
                 return f"Box({', '.join([f'{dim}=({lo}, {up})' for dim, lo, up in zip(item_names, self._lower, self._upper)])})"
             else:  # deprecated
-                return 'Box[%s at %s]' % ('x'.join([str(x) for x in self.size.numpy().flatten()]), ','.join([str(x) for x in self.lower.numpy().flatten()]))
+                return 'Box[%s at %s]' % ('x'.join([str(x) for x in self.size.numpy().flatten()]),
+                                          ','.join([str(x) for x in self.lower.numpy().flatten()]))
         else:
             return f'Box[shape={self.shape}]'
 
@@ -317,7 +325,8 @@ class Cuboid(BaseBox):
         if half_size is not None:
             assert isinstance(half_size, Tensor), "half_size must be a Tensor"
             assert 'vector' in half_size.shape, f"Cuboid size must have a 'vector' dimension."
-            assert half_size.shape.get_item_names('vector') is not None, f"Vector dimension must list spatial dimensions as item names. Use the syntax Cuboid(x=x, y=y) to assign names."
+            assert half_size.shape.get_item_names(
+                'vector') is not None, f"Vector dimension must list spatial dimensions as item names. Use the syntax Cuboid(x=x, y=y) to assign names."
             self._half_size = half_size
         else:
             self._half_size = math.wrap(tuple(size.values()), math.channel(vector=tuple(size.keys()))) * 0.5
@@ -326,11 +335,10 @@ class Cuboid(BaseBox):
             center = math.expand(center, channel(self._half_size))
         self._center = center
 
-
     def __eq__(self, other):
-        return isinstance(other, BaseBox)\
-               and set(self.shape) == set(other.shape)\
-               and math.close(self._center, other.center)\
+        return isinstance(other, BaseBox) \
+               and set(self.shape) == set(other.shape) \
+               and math.close(self._center, other.center) \
                and math.close(self._half_size, other.half_size)
 
     def __hash__(self):
@@ -342,7 +350,8 @@ class Cuboid(BaseBox):
 
     def __stack__(self, values: tuple, dim: Shape, **kwargs) -> 'Geometry':
         if all(isinstance(v, Cuboid) for v in values):
-            return Cuboid(math.stack([v.center for v in values], dim, **kwargs), math.stack([v.half_size for v in values], dim, **kwargs))
+            return Cuboid(math.stack([v.center for v in values], dim, **kwargs),
+                          math.stack([v.half_size for v in values], dim, **kwargs))
         else:
             return Geometry.__stack__(self, values, dim, **kwargs)
 
@@ -411,7 +420,8 @@ class GridCell(BaseBox):
 
     @property
     def center(self):
-        local_coords = math.meshgrid(**{dim.name: math.linspace(0.5 / dim.size, 1 - 0.5 / dim.size, dim) for dim in self.resolution})
+        local_coords = math.meshgrid(
+            **{dim.name: math.linspace(0.5 / dim.size, 1 - 0.5 / dim.size, dim) for dim in self.resolution})
         points = self.bounds.local_to_global(local_coords)
         return points
 
@@ -467,7 +477,7 @@ class GridCell(BaseBox):
         resolution = self._resolution.after_gather(gather_dict)
         return GridCell(resolution, bounds)
 
-    def __pack_dims__(self, dims: Tuple[str, ...], packed_dim: Shape, pos: int or None, **kwargs) -> 'Cuboid':
+    def __pack_dims__(self, dims: Tuple[str, ...], packed_dim: Shape, pos: int | None, **kwargs) -> 'Cuboid':
         return math.pack_dims(self.center_representation(), dims, packed_dim, pos, **kwargs)
 
     def list_cells(self, dim_name):
@@ -477,7 +487,8 @@ class GridCell(BaseBox):
     def stagger(self, dim: str, lower: bool, upper: bool):
         dim_mask = np.array(self.resolution.mask(dim))
         unit = self.bounds.size / self.resolution * dim_mask
-        bounds = Box(self.bounds.lower + unit * (-0.5 if lower else 0.5), self.bounds.upper + unit * (0.5 if upper else -0.5))
+        bounds = Box(self.bounds.lower + unit * (-0.5 if lower else 0.5),
+                     self.bounds.upper + unit * (0.5 if upper else -0.5))
         ext_res = self.resolution.sizes + dim_mask * (int(lower) + int(upper) - 1)
         return GridCell(self.resolution.with_sizes(ext_res), bounds)
 
@@ -506,7 +517,8 @@ class GridCell(BaseBox):
             return Cuboid(center, self.half_size)
 
     def rotated(self, angle) -> Geometry:
-        raise NotImplementedError("Grids cannot be rotated. Use center_representation() to convert it to Cuboids first.")
+        raise NotImplementedError(
+            "Grids cannot be rotated. Use center_representation() to convert it to Cuboids first.")
 
     def __eq__(self, other):
         return isinstance(other, GridCell) and self._bounds == other._bounds and self._resolution == other._resolution

@@ -96,7 +96,7 @@ class Geometry:
         """
         raise NotImplementedError(self.__class__)
 
-    def approximate_signed_distance(self, location: Tensor or tuple) -> Tensor:
+    def approximate_signed_distance(self, location: Tensor | tuple) -> Tensor:
         """
         Computes the approximate distance from location to the surface of the geometry.
         Locations outside return positive values, inside negative values and zero exactly at the boundary.
@@ -243,7 +243,7 @@ class Geometry:
     def __matmul__(self, other):
         return self.at(other)
 
-    def rotated(self, angle: float or Tensor) -> 'Geometry':
+    def rotated(self, angle: float | Tensor) -> 'Geometry':
         """
         Returns a rotated version of this geometry.
         The geometry is rotated about its center point.
@@ -256,7 +256,7 @@ class Geometry:
         """
         raise NotImplementedError(self.__class__)
 
-    def scaled(self, factor: float or Tensor) -> 'Geometry':
+    def scaled(self, factor: float | Tensor) -> 'Geometry':
         """
         Scales each individual geometry by `factor`.
         The individual `center` points act as pivots for the operation.
@@ -357,7 +357,7 @@ class _InvertedGeometry(Geometry, ABC):
     def approximate_signed_distance(self, location: Tensor) -> Tensor:
         return -self.geometry.approximate_signed_distance(location)
 
-    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Tensor or Number = 0.5) -> Tensor:
+    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Tensor | Number = 0.5) -> Tensor:
         return 1 - self.geometry.approximate_fraction_inside(other_geometry, 1 - balance)
 
     def push(self, positions: Tensor, outward: bool = True, shift_amount: float = 0) -> Tensor:
@@ -420,7 +420,7 @@ class _NoGeometry(Geometry, ABC):
     def lies_inside(self, location):
         return math.zeros(location.shape.non_channel, dtype=math.DType(bool))
 
-    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Tensor or Number = 0.5) -> Tensor:
+    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Tensor | Number = 0.5) -> Tensor:
         return math.zeros(other_geometry.shape)
 
     def shifted(self, delta):
@@ -450,7 +450,8 @@ class Point(Geometry):
 
     def __init__(self, location: math.Tensor):
         assert 'vector' in location.shape, "location must have a vector dimension"
-        assert location.shape.get_item_names('vector') is not None, "Vector dimension needs to list spatial dimension as item names."
+        assert location.shape.get_item_names(
+            'vector') is not None, "Vector dimension needs to list spatial dimension as item names."
         self._location = location
 
     @property
@@ -467,7 +468,7 @@ class Point(Geometry):
     def lies_inside(self, location: Tensor) -> Tensor:
         return math.wrap(False)
 
-    def approximate_signed_distance(self, location: Tensor or tuple) -> Tensor:
+    def approximate_signed_distance(self, location: Tensor | tuple) -> Tensor:
         return math.vec_abs(location - self._location)
 
     def push(self, positions: Tensor, outward: bool = True, shift_amount: float = 0) -> Tensor:
@@ -502,7 +503,7 @@ class Point(Geometry):
     def sample_uniform(self, *shape: math.Shape) -> Tensor:
         raise NotImplementedError
 
-    def scaled(self, factor: float or Tensor) -> 'Geometry':
+    def scaled(self, factor: float | Tensor) -> 'Geometry':
         return self
 
     def __getitem__(self, item):

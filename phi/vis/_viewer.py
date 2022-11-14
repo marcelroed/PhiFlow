@@ -279,7 +279,7 @@ class AsyncViewer(Viewer):
 
 class Record:
 
-    def __init__(self, dim: str or None):
+    def __init__(self, dim: str | None):
         self.dim = dim
         self.history = {}
 
@@ -289,7 +289,9 @@ class Record:
         for name, val in variables.items():
             self.history[name].append(val)
             if val is None and warn_missing:
-                warnings.warn(f"None value encountered for variable '{name}' at step {self.viewer.steps}. This value will not show up in the recording.", RuntimeWarning)
+                warnings.warn(
+                    f"None value encountered for variable '{name}' at step {self.viewer.steps}. This value will not show up in the recording.",
+                    RuntimeWarning)
 
     @property
     def recorded_fields(self):
