@@ -6,7 +6,7 @@ The main function for incompressible fluids (Eulerian as well as FLIP / PIC) is 
 from typing import Tuple
 
 from phi import math, field
-from phi.math import wrap, channel
+from phi.math import wrap, channel, Tensor
 from phi.field import SoftGeometryMask, AngularVelocity, Grid, divergence, spatial_gradient, where, CenteredGrid, \
     PointCloud
 from phi.geom import union, Geometry
@@ -23,7 +23,7 @@ class Obstacle:
     It can also have a linear and angular velocity.
     """
 
-    def __init__(self, geometry, velocity=0, angular_velocity=0):
+    def __init__(self, geometry, velocity=0, angular_velocity=0, mass=1, I=1):
         """
         Args:
             geometry: Physical shape and size of the obstacle.
@@ -34,23 +34,49 @@ class Obstacle:
         self.velocity = wrap(velocity, channel(geometry)) if isinstance(velocity, (tuple, list)) else velocity
         self.angular_velocity = angular_velocity
         self.shape = shape(geometry) & non_channel(self.velocity) & non_channel(angular_velocity)
+        # self.center_mass = center_mass if not center_mass is None else self.geometry.center
+        # self.geometry.set_center(self.center_mass)
+        self.mass = mass
+        self.I = I
 
     @property
     def is_stationary(self):
         """ Test whether the obstacle is completely still. """
-        return isinstance(self.velocity, (int, float)) and self.velocity == 0 and isinstance(self.angular_velocity, (
-            int, float)) and self.angular_velocity == 0
+        return isinstance(self.velocity, (int, float)) and self.velocity == 0 and isinstance(self.angular_velocity, (int, float)) and self.angular_velocity == 0
 
     def copied_with(self, **kwargs):
-        geometry, velocity, angular_velocity = self.geometry, self.velocity, self.angular_velocity
+        geometry, velocity, angular_velocity, mass, I = self.geometry, self.velocity, self.angular_velocity, self.mass, self.I
         if 'geometry' in kwargs:
             geometry = kwargs['geometry']
         if 'velocity' in kwargs:
             velocity = kwargs['velocity']
         if 'angular_velocity' in kwargs:
             angular_velocity = kwargs['angular_velocity']
-        return Obstacle(geometry, velocity, angular_velocity)
+        return Obstacle(geometry, velocity, angular_velocity, mass, I)
 
+    def rotated(self, angle: float or Tensor):
+        self.geometry = self.geometry.rotated(angle)
+
+    def shifted(self, delta: Tensor):
+        self.geometry = self.geometry.shifted(delta)
+        # self.center_mass = self.geometry.center
+
+    def step(self, dt = 1.):
+        self.rotated(dt*self.angular_velocity)
+        self.shifted(dt*self.velocity)
+
+    def update_velocity(self, force):
+        self.velocity += force/self.mass
+
+    def update_angular_velocity(self, torque):
+        self.angular_velocity += torque/self.I
+
+def update_obstacle(obstacle, torque : float, force: Tensor, dt = 1.):
+    obstacle.update_velocity(dt*force)
+    obstacle.update_angular_velocity(dt*torque)
+    obstacle.step(dt)
+    new_obstacle = obstacle.copied_with()
+    return new_obstacle
 
 def make_incompressible(velocity: GridType,
                         obstacles: tuple or list = (),
