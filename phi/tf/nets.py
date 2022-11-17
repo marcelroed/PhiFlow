@@ -4,7 +4,7 @@ Equivalent functions also exist for the other frameworks.
 
 For API documentation, see https://tum-pbs.github.io/PhiFlow/Network_API .
 """
-from typing import Callable, Tuple, List
+from typing import Callable, Tuple, List, Union
 import pickle
 
 import numpy
@@ -59,7 +59,7 @@ def get_parameters(model: keras.Model, wrap=True) -> dict:
     return result
 
 
-def save_state(obj: keras.models.Model | keras.optimizers.Optimizer, path: str):
+def save_state(obj: Union[keras.models.Model, keras.optimizers.Optimizer], path: str):
     """
     Write the state of a module or optimizer to a file.
 
@@ -84,7 +84,7 @@ def save_state(obj: keras.models.Model | keras.optimizers.Optimizer, path: str):
         raise ValueError("obj must be a Keras model or optimizer")
 
 
-def load_state(obj: keras.models.Model | keras.optimizers.Optimizer, path: str):
+def load_state(obj: Union[keras.models.Model, keras.optimizers.Optimizer], path: str):
     """
     Read the state of a module or optimizer from a file.
 
@@ -170,7 +170,7 @@ def rmsprop(net: keras.Model, learning_rate: float = 1e-3, alpha=0.99, eps=1e-08
 
 def dense_net(in_channels: int,
               out_channels: int,
-              layers: Tuple[int, ...] or List[int],
+              layers: Union[Tuple[int, ...], List[int]],
               batch_norm=False,
               activation='ReLU') -> keras.Model:
     activation = ACTIVATIONS[activation] if isinstance(activation, str) else activation
@@ -187,10 +187,10 @@ def dense_net(in_channels: int,
 def u_net(in_channels: int,
           out_channels: int,
           levels: int = 4,
-          filters: int or tuple or list = 16,
+          filters: Union[int, tuple, list] = 16,
           batch_norm: bool = True,
-          activation: str or Callable = 'ReLU',
-          in_spatial: tuple or int = 2,
+          activation: Union[str, Callable] = 'ReLU',
+          in_spatial: Union[tuple, int] = 2,
           use_res_blocks: bool = False) -> keras.Model:
     if isinstance(in_spatial, int):
         d = in_spatial
@@ -272,8 +272,8 @@ def conv_net(in_channels: int,
              out_channels: int,
              layers: Tuple[int, ...] or List[int],
              batch_norm: bool = False,
-             activation: str or Callable = 'ReLU',
-             in_spatial: int or tuple = 2) -> keras.Model:
+             activation: Union[str, Callable] = 'ReLU',
+             in_spatial: Union[int, tuple] = 2) -> keras.Model:
     if isinstance(in_spatial, int):
         d = (None,) * in_spatial
     else:
@@ -296,8 +296,8 @@ def conv_net(in_channels: int,
 def resnet_block(x, in_channels: int,
                  out_channels: int,
                  batch_norm: bool = False,
-                 activation: str or Callable = 'ReLU',
-                 in_spatial: int or tuple = 2):
+                 activation: Union[str, Callable] = 'ReLU',
+                 in_spatial: Union[int, tuple] = 2):
     activation = ACTIVATIONS[activation] if isinstance(activation, str) else activation
     if isinstance(in_spatial, int):
         d = (None,) * in_spatial
@@ -339,8 +339,8 @@ def res_net(in_channels: int,
             out_channels: int,
             layers: Tuple[int, ...] or List[int],
             batch_norm: bool = False,
-            activation: str or Callable = 'ReLU',
-            in_spatial: int or tuple = 2):
+            activation: Union[str, Callable] = 'ReLU',
+            in_spatial: Union[int, tuple] = 2):
     if isinstance(in_spatial, int):
         d = (None,) * in_spatial
     else:
@@ -359,7 +359,7 @@ def res_net(in_channels: int,
     return keras.Model(inputs, out)
 
 
-def conv_classifier(input_shape: list, num_classes: int, batch_norm: bool, in_spatial: int | tuple):
+def conv_classifier(input_shape: list, num_classes: int, batch_norm: bool, in_spatial: Union[int, tuple]):
     if isinstance(in_spatial, int):
         d = in_spatial
         in_spatial = (None,) * d

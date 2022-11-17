@@ -2,7 +2,7 @@ import numbers
 import warnings
 from contextlib import contextmanager
 from functools import wraps
-from typing import List, Callable, Optional, Set, Tuple, Any
+from typing import List, Callable, Optional, Set, Tuple, Any, Union
 
 import numpy as np
 import torch
@@ -186,7 +186,7 @@ class TorchBackend(Backend):
         x, y = self.auto_cast(x, y)
         return x == y
 
-    def random_uniform(self, shape, low, high, dtype: DType | None):
+    def random_uniform(self, shape, low, high, dtype: Union[DType, None]):
         dtype = dtype or self.float_type
         if dtype.kind == float:
             return low + (high - low) * torch.rand(size=shape, dtype=to_torch_dtype(dtype),
@@ -253,7 +253,7 @@ class TorchBackend(Backend):
         else:
             old_shape = value.shape
             value = self.reshape(value, (
-            1, np.prod([value.shape[i] for i in range(len(no_pad_dims))]), *value.shape[len(no_pad_dims):]))
+                1, np.prod([value.shape[i] for i in range(len(no_pad_dims))]), *value.shape[len(no_pad_dims):]))
             undo_transform = lambda x: x.view(*[old_shape[i] for i in range(len(no_pad_dims))], *x.shape[2:])
         pad_width_reordered = [pad_width[i] for i in pad_dims]
         pad_width_spatial = [item for sublist in reversed(pad_width_reordered) for item in sublist]  # flatten
@@ -390,7 +390,7 @@ class TorchBackend(Backend):
         return torch.linspace(start, stop, number, dtype=to_torch_dtype(self.float_type),
                               device=self.get_default_device().ref)
 
-    def tensordot(self, a, a_axes: tuple | list, b, b_axes: tuple | list):
+    def tensordot(self, a, a_axes: Union[tuple, list], b, b_axes: Union[tuple, list]):
         a, b = self.auto_cast(a, b)
         return torch.tensordot(a, b, (a_axes, b_axes))
 
@@ -569,14 +569,14 @@ class TorchBackend(Backend):
         result = scatter(base_grid_flat, dim=1, index=indices, src=values)
         return torch.reshape(result, base_grid.shape)
 
-    def fft(self, x, axes: tuple | list):
+    def fft(self, x, axes: Union[tuple, list]):
         if not x.is_complex():
             x = self.to_complex(x)
         for i in axes:
             x = torch.fft.fft(x, dim=i)
         return x
 
-    def ifft(self, k, axes: tuple | list):
+    def ifft(self, k, axes: Union[tuple, list]):
         if not k.is_complex():
             k = self.to_complex(k)
         for i in axes:
@@ -644,7 +644,7 @@ class TorchBackend(Backend):
         idx = self.unstack(idx, axis=0)
         return idx, tensor._values()
 
-    def conjugate_gradient(self, lin, y, x0, rtol, atol, max_iter, trj: bool) -> SolveResult | List[SolveResult]:
+    def conjugate_gradient(self, lin, y, x0, rtol, atol, max_iter, trj: bool) -> Union[SolveResult, List[SolveResult]]:
         if callable(lin) or trj:
             assert self.is_available(y), "Tracing conjugate_gradient with linear operator is not yet supported."
             return Backend.conjugate_gradient(self, lin, y, x0, rtol, atol, max_iter, trj)
@@ -659,8 +659,7 @@ class TorchBackend(Backend):
         return SolveResult(f"Φ-Flow CG ({'PyTorch*' if self.is_available(y) else 'TorchScript'})", x, residual,
                            iterations, function_evaluations, converged, diverged, "")
 
-    def conjugate_gradient_adaptive(self, lin, y, x0, rtol, atol, max_iter, trj: bool) -> SolveResult | List[
-        SolveResult]:
+    def conjugate_gradient_adaptive(self, lin, y, x0, rtol, atol, max_iter, trj: bool) -> Union[SolveResult, List[SolveResult]]:
         if callable(lin) or trj:
             assert self.is_available(y), "Tracing conjugate_gradient with linear operator is not yet supported."
             return Backend.conjugate_gradient_adaptive(self, lin, y, x0, rtol, atol, max_iter, trj)
@@ -682,7 +681,7 @@ class TorchBackend(Backend):
         solution, residuals, rank, singular_values = torch.linalg.lstsq(matrix, rhs)
         return solution, residuals, rank, singular_values
 
-    def _prepare_graph_inputs(self, args: tuple, wrt: tuple | list):
+    def _prepare_graph_inputs(self, args: tuple, wrt: Union[tuple, list]):
         args = [self.as_tensor(arg, True) if i in wrt else arg for i, arg in enumerate(args)]
         args = [self.to_float(arg) if self.dtype(arg).kind == int else arg for arg in args]
         for i, arg in enumerate(args):
@@ -700,7 +699,7 @@ class TorchBackend(Backend):
             assert t.requires_grad
         return args, wrt_args
 
-    def jacobian(self, f, wrt: tuple | list, get_output: bool, is_f_scalar: bool):
+    def jacobian(self, f, wrt: Union[tuple, list], get_output: bool, is_f_scalar: bool):
         @wraps(f)
         def eval_grad(*args):
             args, wrt_args = self._prepare_graph_inputs(args, wrt)
@@ -714,7 +713,7 @@ class TorchBackend(Backend):
 
         return eval_grad
 
-    def hessian(self, f: Callable, wrt: tuple | list, get_output: bool, get_gradient: bool):
+    def hessian(self, f: Callable, wrt: Union[tuple, list], get_output: bool, get_gradient: bool):
         # if not get_output and not get_gradient:
         # @wraps(f)
         # def eval_hessian(*args):
@@ -804,11 +803,11 @@ class TorchBackend(Backend):
 
         return eval_hessian
 
-    def jit_compile_grad(self, f, wrt: tuple | list, get_output: bool, is_f_scalar: bool):
+    def jit_compile_grad(self, f, wrt: Union[tuple, list], get_output: bool, is_f_scalar: bool):
         jit = self.jit_compile(f)
         return self.jacobian(jit, wrt, get_output, is_f_scalar)
 
-    def jit_compile_hessian(self, f, wrt: tuple | list, get_output: bool, get_gradient: bool):
+    def jit_compile_hessian(self, f, wrt: Union[tuple, list], get_output: bool, get_gradient: bool):
         jit = self.jit_compile(f)
         return self.hessian(jit, wrt, get_output, get_gradient)
 

@@ -7,6 +7,8 @@ Examples:
 * mac_cormack (grid)
 * runge_kutta_4 (particle)
 """
+from typing import Union, Tuple, List
+
 from phi import math
 from phi.physics.fluid import Obstacle
 from phi.field import SampledField, Field, PointCloud, Grid, sample, reduce_sample
@@ -119,7 +121,7 @@ def semi_lagrangian(field: GridType,
 def semi_lagrangian_two_way(field: GridType,
                             velocity: Field,
                             dt: float,
-                            obstacles: tuple[Obstacle] | list[Obstacle],
+                            obstacles: Union[Tuple[Obstacle], List[Obstacle]],
                             integrator=euler) -> GridType:
     """
     Semi-Lagrangian advection with simple backward lookup.
@@ -132,6 +134,7 @@ def semi_lagrangian_two_way(field: GridType,
         field: quantity to be advected, stored on a grid (CenteredGrid or StaggeredGrid)
         velocity: vector field, need not be compatible with with `field`.
         dt: time increment
+        obstacles: obstacles to simulate
         integrator: ODE integrator for solving the movement.
 
     Returns:

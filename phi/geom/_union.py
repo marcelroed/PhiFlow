@@ -40,6 +40,13 @@ class Union(Geometry):
         return self._bounding_box().center
 
     @property
+    def center_of_mass(self) -> math.Tensor:
+        # Weighted sum of the centers of mass of subgeometries by their volumes
+        return math.sum([g.center_of_mass * g.volume for g in self.geometries], dim='0') / self.volume
+
+
+
+    @property
     def volume(self) -> math.Tensor:
         warnings.warn("Volume of a union assumes geometries do not overlap and may not be accurate otherwise.",
                       RuntimeWarning)

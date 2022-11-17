@@ -1,5 +1,5 @@
 import warnings
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 
 import numpy as np
 
@@ -80,7 +80,7 @@ class BaseBox(Geometry):  # not a Subwoofer
         bool_inside = math.any(bool_inside, self.shape.instance)  # union for instance dimensions
         return bool_inside
 
-    def approximate_signed_distance(self, location: Tensor | tuple):
+    def approximate_signed_distance(self, location: Union[Tensor, tuple]):
         """
         Computes the signed L-infinity norm (manhattan distance) from the location to the nearest side of the box.
         For an outside location `l` with the closest surface point `s`, the distance is `max(abs(l - s))`.
@@ -140,7 +140,7 @@ class BaseBox(Geometry):  # not a Subwoofer
         from ._transform import rotate
         return rotate(self, angle)
 
-    def scaled(self, factor: float | Tensor) -> 'Geometry':
+    def scaled(self, factor: Union[float, Tensor]) -> 'Geometry':
         return Cuboid(self.center, self.half_size * factor)
 
 
@@ -188,7 +188,7 @@ class Box(BaseBox, metaclass=BoxType):
     ```
     """
 
-    def __init__(self, lower: Tensor = None, upper: Tensor = None, **size: int | Tensor):
+    def __init__(self, lower: Tensor = None, upper: Tensor = None, **size: Union[int, Tensor]):
         """
         Args:
           lower: physical location of lower corner
@@ -320,8 +320,8 @@ class Cuboid(BaseBox):
 
     def __init__(self,
                  center: Tensor = 0,
-                 half_size: float or Tensor = None,
-                 **size: float or Tensor):
+                 half_size: Union[float, Tensor] = None,
+                 **size: Union[float, Tensor]):
         if half_size is not None:
             assert isinstance(half_size, Tensor), "half_size must be a Tensor"
             assert 'vector' in half_size.shape, f"Cuboid size must have a 'vector' dimension."
@@ -477,7 +477,7 @@ class GridCell(BaseBox):
         resolution = self._resolution.after_gather(gather_dict)
         return GridCell(resolution, bounds)
 
-    def __pack_dims__(self, dims: Tuple[str, ...], packed_dim: Shape, pos: int | None, **kwargs) -> 'Cuboid':
+    def __pack_dims__(self, dims: Tuple[str, ...], packed_dim: Shape, pos: Union[int, None], **kwargs) -> 'Cuboid':
         return math.pack_dims(self.center_representation(), dims, packed_dim, pos, **kwargs)
 
     def list_cells(self, dim_name):

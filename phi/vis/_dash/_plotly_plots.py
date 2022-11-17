@@ -1,5 +1,5 @@
 import warnings
-from typing import Tuple, Any, Dict, Optional, List, Callable
+from typing import Tuple, Any, Dict, Optional, List, Callable, Union
 
 import numpy
 import numpy as np
@@ -81,7 +81,7 @@ def _get_range(bounds: Box, index: int):
 def _plot(data: SampledField,
           fig: graph_objects.Figure,
           size: tuple,
-          colormap: str or None,
+          colormap: Union[str, None],
           show_color_bar: bool,
           vmin,
           vmax,
@@ -327,7 +327,7 @@ def get_color_interpolation(val, cm_arr):
     return center
 
 
-def plot_scalars(curves: tuple | list, labels, subplots=True, log_scale='', smooth: int = 1):
+def plot_scalars(curves: Union[tuple, list], labels, subplots=True, log_scale='', smooth: int = 1):
     if not curves:
         return graph_objects.Figure()
     if subplots:

@@ -3,7 +3,7 @@ import time
 from collections import namedtuple
 from math import log10
 from threading import Lock
-from typing import Tuple, Any, Optional, Dict, Callable
+from typing import Tuple, Any, Optional, Dict, Callable, Union
 
 from phi import field, math
 from phi.field import SampledField, Scene
@@ -220,7 +220,7 @@ class AsyncPlay:
         return status_message(self.model, self)
 
 
-def status_message(model: VisModel, play_status: AsyncPlay | None):
+def status_message(model: VisModel, play_status: Union[AsyncPlay, None]):
     pausing = "/Pausing" if (play_status and play_status.paused) else ""
     current_action = "Running" if model.is_progressing else "Waiting"
     action = current_action if play_status else "Idle"
@@ -321,7 +321,7 @@ class Gui:
 
 class PlottingLibrary:
 
-    def __init__(self, name: str, figure_classes: tuple | list):
+    def __init__(self, name: str, figure_classes: Union[tuple, list]):
         self.name = name
         self.figure_classes = tuple(figure_classes)
         self.current_figure = None
@@ -402,7 +402,7 @@ def display_name(python_name):
         return text
 
 
-def select_channel(value: SampledField | Tensor | tuple | list, channel: str | None):
+def select_channel(value: Union[SampledField, Tensor, tuple, list], channel: Union[str, None]):
     if isinstance(value, (tuple, list)):
         return [select_channel(v, channel) for v in value]
     if channel is None:

@@ -1,10 +1,10 @@
 from numbers import Number
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Union
 
 from phi import geom
 from phi import math
 from phi.geom import Box, Geometry, Sphere, Cuboid
-from phi.math import Tensor, spatial, instance, tensor, masked_fill, channel, Shape, batch, unstack, wrap, vec
+from phi.math import Tensor, spatial, instance, tensor, masked_fill, channel, Shape, batch, unstack, wrap, vec, extrapolation
 from ._field import Field, SampledField, SampledFieldType, as_extrapolation
 from ._grid import CenteredGrid, Grid, StaggeredGrid, GridType
 from ._point_cloud import PointCloud
@@ -41,7 +41,7 @@ def bake_extrapolation(grid: GridType) -> GridType:
         raise ValueError(f"Not a valid grid: {grid}")
 
 
-def laplace(field: GridType, axes=spatial, weights: Tensor or Field = None) -> GridType:
+def laplace(field: GridType, axes=spatial, weights: Union[Tensor, Field] = None) -> GridType:
     """ Finite-difference laplace operator for Grids. See `phi.math.laplace()`. """
     if isinstance(weights, Field):
         weights = weights.at(field).values
@@ -102,7 +102,7 @@ def shift(grid: CenteredGrid, offsets: tuple, stack_dim: Shape = channel('shift'
 
 def stagger(field: CenteredGrid,
             face_function: Callable,
-            extrapolation: float or math.extrapolation.Extrapolation,
+            extrapolation: Union[float, extrapolation.Extrapolation],
             type: type = StaggeredGrid):
     """
     Creates a new grid by evaluating `face_function` given two neighbouring cells.
@@ -242,7 +242,7 @@ def fourier_poisson(grid: GridType, times=1) -> GridType:
     return type(grid)(values=values, bounds=grid.bounds, extrapolation=grid.extrapolation)
 
 
-def native_call(f, *inputs, channels_last=None, channel_dim='vector', extrapolation=None) -> SampledField | Tensor:
+def native_call(f, *inputs, channels_last=None, channel_dim='vector', extrapolation=None) -> Union[SampledField, Tensor]:
     """
     Similar to `phi.math.native_call()`.
 
@@ -267,7 +267,7 @@ def native_call(f, *inputs, channels_last=None, channel_dim='vector', extrapolat
         raise AssertionError("At least one input must be a SampledField.")
 
 
-def data_bounds(loc: SampledField | Tensor) -> Box:
+def data_bounds(loc: Union[SampledField, Tensor]) -> Box:
     if isinstance(loc, SampledField):
         loc = loc.points
     assert isinstance(loc, Tensor), f"loc must be a Tensor or SampledField but got {type(loc)}"
@@ -309,7 +309,7 @@ def center_of_mass(density: SampledField):
     return mean(density.points * density) / mean(density)
 
 
-def pad(grid: GridType, widths: int | tuple | list | dict) -> GridType:
+def pad(grid: GridType, widths: Union[int, tuple, list, dict]) -> GridType:
     """
     Pads a `Grid` using its extrapolation.
 
@@ -393,7 +393,7 @@ def upsample2x(grid: GridType) -> GridType:
         raise ValueError(type(grid))
 
 
-def concat(fields: List[SampledFieldType] | Tuple[SampledFieldType, ...], dim: str | Shape) -> SampledFieldType:
+def concat(fields: Union[List[SampledFieldType], Tuple[SampledFieldType, ...]], dim: Union[str, Shape]) -> SampledFieldType:
     """
     Concatenates the given `SampledField`s along `dim`.
 
@@ -460,7 +460,7 @@ def stack(fields, dim: Shape, dim_bounds: Box = None):
     raise NotImplementedError(type(fields[0]))
 
 
-def assert_close(*fields: SampledField or Tensor or Number,
+def assert_close(*fields: Union[SampledField, Tensor, Number],
                  rel_tolerance: float = 1e-5,
                  abs_tolerance: float = 0,
                  msg: str = "",
@@ -471,7 +471,7 @@ def assert_close(*fields: SampledField or Tensor or Number,
     math.assert_close(*values, rel_tolerance=rel_tolerance, abs_tolerance=abs_tolerance, msg=msg, verbose=verbose)
 
 
-def where(mask: Field | Geometry | float, field_true: Field | float, field_false: Field | float) -> SampledFieldType:
+def where(mask: Union[Field, Geometry, float], field_true: Union[Field, float], field_false: Union[Field, float]) -> SampledFieldType:
     """
     Element-wise where operation.
     Picks the value of `field_true` where `mask=1 / True` and the value of `field_false` where `mask=0 / False`.
@@ -492,7 +492,7 @@ def where(mask: Field | Geometry | float, field_true: Field | float, field_false
     return field_true.with_values(values)
 
 
-def maximum(f1: Field | Geometry | float, f2: Field | Geometry | float):
+def maximum(f1: Union[Field, Geometry, float], f2: Union[Field, Geometry, float]):
     """
     Element-wise maximum.
     One of the given fields needs to be an instance of `SampledField` and the the result will be sampled at the corresponding points.
@@ -509,10 +509,10 @@ def maximum(f1: Field | Geometry | float, f2: Field | Geometry | float):
     return f1.with_values(math.maximum(f1.values, f2.values))
 
 
-def minimum(f1: Field | Geometry | float, f2: Field | Geometry | float):
+def minimum(f1: Union[Field, Geometry, float], f2: Union[Field, Geometry, float]):
     """
     Element-wise minimum.
-    One of the given fields needs to be an instance of `SampledField` and the the result will be sampled at the corresponding points.
+    One of the given fields needs to be an instance of `SampledField` and the result will be sampled at the corresponding points.
     If both are `SampledFields` but have different points, `f1` takes priority.
 
     Args:
@@ -631,9 +631,9 @@ def tensor_as_field(t: Tensor):
 
 
 def pack_dims(field: SampledFieldType,
-              dims: Shape or tuple or list or str,
+              dims: Union[Shape, tuple, list, str],
               packed_dim: Shape,
-              pos: int or None = None) -> SampledFieldType:
+              pos: Union[int, None] = None) -> SampledFieldType:
     """
     Currently only supports grids and non-spatial dimensions.
 
@@ -654,7 +654,7 @@ def pack_dims(field: SampledFieldType,
         raise NotImplementedError()
 
 
-def support(field: SampledField, list_dim: Shape | str = instance('nonzero')) -> Tensor:
+def support(field: SampledField, list_dim: Union[Shape, str] = instance('nonzero')) -> Tensor:
     """
     Returns the points at which the field values are non-zero.
 

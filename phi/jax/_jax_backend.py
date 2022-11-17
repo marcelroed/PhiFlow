@@ -1,7 +1,7 @@
 import numbers
 import warnings
 from functools import wraps
-from typing import List, Callable, Tuple
+from typing import List, Callable, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -167,7 +167,7 @@ class JaxBackend(Backend):
             for v in values:
                 self.block_until_ready(v)
 
-    def jacobian(self, f, wrt: tuple | list, get_output: bool, is_f_scalar: bool):
+    def jacobian(self, f, wrt: Union[tuple, list], get_output: bool, is_f_scalar: bool):
         if get_output:
             jax_grad_f = jax.value_and_grad(f, argnums=wrt, has_aux=True)
 
@@ -206,7 +206,7 @@ class JaxBackend(Backend):
         return jnp.where(y == 0, 0, x / y)
         # jnp.nan_to_num(x / y, copy=True, nan=0) covers up NaNs from before
 
-    def random_uniform(self, shape, low, high, dtype: DType | None):
+    def random_uniform(self, shape, low, high, dtype: Union[DType, None]):
         self._check_float64()
         self.rnd_key, subkey = jax.random.split(self.rnd_key)
 
@@ -300,7 +300,7 @@ class JaxBackend(Backend):
     def mean(self, value, axis=None, keepdims=False):
         return jnp.mean(value, axis, keepdims=keepdims)
 
-    def tensordot(self, a, a_axes: tuple | list, b, b_axes: tuple | list):
+    def tensordot(self, a, a_axes: Union[tuple, list], b, b_axes: Union[tuple, list]):
         return jnp.tensordot(a, b, (a_axes, b_axes))
 
     def mul(self, a, b):
@@ -409,7 +409,7 @@ class JaxBackend(Backend):
     def quantile(self, x, quantiles):
         return jnp.quantile(x, quantiles, axis=-1)
 
-    def fft(self, x, axes: tuple | list):
+    def fft(self, x, axes: Union[tuple, list]):
         x = self.to_complex(x)
         if not axes:
             return x
@@ -420,7 +420,7 @@ class JaxBackend(Backend):
         else:
             return jnp.fft.fftn(x, axes=axes).astype(x.dtype)
 
-    def ifft(self, k, axes: tuple | list):
+    def ifft(self, k, axes: Union[tuple, list]):
         if not axes:
             return k
         if len(axes) == 1:
@@ -441,7 +441,7 @@ class JaxBackend(Backend):
             array = jnp.array(array)
         return from_numpy_dtype(array.dtype)
 
-    def linear_solve(self, method: str, lin, y, x0, rtol, atol, max_iter, trj: bool) -> SolveResult | List[SolveResult]:
+    def linear_solve(self, method: str, lin, y, x0, rtol, atol, max_iter, trj: bool) -> Union[SolveResult, List[SolveResult]]:
         if method == 'auto' and not trj and not self.is_available(y):
             return self.conjugate_gradient(lin, y, x0, rtol, atol, max_iter, trj)
         else:

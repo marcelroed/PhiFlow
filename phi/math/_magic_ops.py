@@ -1,7 +1,7 @@
 import copy
 import warnings
 from numbers import Number
-from typing import TypeVar, Tuple
+from typing import TypeVar, Tuple, Union
 
 from .backend import choose_backend, NoBackendFound
 from .backend._dtype import DType
@@ -54,7 +54,7 @@ def unstack(value, dim: DimFilter):
         return sum(inner_unstacked, ())
 
 
-def stack(values: tuple | list | dict, dim: Shape, **kwargs):
+def stack(values: Union[tuple, list, dict], dim: Shape, **kwargs):
     """
     Stacks `values` along the new dimension `dim`.
     All values must have the same spatial, instance and channel dimensions. If the dimension sizes vary, the resulting tensor will be non-uniform.
@@ -163,7 +163,7 @@ def stack(values: tuple | list | dict, dim: Shape, **kwargs):
         return values[0]
 
 
-def concat(values: tuple | list, dim: str | Shape, **kwargs):
+def concat(values: Union[tuple, list], dim: Union[str, Shape], **kwargs):
     """
     Concatenates a sequence of `phi.math.magic.Shapable` objects, e.g. `Tensor`, along one dimension.
     All values must have the same spatial, instance and channel dimensions and their sizes must be equal, except for `dim`.
@@ -276,8 +276,8 @@ def expand(value, dims: Shape, **kwargs):
 
 
 def rename_dims(value,
-                dims: str or tuple or list or Shape,
-                names: str or tuple or list or Shape,
+                dims: Union[str, tuple, list, Shape],
+                names: Union[str, tuple, list, Shape],
                 **kwargs):
     """
     Change the name and optionally the type of some dimensions of `value`.
@@ -316,7 +316,7 @@ def rename_dims(value,
     return value
 
 
-def pack_dims(value, dims: DimFilter, packed_dim: Shape, pos: int | None = None, **kwargs):
+def pack_dims(value, dims: DimFilter, packed_dim: Shape, pos: Union[int, None] = None, **kwargs):
     """
     Compresses multiple dimensions into a single dimension by concatenating the elements.
     Elements along the new dimensions are laid out according to the order of `dims`.
@@ -375,7 +375,7 @@ def pack_dims(value, dims: DimFilter, packed_dim: Shape, pos: int | None = None,
     return stack(unstack(value, dims), packed_dim, **kwargs)
 
 
-def unpack_dim(value, dim: str | Shape, unpacked_dims: Shape, **kwargs):
+def unpack_dim(value, dim: Union[str, Shape], unpacked_dims: Shape, **kwargs):
     """
     Decompresses a dimension by unstacking the elements along it.
     This function replaces the traditional `reshape` for these cases.
@@ -515,7 +515,7 @@ def copy_with(obj: PhiTreeNodeType, **updates) -> PhiTreeNodeType:
 OtherMagicType = TypeVar('OtherMagicType')
 
 
-def cast(x: OtherMagicType, dtype: DType | type) -> OtherMagicType:
+def cast(x: OtherMagicType, dtype: Union[DType, type]) -> OtherMagicType:
     """
     Casts `x` to a different data type.
 

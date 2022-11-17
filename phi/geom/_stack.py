@@ -10,7 +10,6 @@ from ..math.magic import slicing_dict
 
 
 class GeometryStack(Geometry):
-
     def __init__(self, geometries: Tensor):
         self.geometries = geometries
         self._shape = shape_stack(geometries.shape, *[g.shape for g in geometries])

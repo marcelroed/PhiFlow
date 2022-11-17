@@ -2,7 +2,7 @@ import functools
 import math
 import warnings
 from numbers import Number
-from typing import Tuple, Callable, Any
+from typing import Tuple, Callable, Any, Union
 
 import numpy as np
 
@@ -109,7 +109,7 @@ def seed(seed: int):
     random.seed(0)
 
 
-def native(value: Tensor | Number | tuple | list | Any):
+def native(value: Union[Tensor, Number, tuple, list, Any]):
     """
     Returns the native tensor representation of `value`.
     If `value` is a `phi.math.Tensor`, this is equal to calling `phi.math.Tensor.native()`.
@@ -131,7 +131,7 @@ def native(value: Tensor | Number | tuple | list | Any):
         return value
 
 
-def numpy(value: Tensor | Number | tuple | list | Any):
+def numpy(value: Union[Tensor, Number, tuple, list, Any]):
     """
     Converts `value` to a `numpy.ndarray` where value must be a `Tensor`, backend tensor or tensor-like.
     If `value` is a `phi.math.Tensor`, this is equal to calling `phi.math.Tensor.numpy()`.
@@ -158,7 +158,7 @@ def numpy(value: Tensor | Number | tuple | list | Any):
 
 
 def reshaped_native(value: Tensor,
-                    groups: tuple or list,
+                    groups: Union[tuple, list],
                     force_expand: Any = False,
                     to_numpy=False):
     """
@@ -195,7 +195,7 @@ def reshaped_native(value: Tensor,
     return value.numpy(order) if to_numpy else value.native(order)
 
 
-def reshaped_numpy(value: Tensor, groups: tuple | list, force_expand: Any = False):
+def reshaped_numpy(value: Tensor, groups: Union[tuple, list], force_expand: Any = False):
     """
     Returns the NumPy representation of `value` where dimensions are laid out according to `groups`.
 
@@ -217,7 +217,7 @@ def reshaped_numpy(value: Tensor, groups: tuple | list, force_expand: Any = Fals
 
 
 def reshaped_tensor(value: Any,
-                    groups: tuple or list,
+                    groups: Union[tuple, list],
                     check_sizes=False,
                     convert=True):
     """
@@ -330,7 +330,7 @@ def native_call(f: Callable, *inputs: Tensor, channels_last=None, channel_dim='v
         return result
 
 
-def print_(obj: Tensor | PhiTreeNode | Number | tuple | list | None = None, name: str = ""):
+def print_(obj: Union[Tensor, PhiTreeNode, Number, tuple, list, None] = None, name: str = ""):
     """
     Print a tensor with no more than two spatial dimensions, slicing it along all batch and channel dimensions.
     
@@ -369,7 +369,7 @@ def print_(obj: Tensor | PhiTreeNode | Number | tuple | list | None = None, name
         print(f"{wrap(obj):full}")
 
 
-def map_(function, *values, **kwargs) -> Tensor | None:
+def map_(function, *values, **kwargs) -> Union[Tensor, None]:
     """
     Calls `function` on all elements of `value`.
 
@@ -425,7 +425,7 @@ def zeros(*shape: Shape, dtype=None) -> Tensor:
         NativeTensor(default_backend().zeros((), dtype=DType.as_dtype(dtype)), EMPTY_SHAPE), shape), shape)
 
 
-def zeros_like(obj: Tensor | PhiTreeNode) -> Tensor | PhiTreeNode:
+def zeros_like(obj: Union[Tensor, PhiTreeNode]) -> Union[Tensor, PhiTreeNode]:
     """ Create a `Tensor` containing only `0.0` / `0` / `False` with the same shape and dtype as `obj`. """
     nest, values = disassemble_tree(obj)
     zeros_ = []
@@ -488,9 +488,9 @@ def random_normal(*shape: Shape, dtype=None) -> Tensor:
 
 
 def random_uniform(*shape: Shape,
-                   low: Tensor or float = 0,
-                   high: Tensor or float = 1,
-                   dtype: DType or tuple = None) -> Tensor:
+                   low: Union[Tensor, float] = 0,
+                   high: Union[Tensor, float] = 1,
+                   dtype: Union[DType, tuple] = None) -> Tensor:
     """
     Creates a `Tensor` with the specified shape, filled with random values sampled from a uniform distribution.
 
@@ -563,7 +563,7 @@ def cumulative_sum(x: Tensor, dim: DimFilter):
     return NativeTensor(native_result, x.shape)
 
 
-def fftfreq(resolution: Shape, dx: Tensor | float = 1, dtype: DType = None):
+def fftfreq(resolution: Shape, dx: Union[Tensor, float] = 1, dtype: DType = None):
     """
     Returns the discrete Fourier transform sample frequencies.
     These are the frequencies corresponding to the components of the result of `math.fft` on a tensor of shape `resolution`.
@@ -582,7 +582,7 @@ def fftfreq(resolution: Shape, dx: Tensor | float = 1, dtype: DType = None):
 
 
 def meshgrid(dim_type=spatial, stack_dim=channel('vector'), assign_item_names=True,
-             **dimensions: int | Tensor) -> Tensor:
+             **dimensions: Union[int, Tensor]) -> Tensor:
     """
     Generate a mesh-grid `Tensor` from keyword dimensions.
 
@@ -623,7 +623,7 @@ def meshgrid(dim_type=spatial, stack_dim=channel('vector'), assign_item_names=Tr
         return stack_tensors(channels, stack_dim)
 
 
-def linspace(start: int | Tensor, stop, dim: Shape) -> Tensor:
+def linspace(start: Union[int, Tensor], stop, dim: Shape) -> Tensor:
     """
     Returns `number` evenly spaced numbers between `start` and `stop`.
 
@@ -652,7 +652,7 @@ def linspace(start: int | Tensor, stop, dim: Shape) -> Tensor:
         return map_(linspace, start, stop, dim=dim)
 
 
-def arange(dim: Shape, start_or_stop: int | None = None, stop: int | None = None, step=1):
+def arange(dim: Shape, start_or_stop: Union[int, None] = None, stop: Union[int, None] = None, step=1):
     """
     Returns evenly spaced values between `start` and `stop`.
     If only one limit is given, `0` is used for the start.
@@ -700,7 +700,7 @@ def range_tensor(shape: Shape):
     return unpack_dim(data, 'range', shape)
 
 
-def stack_tensors(values: tuple | list, dim: Shape):
+def stack_tensors(values: Union[tuple, list], dim: Shape):
     values = [wrap(v) for v in values]
     values = cast_same(*values)
 
@@ -711,7 +711,7 @@ def stack_tensors(values: tuple | list, dim: Shape):
     return result
 
 
-def concat_tensor(values: tuple | list, dim: str) -> Tensor:
+def concat_tensor(values: Union[tuple, list], dim: str) -> Tensor:
     assert len(values) > 0, "concat() got empty sequence"
     assert isinstance(dim, str), f"dim must be a single-dimension Shape but got '{dim}' of type {type(dim)}"
 
@@ -732,7 +732,7 @@ def concat_tensor(values: tuple | list, dim: str) -> Tensor:
     return result
 
 
-def pad(value: Tensor, widths: dict, mode: 'e_.Extrapolation' | Tensor | Number, **kwargs) -> Tensor:
+def pad(value: Tensor, widths: dict, mode: Union['e_.Extrapolation', Tensor, Number], **kwargs) -> Tensor:
     """
     Pads a tensor along the specified dimensions, determining the added values using the given extrapolation.
     Unlike `Extrapolation.pad()`, this function can handle negative widths which slice off outer values.
@@ -841,7 +841,7 @@ def grid_sample(grid: Tensor, coordinates: Tensor, extrap: 'e_.Extrapolation', *
     return result
 
 
-def _grid_sample(grid: Tensor, coordinates: Tensor, extrap: 'e_.Extrapolation' | None, pad_kwargs: dict):
+def _grid_sample(grid: Tensor, coordinates: Tensor, extrap: Union['e_.Extrapolation', None], pad_kwargs: dict):
     if grid.shape.batch == coordinates.shape.batch or grid.shape.batch.volume == 1 or coordinates.shape.batch.volume == 1:
         # call backend.grid_sample()
         batch = grid.shape.batch & coordinates.shape.batch
@@ -904,8 +904,8 @@ def join_spaces(*tensors):
 
 
 def broadcast_op(operation: Callable,
-                 tensors: tuple or list,
-                 iter_dims: set or tuple or list or Shape = None,
+                 tensors: Union[tuple, list],
+                 iter_dims: Union[set, tuple, list, Shape] = None,
                  no_return=False):
     if iter_dims is None:
         iter_dims = set()
@@ -944,7 +944,7 @@ def broadcast_op(operation: Callable,
             return TensorStack(result_unstacked, Shape((None,), (dim,), (dim_type,), (item_names,)))
 
 
-def where(condition: Tensor | float | int, value_true: Tensor | float | int, value_false: Tensor | float | int):
+def where(condition: Union[Tensor, float, int], value_true: Union[Tensor, float, int], value_false: Union[Tensor, float, int]):
     """
     Builds a tensor by choosing either values from `value_true` or `value_false` depending on `condition`.
     If `condition` is not of type boolean, non-zero values are interpreted as True.
@@ -974,7 +974,7 @@ def where(condition: Tensor | float | int, value_true: Tensor | float | int, val
     return broadcast_op(inner_where, [condition, value_true, value_false])
 
 
-def nonzero(value: Tensor, list_dim: Shape | str = instance('nonzero'), index_dim: Shape = channel('vector')):
+def nonzero(value: Tensor, list_dim: Union[Shape, str] = instance('nonzero'), index_dim: Shape = channel('vector')):
     """
     Get spatial indices of non-zero / True values.
     
@@ -1014,9 +1014,9 @@ def nonzero(value: Tensor, list_dim: Shape | str = instance('nonzero'), index_di
     return broadcast_op(unbatched_nonzero, [value], iter_dims=value.shape.batch.names)
 
 
-def _reduce(value: Tensor or list or tuple,
+def _reduce(value: Union[Tensor, list, tuple],
             dim: DimFilter,
-            dtype: type or None,
+            dtype: Union[type, None],
             native_function: Callable,
             collapsed_function: Callable = lambda inner_reduced, collapsed_dims_to_reduce: inner_reduced,
             unaffected_function: Callable = lambda value: value) -> Tensor:
@@ -1042,7 +1042,7 @@ def _reduce(value: Tensor or list or tuple,
         return value._tensor_reduce(dims.names, dtype, native_function, collapsed_function, unaffected_function)
 
 
-def sum_(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
+def sum_(value: Union[Tensor, list, tuple], dim: DimFilter = non_batch) -> Tensor:
     """
     Sums `values` along the specified dimensions.
 
@@ -1065,7 +1065,7 @@ def sum_(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
                    collapsed_function=lambda inner, red_shape: inner * red_shape.volume)
 
 
-def prod(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
+def prod(value: Union[Tensor, list, tuple], dim: DimFilter = non_batch) -> Tensor:
     """
     Multiplies `values` along the specified dimensions.
 
@@ -1088,7 +1088,7 @@ def prod(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
                    collapsed_function=lambda inner, red_shape: inner ** red_shape.volume)
 
 
-def mean(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
+def mean(value: Union[Tensor, list, tuple], dim: DimFilter = non_batch) -> Tensor:
     """
     Computes the mean over `values` along the specified dimensions.
 
@@ -1109,7 +1109,7 @@ def mean(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
     return _reduce(value, dim, float, native_function=lambda backend, native, dim: backend.mean(native, dim))
 
 
-def std(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
+def std(value: Union[Tensor, list, tuple], dim: DimFilter = non_batch) -> Tensor:
     """
     Computes the standard deviation over `values` along the specified dimensions.
 
@@ -1135,7 +1135,7 @@ def std(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
                    unaffected_function=lambda value: value * 0)
 
 
-def any_(boolean_tensor: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
+def any_(boolean_tensor: Union[Tensor, list, tuple], dim: DimFilter = non_batch) -> Tensor:
     """
     Tests whether any entry of `boolean_tensor` is `True` along the specified dimensions.
 
@@ -1156,7 +1156,7 @@ def any_(boolean_tensor: Tensor | list | tuple, dim: DimFilter = non_batch) -> T
     return _reduce(boolean_tensor, dim, bool, native_function=lambda backend, native, dim: backend.any(native, dim))
 
 
-def all_(boolean_tensor: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
+def all_(boolean_tensor: Union[Tensor, list, tuple], dim: DimFilter = non_batch) -> Tensor:
     """
     Tests whether all entries of `boolean_tensor` are `True` along the specified dimensions.
 
@@ -1177,7 +1177,7 @@ def all_(boolean_tensor: Tensor | list | tuple, dim: DimFilter = non_batch) -> T
     return _reduce(boolean_tensor, dim, bool, native_function=lambda backend, native, dim: backend.all(native, dim))
 
 
-def max_(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
+def max_(value: Union[Tensor, list, tuple], dim: DimFilter = non_batch) -> Tensor:
     """
     Determines the maximum value of `values` along the specified dimensions.
 
@@ -1198,7 +1198,7 @@ def max_(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
     return _reduce(value, dim, None, native_function=lambda backend, native, dim: backend.max(native, dim))
 
 
-def min_(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
+def min_(value: Union[Tensor, list, tuple], dim: DimFilter = non_batch) -> Tensor:
     """
     Determines the minimum value of `values` along the specified dimensions.
 
@@ -1219,7 +1219,7 @@ def min_(value: Tensor | list | tuple, dim: DimFilter = non_batch) -> Tensor:
     return _reduce(value, dim, None, native_function=lambda backend, native, dim: backend.min(native, dim))
 
 
-def finite_min(value, dim: DimFilter = non_batch, default: complex | float = float('NaN')):
+def finite_min(value, dim: DimFilter = non_batch, default: Union[complex, float] = float('NaN')):
     """
     Finds the minimum along `dim` ignoring all non-finite values.
 
@@ -1244,7 +1244,7 @@ def finite_min(value, dim: DimFilter = non_batch, default: complex | float = flo
     return where(is_finite(result_inf), result_inf, default)
 
 
-def finite_max(value, dim: DimFilter = non_batch, default: complex | float = float('NaN')):
+def finite_max(value, dim: DimFilter = non_batch, default: Union[complex, float] = float('NaN')):
     """
     Finds the maximum along `dim` ignoring all non-finite values.
 
@@ -1269,7 +1269,7 @@ def finite_max(value, dim: DimFilter = non_batch, default: complex | float = flo
     return where(is_finite(result_inf), result_inf, default)
 
 
-def finite_sum(value, dim: DimFilter = non_batch, default: complex | float = float('NaN')):
+def finite_sum(value, dim: DimFilter = non_batch, default: Union[complex, float] = float('NaN')):
     """
     Sums all finite values in `value` along `dim`.
 
@@ -1294,7 +1294,7 @@ def finite_sum(value, dim: DimFilter = non_batch, default: complex | float = flo
     return where(any_(finite, dim), summed, default)
 
 
-def finite_mean(value, dim: DimFilter = non_batch, default: complex | float = float('NaN')):
+def finite_mean(value, dim: DimFilter = non_batch, default: Union[complex, float] = float('NaN')):
     """
     Computes the mean value of all finite values in `value` along `dim`.
 
@@ -1322,7 +1322,7 @@ def finite_mean(value, dim: DimFilter = non_batch, default: complex | float = fl
 
 
 def quantile(value: Tensor,
-             quantiles: float or tuple or list or Tensor,
+             quantiles: Union[float, tuple, list, Tensor],
              dim: DimFilter = non_batch):
     """
     Compute the q-th quantile of `value` along `dim` for each q in `quantiles`.
@@ -1451,7 +1451,7 @@ def dot(x: Tensor,
     return NativeTensor(result_native, result_shape)
 
 
-def _backend_op1(x, unbound_method) -> Tensor | PhiTreeNode:
+def _backend_op1(x, unbound_method) -> Union[Tensor, PhiTreeNode]:
     if isinstance(x, Tensor):
         def apply_op(native_tensor):
             return getattr(choose_backend(native_tensor), unbound_method.__name__)(native_tensor)
@@ -1466,7 +1466,7 @@ def _backend_op1(x, unbound_method) -> Tensor | PhiTreeNode:
         return y
 
 
-def abs_(x) -> Tensor | PhiTreeNode:
+def abs_(x) -> Union[Tensor, PhiTreeNode]:
     """
     Computes *||x||<sub>1</sub>*.
     Complex `x` result in matching precision float values.
@@ -1483,7 +1483,7 @@ def abs_(x) -> Tensor | PhiTreeNode:
     return _backend_op1(x, Backend.abs)
 
 
-def sign(x) -> Tensor | PhiTreeNode:
+def sign(x) -> Union[Tensor, PhiTreeNode]:
     """
     The sign of positive numbers is 1 and -1 for negative numbers.
     The sign of 0 is undefined.
@@ -1497,32 +1497,32 @@ def sign(x) -> Tensor | PhiTreeNode:
     return _backend_op1(x, Backend.sign)
 
 
-def round_(x) -> Tensor | PhiTreeNode:
+def round_(x) -> Union[Tensor, PhiTreeNode]:
     """ Rounds the `Tensor` or `PhiTreeNode` `x` to the closest integer. """
     return _backend_op1(x, Backend.round)
 
 
-def ceil(x) -> Tensor | PhiTreeNode:
+def ceil(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes *⌈x⌉* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.ceil)
 
 
-def floor(x) -> Tensor | PhiTreeNode:
+def floor(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes *⌊x⌋* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.floor)
 
 
-def sqrt(x) -> Tensor | PhiTreeNode:
+def sqrt(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes *sqrt(x)* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.sqrt)
 
 
-def exp(x) -> Tensor | PhiTreeNode:
+def exp(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes *exp(x)* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.exp)
 
 
-def to_float(x) -> Tensor | PhiTreeNode:
+def to_float(x) -> Union[Tensor, PhiTreeNode]:
     """
     Converts the given tensor to floating point format with the currently specified precision.
     
@@ -1542,17 +1542,17 @@ def to_float(x) -> Tensor | PhiTreeNode:
     return _backend_op1(x, Backend.to_float)
 
 
-def to_int32(x) -> Tensor | PhiTreeNode:
+def to_int32(x) -> Union[Tensor, PhiTreeNode]:
     """ Converts the `Tensor` or `PhiTreeNode` `x` to 32-bit integer. """
     return _backend_op1(x, Backend.to_int32)
 
 
-def to_int64(x) -> Tensor | PhiTreeNode:
+def to_int64(x) -> Union[Tensor, PhiTreeNode]:
     """ Converts the `Tensor` or `PhiTreeNode` `x` to 64-bit integer. """
     return _backend_op1(x, Backend.to_int64)
 
 
-def to_complex(x) -> Tensor | PhiTreeNode:
+def to_complex(x) -> Union[Tensor, PhiTreeNode]:
     """
     Converts the given tensor to complex floating point format with the currently specified precision.
 
@@ -1572,12 +1572,12 @@ def to_complex(x) -> Tensor | PhiTreeNode:
     return _backend_op1(x, Backend.to_complex)
 
 
-def is_finite(x) -> Tensor | PhiTreeNode:
+def is_finite(x) -> Union[Tensor, PhiTreeNode]:
     """ Returns a `Tensor` or `PhiTreeNode` matching `x` with values `True` where `x` has a finite value and `False` otherwise. """
     return _backend_op1(x, Backend.isfinite)
 
 
-def real(x) -> Tensor | PhiTreeNode:
+def real(x) -> Union[Tensor, PhiTreeNode]:
     """
     See Also:
         `imag()`, `conjugate()`.
@@ -1591,7 +1591,7 @@ def real(x) -> Tensor | PhiTreeNode:
     return _backend_op1(x, Backend.real)
 
 
-def imag(x) -> Tensor | PhiTreeNode:
+def imag(x) -> Union[Tensor, PhiTreeNode]:
     """
     Returns the imaginary part of `x`.
     If `x` does not store complex numbers, returns a zero tensor with the same shape and dtype as this tensor.
@@ -1608,7 +1608,7 @@ def imag(x) -> Tensor | PhiTreeNode:
     return _backend_op1(x, Backend.imag)
 
 
-def conjugate(x) -> Tensor | PhiTreeNode:
+def conjugate(x) -> Union[Tensor, PhiTreeNode]:
     """
     See Also:
         `imag()`, `real()`.
@@ -1627,51 +1627,51 @@ def degrees(deg):
     return deg * (3.1415 / 180.)
 
 
-def sin(x) -> Tensor | PhiTreeNode:
+def sin(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes *sin(x)* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.sin)
 
 
-def arcsin(x) -> Tensor | PhiTreeNode:
+def arcsin(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes the inverse of *sin(x)* of the `Tensor` or `PhiTreeNode` `x`.
     For real arguments, the result lies in the range [-π/2, π/2].
     """
     return _backend_op1(x, Backend.arcsin)
 
 
-def cos(x) -> Tensor | PhiTreeNode:
+def cos(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes *cos(x)* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.cos)
 
 
-def arccos(x) -> Tensor | PhiTreeNode:
+def arccos(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes the inverse of *cos(x)* of the `Tensor` or `PhiTreeNode` `x`.
     For real arguments, the result lies in the range [0, π].
     """
     return _backend_op1(x, Backend.cos)
 
 
-def tan(x) -> Tensor | PhiTreeNode:
+def tan(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes *tan(x)* of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.tan)
 
 
-def log(x) -> Tensor | PhiTreeNode:
+def log(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes the natural logarithm of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.log)
 
 
-def log2(x) -> Tensor | PhiTreeNode:
+def log2(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes *log(x)* of the `Tensor` or `PhiTreeNode` `x` with base 2. """
     return _backend_op1(x, Backend.log2)
 
 
-def log10(x) -> Tensor | PhiTreeNode:
+def log10(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes *log(x)* of the `Tensor` or `PhiTreeNode` `x` with base 10. """
     return _backend_op1(x, Backend.log10)
 
 
-def sigmoid(x) -> Tensor | PhiTreeNode:
+def sigmoid(x) -> Union[Tensor, PhiTreeNode]:
     """ Computes the sigmoid function of the `Tensor` or `PhiTreeNode` `x`. """
     return _backend_op1(x, Backend.sigmoid)
 
@@ -1697,7 +1697,7 @@ def cast_same(*values: Tensor) -> Tuple[Tensor]:
         return values
 
 
-def divide_no_nan(x: float | Tensor, y: float | Tensor):
+def divide_no_nan(x: Union[float, Tensor], y: Union[float, Tensor]):
     """ Computes *x/y* with the `Tensor`s `x` and `y` but returns 0 where *y=0*. """
     return custom_op2(x, y,
                       l_operator=divide_no_nan,
@@ -1707,17 +1707,17 @@ def divide_no_nan(x: float | Tensor, y: float | Tensor):
                       op_name='divide_no_nan')
 
 
-def maximum(x: Tensor | float, y: Tensor | float):
+def maximum(x: Union[Tensor, float], y: Union[Tensor, float]):
     """ Computes the element-wise maximum of `x` and `y`. """
     return custom_op2(x, y, maximum, lambda x_, y_: choose_backend(x_, y_).maximum(x_, y_), op_name='maximum')
 
 
-def minimum(x: Tensor | float, y: Tensor | float):
+def minimum(x: Union[Tensor, float], y: Union[Tensor, float]):
     """ Computes the element-wise minimum of `x` and `y`. """
     return custom_op2(x, y, minimum, lambda x_, y_: choose_backend(x_, y_).minimum(x_, y_), op_name='minimum')
 
 
-def clip(x: Tensor, lower_limit: float | Tensor, upper_limit: float | Tensor):
+def clip(x: Tensor, lower_limit: Union[float, Tensor], upper_limit: Union[float, Tensor]):
     """ Limits the values of the `Tensor` `x` to lie between `lower_limit` and `upper_limit` (inclusive). """
     if isinstance(lower_limit, Number) and isinstance(upper_limit, Number):
 
@@ -1804,7 +1804,7 @@ def boolean_mask(x: Tensor, dim: str, mask: Tensor):
     return broadcast_op(uniform_boolean_mask, [x, mask], iter_dims=mask.shape.without(dim))
 
 
-def gather(values: Tensor, indices: Tensor, dims: DimFilter | None = None):
+def gather(values: Tensor, indices: Tensor, dims: Union[DimFilter, None] = None):
     """
     Gathers the entries of `values` at positions described by `indices`.
 
@@ -2015,7 +2015,7 @@ def dtype(x) -> DType:
         return choose_backend(x).dtype(x)
 
 
-def expand_tensor(value: float | Tensor, dims: Shape):
+def expand_tensor(value: Union[float, Tensor], dims: Shape):
     if not dims:
         return value
     value = wrap(value)

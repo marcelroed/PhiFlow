@@ -4,7 +4,7 @@ Equivalent functions also exist for the other frameworks.
 
 For API documentation, see https://tum-pbs.github.io/PhiFlow/Network_API .
 """
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple, Union
 
 import numpy
 import torch
@@ -49,7 +49,7 @@ def get_parameters(net: nn.Module, wrap=True) -> dict:
     return result
 
 
-def save_state(obj: nn.Module | optim.Optimizer, path: str):
+def save_state(obj: Union[nn.Module, optim.Optimizer], path: str):
     """
     Write the state of a module or optimizer to a file.
 
@@ -65,7 +65,7 @@ def save_state(obj: nn.Module | optim.Optimizer, path: str):
     torch.save(obj.state_dict(), path)
 
 
-def load_state(obj: nn.Module | optim.Optimizer, path: str):
+def load_state(obj: Union[nn.Module, optim.Optimizer], path: str):
     """
     Read the state of a module or optimizer from a file.
 
@@ -148,7 +148,7 @@ def dense_net(in_channels: int,
               out_channels: int,
               layers: Tuple[int, ...] or List[int],
               batch_norm=False,
-              activation: str or Callable = 'ReLU') -> nn.Module:
+              activation: Union[str, Callable] = 'ReLU') -> nn.Module:
     layers = [in_channels, *layers, out_channels]
     activation = ACTIVATIONS[activation] if isinstance(activation, str) else activation
     net = DenseNet(layers, activation, batch_norm)
@@ -185,10 +185,10 @@ class DenseNet(nn.Module):
 def u_net(in_channels: int,
           out_channels: int,
           levels: int = 4,
-          filters: int or tuple or list = 16,
+          filters: Union[int, tuple, list] = 16,
           batch_norm: bool = True,
-          activation: str or type = 'ReLU',
-          in_spatial: tuple or int = 2,
+          activation: Union[str, type] = 'ReLU',
+          in_spatial: Union[tuple, int] = 2,
           use_res_blocks: bool = False) -> nn.Module:
     if isinstance(filters, (tuple, list)):
         assert len(filters) == levels, f"List of filters has length {len(filters)} but u-net has {levels} levels."
@@ -427,7 +427,7 @@ def res_net(in_channels: int,
     return net
 
 
-def conv_classifier(input_shape: list, num_classes: int, batch_norm: bool, in_spatial: int | tuple):
+def conv_classifier(input_shape: list, num_classes: int, batch_norm: bool, in_spatial: Union[int, tuple]):
     if isinstance(in_spatial, int):
         d = in_spatial
     else:

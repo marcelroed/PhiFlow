@@ -3,7 +3,7 @@ Functions for simulating incompressible fluids, both grid-based and particle-bas
 
 The main function for incompressible fluids (Eulerian as well as FLIP / PIC) is `make_incompressible()` which removes the divergence of a velocity field.
 """
-from typing import Tuple
+from typing import Tuple, Union, List
 
 from phi import math, field
 from phi.math import wrap, channel, Tensor
@@ -223,7 +223,8 @@ def _balance_divergence(div, active):
     return div - active * (field.mean(div) / field.mean(active))
 
 
-def apply_boundary_conditions(velocity: Grid | PointCloud, obstacles: tuple | list) -> Grid | PointCloud:
+def apply_boundary_conditions(velocity: Union[Grid, PointCloud], obstacles: Union[tuple, list]) -> Union[
+    Grid, PointCloud]:
     for obstacle in obstacles:
         if isinstance(obstacle, Geometry):
             obstacle = Obstacle(obstacle)
@@ -244,7 +245,8 @@ def apply_boundary_conditions(velocity: Grid | PointCloud, obstacles: tuple | li
     return velocity
 
 
-def apply_boundary_conditions_two_way(velocity: Grid | PointCloud, density: Grid | PointCloud, obstacles: tuple | list):
+def apply_boundary_conditions_two_way(velocity: Union[Grid, PointCloud], density: Union[Grid, PointCloud],
+                                      obstacles: Union[tuple, list]):
     """
     NOTE: This method only works in 2D for the time being.
     The curl equation is only valid in 2D.
@@ -298,7 +300,8 @@ def apply_boundary_conditions_two_way(velocity: Grid | PointCloud, density: Grid
     return velocity, new_obstacles
 
 
-def boundary_push(particles: PointCloud, obstacles: tuple | list, offset: float = 0.5) -> PointCloud:
+def boundary_push(particles: PointCloud, obstacles: Union[Tuple[Obstacle, ...], List[Obstacle]],
+                  offset: float = 0.5) -> PointCloud:
     """
     Enforces boundary conditions by correcting possible errors of the advection step and shifting particles out of
     obstacles or back into the domain.

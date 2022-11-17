@@ -4,7 +4,7 @@ import sys
 import warnings
 from contextlib import contextmanager
 from threading import Thread
-from typing import Tuple, List, Dict, Callable
+from typing import Tuple, List, Dict, Callable, Union
 
 from ._user_namespace import get_user_namespace, UserNamespace, DictNamespace
 from ._viewer import create_viewer, Viewer
@@ -18,10 +18,10 @@ from ..math import Tensor, layout, batch, Shape, spatial, channel
 from ..math._tensors import Layout
 
 
-def show(*model: VisModel or SampledField or tuple or list or Tensor or Geometry,
+def show(*model: Union[VisModel, SampledField, tuple, list, Tensor, Geometry],
          play=True,
-         gui: Gui or str = None,
-         lib: Gui or str = None,
+         gui: Union[Gui, str] = None,
+         lib: Union[Gui, str] = None,
          keep_alive=True,
          **config):
     """
@@ -100,7 +100,7 @@ def close(figure=None):
 RECORDINGS = {}
 
 
-def record(*fields: str | SampledField) -> Viewer:
+def record(*fields: Union[str, SampledField]) -> Viewer:
     user_namespace = get_user_namespace(1)
     variables = _default_field_variables(user_namespace, fields)
     viewer = create_viewer(user_namespace, variables, "record", "", scene=None, asynchronous=False, controls=(),
@@ -110,14 +110,14 @@ def record(*fields: str | SampledField) -> Viewer:
     return viewer
 
 
-def view(*fields: str or SampledField,
+def view(*fields: Union[str, SampledField],
          play: bool = True,
          gui=None,
          name: str = None,
          description: str = None,
-         scene: bool or Scene = False,
+         scene: Union[bool, Scene] = False,
          keep_alive=True,
-         select: str or tuple or list = '',
+         select: Union[str, tuple, list] = '',
          framerate=None,
          namespace=None,
          log_performance=True,
@@ -268,12 +268,12 @@ def get_current_figure():
     return LAST_FIGURE[0]
 
 
-def plot(*fields: SampledField or Tensor or Layout,
-         lib: str or PlottingLibrary = None,
-         row_dims: str or Shape or tuple or list or Callable = None,
-         col_dims: str or Shape or tuple or list or Callable = batch,
-         animate: str or Shape or tuple or list or Callable = None,
-         title: str or Tensor = None,
+def plot(*fields: Union[SampledField, Tensor, Layout],
+         lib: Union[str, PlottingLibrary] = None,
+         row_dims: Union[str, Shape, tuple, list, Callable] = None,
+         col_dims: Union[str, Shape, tuple, list, Callable] = batch,
+         animate: Union[str, Shape, tuple, list, Callable] = None,
+         title: Union[str, Tensor] = None,
          size=(12, 5),
          same_scale=True,
          show_color_bar=True,
@@ -357,10 +357,10 @@ def plot(*fields: SampledField or Tensor or Layout,
             f"Figure batches not yet supported. Use rows and cols to reduce all batch dimensions. Not reduced. {fig_shape}")
 
 
-def layout_sub_figures(data: Tensor or Layout or SampledField,
-                       row_dims: str or Shape or tuple or list or Callable,
-                       col_dims: str or Shape or tuple or list or Callable,
-                       animate: str or Shape or tuple or list or Callable,  # do not reduce these dims, has priority
+def layout_sub_figures(data: Union[Tensor, Layout, SampledField],
+                       row_dims: Union[str, Shape, tuple, list, Callable],
+                       col_dims: Union[str, Shape, tuple, list, Callable],
+                       animate: Union[str, Shape, tuple, list, Callable],  # do not reduce these dims, has priority
                        offset_row: int,
                        offset_col: int,
                        positioning: Dict[Tuple[int, int], List],
@@ -454,7 +454,7 @@ def _space(fields: Tuple[Field, ...], ignore_dims: Shape) -> Box:
     return Box(lower, upper)
 
 
-def overlay(*fields: SampledField | Tensor) -> Tensor:
+def overlay(*fields: Union[SampledField, Tensor]) -> Tensor:
     """
     Specify that multiple fields should be drawn on top of one another in the same figure.
     The fields will be plotted in the order they are given, i.e. the last field on top.
@@ -506,7 +506,7 @@ def default_gui() -> Gui:
     raise RuntimeError("No user interface available.")
 
 
-def get_gui(gui: str | Gui) -> Gui:
+def get_gui(gui: Union[str, Gui]) -> Gui:
     if GUI_OVERRIDES:
         return GUI_OVERRIDES[-1]
     if isinstance(gui, str):
@@ -553,7 +553,7 @@ def default_plots() -> PlottingLibrary:
     raise RuntimeError("No user interface available.")
 
 
-def get_plots(lib: str | PlottingLibrary) -> PlottingLibrary:
+def get_plots(lib: Union[str, PlottingLibrary]) -> PlottingLibrary:
     if isinstance(lib, PlottingLibrary):
         return lib
     for loaded_lib in _LOADED_PLOTTING_LIBRARIES:

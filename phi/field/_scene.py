@@ -6,6 +6,7 @@ import shutil
 import sys
 import warnings
 from os.path import join, isfile, isdir, abspath, expanduser, basename, split
+from typing import Union
 
 from phi import math, __version__ as phi_version
 from ._field import SampledField
@@ -58,9 +59,9 @@ class Scene:
     To list all scenes within a directory, use `Scene.list()`.
     """
 
-    def __init__(self, paths: str | math.Tensor):
+    def __init__(self, paths: Union[str, math.Tensor]):
         self._paths = math.wrap(paths)
-        self._properties: dict or None = None
+        self._properties: Union[dict, None] = None
 
     def __getitem__(self, item):
         return Scene(self._paths[item])
@@ -146,7 +147,7 @@ class Scene:
     def list(parent_directory: str,
              name='sim',
              include_other: bool = False,
-             dim: Shape or None = None) -> 'Scene' | tuple:
+             dim: Union[Shape, None] = None) -> Union['Scene', tuple]:
         """
         Lists all scenes inside the given directory.
 
@@ -175,7 +176,7 @@ class Scene:
             return Scene(paths)
 
     @staticmethod
-    def at(directory: str | tuple | list | math.Tensor | 'Scene', id: int | math.Tensor | None = None) -> 'Scene':
+    def at(directory: Union[str, tuple, list, math.Tensor, 'Scene'], id: Union[int, math.Tensor, None] = None) -> 'Scene':
         """
         Creates a `Scene` for an existing directory.
 
@@ -206,7 +207,7 @@ class Scene:
                 raise IOError(f"There is no scene at '{path}'")
         return Scene(paths)
 
-    def subpath(self, name: str, create: bool = False) -> str | tuple:
+    def subpath(self, name: str, create: bool = False) -> Union[str, tuple]:
         """
         Resolves the relative path `name` with this `Scene` as the root folder.
 

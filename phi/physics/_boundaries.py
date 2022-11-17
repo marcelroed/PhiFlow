@@ -1,5 +1,6 @@
 import warnings
 from numbers import Number
+from typing import Union
 
 from phi import math, field
 from phi.field import CenteredGrid, StaggeredGrid, PointCloud, Field, HardGeometryMask
@@ -17,7 +18,7 @@ Please create grids directly, replacing the domain with a dict, e.g.
     grid = CenteredGrid(0, **domain)""", FutureWarning, stacklevel=2)
 
 
-def _create_boundary_conditions(obj: dict | tuple | list, spatial_dims: tuple) -> dict:
+def _create_boundary_conditions(obj: Union[dict, tuple, list], spatial_dims: tuple) -> dict:
     """
     Construct mixed boundary conditions from from a sequence of boundary conditions.
 
@@ -69,7 +70,7 @@ PERIODIC = {
 
 class Domain:
 
-    def __init__(self, resolution: math.Shape | tuple | list = math.EMPTY_SHAPE, boundaries: dict | tuple | list = OPEN,
+    def __init__(self, resolution: Union[math.Shape, tuple, list] = math.EMPTY_SHAPE, boundaries: Union[dict, tuple, list] = OPEN,
                  bounds: Box = None, **resolution_):
         """
         The Domain specifies the grid resolution, physical size and boundary conditions of a simulation.
@@ -137,9 +138,9 @@ class Domain:
         return self.cells.center
 
     def grid(self,
-             value: Field or Tensor or Number or Geometry or callable = 0.,
+             value: Union[Field, Tensor, Number, Geometry, callable] = 0.,
              type: type = CenteredGrid,
-             extrapolation: math.Extrapolation = 'scalar') -> CenteredGrid | StaggeredGrid:
+             extrapolation: math.Extrapolation = 'scalar') -> Union[CenteredGrid, StaggeredGrid]:
         """
         Creates a grid matching the resolution and bounds of the domain.
         The grid is created from the given `value` which must be one of the following:
@@ -163,7 +164,7 @@ class Domain:
         return type(value, resolution=self.resolution, bounds=self.bounds, extrapolation=extrapolation)
 
     def scalar_grid(self,
-                    value: Field or Tensor or Number or Geometry or callable = 0.,
+                    value: Union[Field, Tensor, Number, Geometry, callable] = 0.,
                     extrapolation: str or math.Extrapolation = 'scalar') -> CenteredGrid:
         """
         Creates a scalar grid matching the resolution and bounds of the domain.
@@ -205,9 +206,9 @@ class Domain:
         return result
 
     def vector_grid(self,
-                    value: Field or Tensor or Number or Geometry or callable = 0.,
+                    value: Union[Field, Tensor, Number, Geometry, callable] = 0.,
                     type: type = CenteredGrid,
-                    extrapolation: math.Extrapolation or str = 'vector') -> CenteredGrid | StaggeredGrid:
+                    extrapolation: math.Extrapolation or str = 'vector') -> Union[CenteredGrid, StaggeredGrid]:
         """
         Creates a vector grid matching the resolution and bounds of the domain.
         The grid is created from the given `value` which must be one of the following:
@@ -238,7 +239,7 @@ class Domain:
         return result
 
     def staggered_grid(self,
-                       value: Field or Tensor or Number or Geometry or callable = 0.,
+                       value: Union[Field, Tensor, Number, Geometry, callable] = 0.,
                        extrapolation: math.Extrapolation or str = 'vector') -> StaggeredGrid:
         """
         Creates a staggered grid matching the resolution and bounds of the domain.
@@ -264,7 +265,7 @@ class Domain:
         return self.vector_grid(value, type=StaggeredGrid, extrapolation=extrapolation)
 
     def vector_potential(self,
-                         value: Field or Tensor or Number or Geometry or callable = 0.,
+                         value: Union[Field, Tensor, Number, Geometry, callable] = 0.,
                          extrapolation: str or math.Extrapolation = 'scalar',
                          curl_type=CenteredGrid):
         if self.rank == 2 and curl_type == StaggeredGrid:
@@ -273,8 +274,8 @@ class Domain:
             return alt_domain.scalar_grid(value, extrapolation=extrapolation)
         raise NotImplementedError()
 
-    def accessible_mask(self, not_accessible: tuple | list, type: type = CenteredGrid,
-                        extrapolation='accessible') -> CenteredGrid | StaggeredGrid:
+    def accessible_mask(self, not_accessible: Union[tuple, list], type: type = CenteredGrid,
+                        extrapolation='accessible') -> Union[CenteredGrid, StaggeredGrid]:
         """
         Unifies domain and Obstacle or Geometry objects into a binary StaggeredGrid mask which can be used
         to enforce boundary conditions.
@@ -298,11 +299,11 @@ class Domain:
             raise ValueError('Unknown grid type: %s' % type)
 
     def points(self,
-               points: Tensor or Number or tuple or list,
+               points: Union[Tensor, Number, tuple, list],
                values: Tensor or Number = None,
-               radius: Tensor or float or int or None = None,
+               radius: Union[Tensor, float, int, None] = None,
                extrapolation: math.Extrapolation = math.extrapolation.ZERO,
-               color: str or Tensor or tuple or list or None = None) -> PointCloud:
+               color: Union[str, Tensor, tuple, list, None] = None) -> PointCloud:
         """
         Create a `phi.field.PointCloud` from the given `points`.
         The created field has no channel dimensions and all points carry the value `1`.

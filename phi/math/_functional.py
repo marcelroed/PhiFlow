@@ -4,7 +4,7 @@ import types
 import uuid
 import warnings
 from functools import wraps, partial
-from typing import Tuple, Callable, Dict, Generic, List, TypeVar, Any, Set
+from typing import Tuple, Callable, Dict, Generic, List, TypeVar, Any, Set, Union
 
 import numpy
 import numpy as np
@@ -27,9 +27,9 @@ Y = TypeVar('Y')
 class SignatureKey:
 
     def __init__(self,
-                 source_function: Callable or None,
+                 source_function: Union[Callable, None],
                  tree: Dict[str, Any],
-                 shapes: Shape or Tuple[Shape],
+                 shapes: Union[Shape, Tuple[Shape]],
                  native_dims: Tuple[Shape] or None,
                  backend: Backend,
                  tracing: bool,
@@ -388,7 +388,7 @@ def jit_compile_linear(f: Callable[[X], Y],
                                                                                                          auxiliary_args)
 
 
-def simplify_wrt(f, wrt: str | int | tuple | list):
+def simplify_wrt(f, wrt: Union[str, int, tuple, list]):
     f_params = function_parameters(f)
     if wrt is None:  # Old default
         wrt = f_params[0],
@@ -415,7 +415,7 @@ def simplify_wrt(f, wrt: str | int | tuple | list):
 class GradientFunction:
     """ Jacobian or Gradient of a function. """
 
-    def __init__(self, f: Callable, f_params, wrt: str | Tuple[str, ...], get_output: bool, is_f_scalar: bool,
+    def __init__(self, f: Callable, f_params, wrt: Union[str, Tuple[str, ...]], get_output: bool, is_f_scalar: bool,
                  jit=False):
         self.f = f
         self.f_params = f_params
@@ -925,7 +925,7 @@ class ShiftLinTracer(Tensor):
         self._shape = shape
         self._sparse_coo = self._sparse_csr = self._sparse_csc = None
 
-    def native(self, order: str | tuple | list | Shape = None):
+    def native(self, order: Union[str, tuple, list, Shape] = None):
         """
         Evaluates the value of the linear operation applied to the original source tensor.
 
@@ -1182,7 +1182,7 @@ class ShiftLinTracer(Tensor):
 
     def _tensor_reduce(self,
                        dims: Tuple[str],
-                       dtype: type or None,
+                       dtype: Union[type, None],
                        native_function: Callable,
                        collapsed_function: Callable = lambda inner_reduced, collapsed_dims_to_reduce: inner_reduced,
                        unaffected_function: Callable = lambda value: value):
@@ -1274,11 +1274,11 @@ class Solve(Generic[X, Y]):  # TODO move to phi.math._functional, put Tensors th
 
     def __init__(self,
                  method: str,
-                 relative_tolerance: float or Tensor,
-                 absolute_tolerance: float or Tensor,
-                 max_iterations: int or Tensor = 1000,
-                 x0: X or Any = None,
-                 suppress: tuple or list = (),
+                 relative_tolerance: Union[float, Tensor],
+                 absolute_tolerance: Union[float, Tensor],
+                 max_iterations: Union[int, Tensor] = 1000,
+                 x0: Union[X, Any] = None,
+                 suppress: Union[tuple, list] = (),
                  preprocess_y: Callable = None,
                  preprocess_y_args: tuple = (),
                  gradient_solve: 'Solve[Y, X]' or None = None):
@@ -1863,7 +1863,7 @@ def print_gradient(value: Tensor, name="", detailed=False) -> Tensor:
     return identity(value)
 
 
-def map_types(f: Callable, dims: Shape | tuple | list | str | Callable, dim_type: Callable | str) -> Callable:
+def map_types(f: Callable, dims: Union[Shape, tuple, list, str, Callable], dim_type: Union[Callable, str]) -> Callable:
     """
     Wraps a function to change the dimension types of its `Tensor` and `PhiTreeNode` arguments.
 
@@ -1921,7 +1921,7 @@ def map_i2b(f: Callable) -> Callable:
     return map_types(f, instance, batch)
 
 
-def iterate(f: Callable, iterations: int | Shape, *x0, f_kwargs: dict = None):
+def iterate(f: Callable, iterations: Union[int, Shape], *x0, f_kwargs: dict = None):
     """
     Repeatedly call `function`, passing the previous output as the next input.
 

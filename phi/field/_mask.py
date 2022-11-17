@@ -1,3 +1,5 @@
+from typing import Union
+
 from phi import math
 from phi.geom import Geometry
 from ._field import Field
@@ -31,7 +33,7 @@ class SoftGeometryMask(HardGeometryMask):
     When sampled given another geometry, the approximate overlap between the geometries is computed, allowing for fractional values between 0 and 1.
     """
 
-    def __init__(self, geometry: Geometry, balance: Tensor | float = 0.5):
+    def __init__(self, geometry: Geometry, balance: Union[Tensor, float] = 0.5):
         super().__init__(geometry)
         self.balance = balance
 

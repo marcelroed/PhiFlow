@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 import sys
 
@@ -78,7 +79,7 @@ class DType:
         return f"{self.kind.__name__}{self.bits}"
 
     @staticmethod
-    def as_dtype(value: 'DType' | tuple | type | None) -> 'DType' | None:
+    def as_dtype(value: Union[DType, tuple, type, None]) -> Union[DType, None]:
         if isinstance(value, DType):
             return value
         elif value is int:

@@ -1,4 +1,4 @@
-from typing import TypeVar, Any
+from typing import TypeVar, Any, Union
 
 from phi import math, geom
 from phi.geom import Box, Geometry, GridCell
@@ -19,8 +19,8 @@ class Grid(SampledField):
     Base class for `CenteredGrid` and `StaggeredGrid`.
     """
 
-    def __init__(self, elements: Geometry, values: Tensor, extrapolation: float | Extrapolation,
-                 resolution: Shape | int, bounds: Box | float):
+    def __init__(self, elements: Geometry, values: Tensor, extrapolation: Union[float, Extrapolation],
+                 resolution: Union[Shape, int], bounds: Union[Box, float]):
         assert isinstance(bounds, Box)
         assert isinstance(resolution, Shape)
         if bounds.size.vector.item_names is None:
@@ -148,10 +148,10 @@ class CenteredGrid(Grid):
     def __init__(self,
                  values: Any,
                  extrapolation: Any = 0.,
-                 bounds: Box or float = None,
-                 resolution: int or Shape = None,
+                 bounds: Union[Box, float] = None,
+                 resolution: Union[int, Shape] = None,
                  scheme: Scheme = Scheme(),
-                 **resolution_: int or Tensor):
+                 **resolution_: Union[int, Tensor]):
         """
         Args:
             values: Values to use for the grid.
@@ -275,11 +275,11 @@ class StaggeredGrid(Grid):
 
     def __init__(self,
                  values: Any,
-                 extrapolation: float or Extrapolation = 0,
-                 bounds: Box or float = None,
-                 resolution: Shape or int = None,
+                 extrapolation: Union[float, Extrapolation] = 0,
+                 bounds: Union[Box, float] = None,
+                 resolution: Union[Shape, int] = None,
                  scheme: Scheme = Scheme(),
-                 **resolution_: int or Tensor):
+                 **resolution_: Union[int, Tensor]):
         """
         Args:
             values: Values to use for the grid.
@@ -532,7 +532,7 @@ def _sample_function(f, elements: Geometry):
     return values
 
 
-def _get_bounds(bounds: Box | float | None, resolution: Shape):
+def _get_bounds(bounds: Union[Box, float, None], resolution: Shape):
     if bounds is None:
         return Box(math.const_vec(0, resolution), math.wrap(resolution, channel(vector=resolution.names)))
     if isinstance(bounds, Box):

@@ -1,7 +1,7 @@
 import numbers
 from contextlib import contextmanager
 from functools import wraps, partial
-from typing import List, Callable, Tuple
+from typing import List, Callable, Tuple, Union
 
 import keras
 import numpy as np
@@ -134,7 +134,7 @@ class TFBackend(Backend):
             x, y = self.auto_cast(x, y)
             return tf.math.divide_no_nan(x, y)
 
-    def random_uniform(self, shape, low, high, dtype: DType | None):
+    def random_uniform(self, shape, low, high, dtype: Union[DType, None]):
         dtype = dtype or self.float_type
         tdt = to_numpy_dtype(dtype)
         with tf.device(self._default_device.ref):
@@ -265,7 +265,7 @@ class TFBackend(Backend):
         with tf.device(self._default_device.ref):
             return self.to_float(tf.linspace(start, stop, number))
 
-    def tensordot(self, a, a_axes: tuple | list, b, b_axes: tuple | list):
+    def tensordot(self, a, a_axes: Union[tuple, list], b, b_axes: Union[tuple, list]):
         with self._device_for(a, b):
             a, b = self.auto_cast(a, b, bool_to_int=True)
             return tf.tensordot(a, b, (a_axes, b_axes))
@@ -464,7 +464,7 @@ class TFBackend(Backend):
                 result.append(scatter(b_grid, b_indices, b_values))
             return self.stack(result, axis=0)
 
-    def fft(self, x, axes: tuple | list):
+    def fft(self, x, axes: Union[tuple, list]):
         if not axes:
             return x
         x = self.to_complex(x)
@@ -482,7 +482,7 @@ class TFBackend(Backend):
                     x = self.fft(x, [axis])
                 return x
 
-    def ifft(self, k, axes: tuple | list):
+    def ifft(self, k, axes: Union[tuple, list]):
         if not axes:
             return k
         k = self.to_complex(k)
@@ -643,7 +643,7 @@ class TFBackend(Backend):
             a, b = self.auto_cast(a, b)
             return a // b
 
-    def jacobian(self, f, wrt: tuple | list, get_output: bool, is_f_scalar: bool):
+    def jacobian(self, f, wrt: Union[tuple, list], get_output: bool, is_f_scalar: bool):
         @wraps(f)
         def eval_grad(*args):
             args = [self.as_tensor(arg, True) if i in wrt else arg for i, arg in enumerate(args)]

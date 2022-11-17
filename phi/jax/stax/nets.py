@@ -7,7 +7,7 @@ For API documentation, see https://tum-pbs.github.io/PhiFlow/Network_API .
 import functools
 import inspect
 import warnings
-from typing import Callable, Tuple, List
+from typing import Callable, Tuple, List, Union
 
 import numpy
 import jax
@@ -167,7 +167,7 @@ def _recursive_add_parameters(param, wrap: bool, prefix: tuple, result: dict):
             result[name] = phi_tensor
 
 
-def save_state(obj: StaxNet | JaxOptimizer, path: str):
+def save_state(obj: Union[StaxNet, JaxOptimizer], path: str):
     """
     Write the state of a module or optimizer to a file.
 
@@ -187,7 +187,7 @@ def save_state(obj: StaxNet | JaxOptimizer, path: str):
         # numpy.save(path, obj._state)
 
 
-def load_state(obj: StaxNet | JaxOptimizer, path: str):
+def load_state(obj: Union[StaxNet, JaxOptimizer], path: str):
     """
     Read the state of a module or optimizer from a file.
 
@@ -278,7 +278,7 @@ def rmsprop(net: StaxNet, learning_rate: float = 1e-3, alpha=0.99, eps=1e-08, we
 
 def dense_net(in_channels: int,
               out_channels: int,
-              layers: Tuple[int, ...] or List[int],
+              layers: Union[Tuple[int, ...], List[int]],
               batch_norm=False,
               activation='ReLU') -> StaxNet:
     activation = {'ReLU': stax.Relu, 'Sigmoid': stax.Sigmoid, 'tanh': stax.Tanh}[activation]
@@ -298,10 +298,10 @@ def dense_net(in_channels: int,
 def u_net(in_channels: int,
           out_channels: int,
           levels: int = 4,
-          filters: int or tuple or list = 16,
+          filters: Union[int, tuple, list] = 16,
           batch_norm: bool = True,
           activation='ReLU',
-          in_spatial: tuple or int = 2,
+          in_spatial: Union[tuple, int] = 2,
           use_res_blocks: bool = False) -> StaxNet:
     if isinstance(filters, (tuple, list)):
         assert len(filters) == levels, f"List of filters has length {len(filters)} but u-net has {levels} levels."
@@ -443,7 +443,7 @@ def create_upsample():
     return NotImplemented, upsample_apply
 
 
-def conv_classifier(input_shape_list: list, num_classes: int, batch_norm: bool, in_spatial: int | tuple):
+def conv_classifier(input_shape_list: list, num_classes: int, batch_norm: bool, in_spatial: Union[int, tuple]):
     if isinstance(in_spatial, int):
         d = in_spatial
         in_spatial = (1,) * d
@@ -555,8 +555,8 @@ def conv_net(in_channels: int,
              out_channels: int,
              layers: Tuple[int, ...] or List[int],
              batch_norm: bool = False,
-             activation: str or Callable = 'ReLU',
-             in_spatial: int or tuple = 2) -> StaxNet:
+             activation: Union[str, Callable] = 'ReLU',
+             in_spatial: Union[int, tuple] = 2) -> StaxNet:
     if isinstance(in_spatial, tuple):
         d = in_spatial
         in_spatial = len(in_spatial)
@@ -608,8 +608,8 @@ def res_net(in_channels: int,
             out_channels: int,
             layers: Tuple[int, ...] or List[int],
             batch_norm: bool = False,
-            activation: str or Callable = 'ReLU',
-            in_spatial: int or tuple = 2) -> StaxNet:
+            activation: Union[str, Callable] = 'ReLU',
+            in_spatial: Union[int, tuple] = 2) -> StaxNet:
     if isinstance(in_spatial, tuple):
         d = in_spatial
         in_spatial = len(in_spatial)
@@ -634,8 +634,8 @@ def res_net(in_channels: int,
 def resnet_block(in_channels: int,
                  out_channels: int,
                  batch_norm: bool,
-                 activation: str or Callable = 'ReLU',
-                 in_spatial: int or tuple = 2):
+                 activation: Union[str, Callable] = 'ReLU',
+                 in_spatial: Union[int, tuple] = 2):
     if isinstance(in_spatial, int):
         d = (1,) * in_spatial
     else:

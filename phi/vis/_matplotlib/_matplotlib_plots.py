@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 from numbers import Number
-from typing import Callable, Tuple, Any, Dict
+from typing import Callable, Tuple, Any, Dict, Union
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -324,9 +324,9 @@ def _get_pixels_per_unit(fig: plt.Figure, axis: plt.Axes, dpi=90):
     return min(x_scale, y_scale)
 
 
-def plot_scalars(scene: str or tuple or list or Scene or math.Tensor,
-                 names: str or tuple or list or math.Tensor = None,
-                 reduce: str or tuple or list or math.Shape = 'names',
+def plot_scalars(scene: Union[str, tuple, list, Scene, math.Tensor],
+                 names: Union[str, tuple, list, math.Tensor] = None,
+                 reduce: Union[str, tuple, list, math.Shape] = 'names',
                  down='',
                  smooth=1,
                  smooth_alpha=0.2,
@@ -334,7 +334,7 @@ def plot_scalars(scene: str or tuple or list or Scene or math.Tensor,
                  size=(8, 6),
                  transform: Callable = None,
                  tight_layout=True,
-                 grid: str or dict = 'y',
+                 grid: Union[str, dict] = 'y',
                  log_scale='',
                  legend='upper right',
                  x='steps',

@@ -1,5 +1,5 @@
 import warnings
-from typing import Any
+from typing import Any, Union
 
 from phi import math
 from phi.geom import Geometry, GridCell, Box, Point
@@ -27,12 +27,12 @@ class PointCloud(SampledField):
     """
 
     def __init__(self,
-                 elements: Tensor or Geometry,
+                 elements: Union[Tensor, Geometry],
                  values: Any = 1.,
-                 extrapolation: float or Extrapolation = 0.,
+                 extrapolation: Union[float, Extrapolation] = 0.,
                  add_overlapping=False,
                  bounds: Box = None,
-                 color: str or Tensor or tuple or list or None = None):
+                 color: Union[str, Tensor, tuple, list, None] = None):
         """
         Args:
           elements: `Tensor` or `Geometry` object specifying the sample points and sizes
@@ -73,7 +73,7 @@ class PointCloud(SampledField):
         return PointCloud(elements=self.elements, values=self.values, extrapolation=extrapolation,
                           add_overlapping=self._add_overlapping, bounds=self._bounds, color=self._color)
 
-    def with_color(self, color: str | Tensor | tuple | list):
+    def with_color(self, color: Union[str, Tensor, tuple, list]):
         return PointCloud(elements=self.elements, values=self.values, extrapolation=self.extrapolation,
                           add_overlapping=self._add_overlapping, bounds=self._bounds, color=color)
 
@@ -180,13 +180,13 @@ def nonzero(field: SampledField):
                       bounds=field.bounds, color=None)
 
 
-def distribute_points(geometries: tuple or list or Geometry or float,
+def distribute_points(geometries: Union[tuple, list, Geometry, float],
                       dim: Shape = instance('points'),
                       points_per_cell: int = 8,
                       color: str = None,
                       center: bool = False,
                       radius: float = None,
-                      extrapolation: float or Extrapolation = math.NAN,
+                      extrapolation: Union[float, Extrapolation] = math.NAN,
                       **domain) -> PointCloud:
     """
     Transforms `Geometry` objects into a PointCloud.

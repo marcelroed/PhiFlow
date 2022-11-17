@@ -3,7 +3,7 @@ import warnings
 from collections import namedtuple
 from contextlib import contextmanager
 from threading import Barrier
-from typing import List, Callable, TypeVar, Tuple
+from typing import List, Callable, TypeVar, Tuple, Union
 
 import logging
 import numpy
@@ -84,7 +84,7 @@ class Backend:
     def name(self) -> str:
         return self._name
 
-    def supports(self, feature: str | Callable) -> bool:
+    def supports(self, feature: Union[str, Callable]) -> bool:
         """
         Tests if this backend supports the given feature.
         Features correspond to a method of this backend that must be implemented if the feature is supported.
@@ -162,7 +162,7 @@ class Backend:
     def __repr__(self):
         return self.name
 
-    def list_devices(self, device_type: str | None = None) -> List[ComputeDevice]:
+    def list_devices(self, device_type: Union[str, None] = None) -> List[ComputeDevice]:
         """
         Fetches information about all available compute devices this backend can use.
 
@@ -191,7 +191,7 @@ class Backend:
     def get_default_device(self) -> ComputeDevice:
         return self._default_device
 
-    def set_default_device(self, device: ComputeDevice | str) -> bool:
+    def set_default_device(self, device: Union[ComputeDevice, str]) -> bool:
         """
         Sets the device new tensors will be allocated on.
         This function will do nothing if the target device type is not available.
@@ -349,7 +349,7 @@ class Backend:
     def jit_compile(self, f: Callable) -> Callable:
         return NotImplemented
 
-    def jacobian(self, f: Callable, wrt: tuple | list, get_output: bool, is_f_scalar: bool):
+    def jacobian(self, f: Callable, wrt: Union[tuple, list], get_output: bool, is_f_scalar: bool):
         """
         Args:
             f: Function to differentiate. Returns a tuple containing `(reduced_loss, output)`
@@ -364,7 +364,7 @@ class Backend:
         """
         raise NotImplementedError(self)
 
-    def hessian(self, f: Callable, wrt: tuple | list, get_output: bool, get_gradient: bool) -> tuple:
+    def hessian(self, f: Callable, wrt: Union[tuple, list], get_output: bool, get_gradient: bool) -> tuple:
         """
         First dimension of all inputs/outputs of `f` is assumed to be a batch dimension.
         Element-wise Hessians will be computed along the batch dimension.
@@ -396,17 +396,17 @@ class Backend:
         """
         return NotImplemented
 
-    def jit_compile_grad(self, f: Callable, wrt: tuple | list, get_output: bool, is_f_scalar: bool):
+    def jit_compile_grad(self, f: Callable, wrt: Union[tuple, list], get_output: bool, is_f_scalar: bool):
         raise NotImplementedError()
 
-    def jit_compile_hessian(self, f: Callable, wrt: tuple | list, get_output: bool, get_gradient: bool):
+    def jit_compile_hessian(self, f: Callable, wrt: Union[tuple, list], get_output: bool, get_gradient: bool):
         raise NotImplementedError()
 
     def transpose(self, tensor, axes):
         """ Transposes the dimensions of `tensor` given the new axes order. The tensor will be cast to the default precision in the process. """
         raise NotImplementedError()
 
-    def random_uniform(self, shape, low, high, dtype: DType | None):
+    def random_uniform(self, shape, low, high, dtype: Union[DType, None]):
         """ Float tensor of selected precision containing random values in the range [0, 1) """
         raise NotImplementedError(self)
 
@@ -442,7 +442,7 @@ class Backend:
     def reshape(self, value, shape):
         raise NotImplementedError(self)
 
-    def flip(self, value, axes: tuple | list):
+    def flip(self, value, axes: Union[tuple, list]):
         slices = tuple(slice(None, None, -1 if i in axes else None) for i in range(self.ndims(value)))
         return value[slices]
 
@@ -493,7 +493,7 @@ class Backend:
     def linspace(self, start, stop, number):
         raise NotImplementedError(self)
 
-    def tensordot(self, a, a_axes: tuple | list, b, b_axes: tuple | list):
+    def tensordot(self, a, a_axes: Union[tuple, list], b, b_axes: Union[tuple, list]):
         """ Multiply-sum-reduce a_axes of a with b_axes of b. """
         raise NotImplementedError(self)
 
@@ -710,7 +710,7 @@ class Backend:
         """
         raise NotImplementedError(self)
 
-    def fft(self, x, axes: tuple | list):
+    def fft(self, x, axes: Union[tuple, list]):
         """
         Computes the n-dimensional FFT along all but the first and last dimensions.
 
@@ -723,7 +723,7 @@ class Backend:
         """
         raise NotImplementedError(self)
 
-    def ifft(self, k, axes: tuple | list):
+    def ifft(self, k, axes: Union[tuple, list]):
         """
         Computes the n-dimensional inverse FFT along all but the first and last dimensions.
 
@@ -791,7 +791,7 @@ class Backend:
         """
         raise NotImplementedError(self)
 
-    def sparse_coo_tensor(self, indices: tuple | list, values, shape: tuple):
+    def sparse_coo_tensor(self, indices: Union[tuple, list], values, shape: tuple):
         """
         Create a sparse matrix in coordinate list (COO) format.
 
@@ -1057,7 +1057,7 @@ class Backend:
             return SolveResult(method, x, loss, iterations, function_evaluations, converged, diverged,
                                [""] * batch_size)
 
-    def linear_solve(self, method: str, lin, y, x0, rtol, atol, max_iter, trj: bool) -> SolveResult | List[SolveResult]:
+    def linear_solve(self, method: str, lin, y, x0, rtol, atol, max_iter, trj: bool) -> Union[SolveResult, List[SolveResult]]:
         """
         Solve the system of linear equations A · x = y.
         This method need not provide a gradient for the operation.
@@ -1087,7 +1087,7 @@ class Backend:
         else:
             raise NotImplementedError(f"Method '{method}' not supported for linear solve.")
 
-    def conjugate_gradient(self, lin, y, x0, rtol, atol, max_iter, trj: bool) -> SolveResult | List[SolveResult]:
+    def conjugate_gradient(self, lin, y, x0, rtol, atol, max_iter, trj: bool) -> Union[SolveResult, List[SolveResult]]:
         """ Standard conjugate gradient algorithm. Signature matches to `Backend.linear_solve()`. """
         # Based on "An Introduction to the Conjugate Gradient Method Without the Agonizing Pain" by Jonathan Richard Shewchuk
         # symbols: dx=d, dy=q, step_size=alpha, residual_squared=delta, residual=r, y=b
@@ -1144,7 +1144,7 @@ class Backend:
 
     def conjugate_gradient_adaptive(
             self, lin, y, x0, rtol, atol, max_iter, trj: bool
-    ) -> SolveResult | List[SolveResult]:
+    ) -> Union[SolveResult, List[SolveResult]]:
         """ Conjugate gradient algorithm with adaptive step size. Signature matches to `Backend.linear_solve()`. """
         # Based on the variant described in "Methods of Conjugate Gradients for Solving Linear Systems" by Magnus R. Hestenes and Eduard Stiefel
         # https://nvlpubs.nist.gov/nistpubs/jres/049/jresv49n6p409_A1b.pdf
@@ -1403,7 +1403,7 @@ def default_backend() -> Backend:
     return _DEFAULT[-1]
 
 
-def context_backend() -> Backend | None:
+def context_backend() -> Union[Backend, None]:
     """
     Returns the backend set by the inner-most surrounding `with backend:` block.
     If called outside a backend context, returns `None`.

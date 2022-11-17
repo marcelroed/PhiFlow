@@ -1,7 +1,7 @@
 import numbers
 import os
 import sys
-from typing import List, Any, Callable
+from typing import List, Any, Callable, Union
 
 import numpy as np
 import numpy.random
@@ -132,7 +132,7 @@ class NumPyBackend(Backend):
             result = x / y
         return np.where(y == 0, 0, result)
 
-    def random_uniform(self, shape, low, high, dtype: DType | None):
+    def random_uniform(self, shape, low, high, dtype: Union[DType, None]):
         dtype = dtype or self.float_type
         if dtype.kind == float:
             return np.random.uniform(low, high, shape).astype(to_numpy_dtype(dtype))
@@ -193,7 +193,7 @@ class NumPyBackend(Backend):
     def mean(self, value, axis=None, keepdims=False):
         return np.mean(value, axis, keepdims=keepdims)
 
-    def tensordot(self, a, a_axes: tuple | list, b, b_axes: tuple | list):
+    def tensordot(self, a, a_axes: Union[tuple, list], b, b_axes: Union[tuple, list]):
         return np.tensordot(a, b, (a_axes, b_axes))
 
     def mul(self, a, b):
@@ -304,7 +304,7 @@ class NumPyBackend(Backend):
     def quantile(self, x, quantiles):
         return np.quantile(x, quantiles, axis=-1)
 
-    def fft(self, x, axes: tuple | list):
+    def fft(self, x, axes: Union[tuple, list]):
         x = self.to_complex(x)
         if not axes:
             return x
@@ -315,7 +315,7 @@ class NumPyBackend(Backend):
         else:
             return np.fft.fftn(x, axes=axes).astype(x.dtype)
 
-    def ifft(self, k, axes: tuple | list):
+    def ifft(self, k, axes: Union[tuple, list]):
         if not axes:
             return k
         if len(axes) == 1:
@@ -358,7 +358,7 @@ class NumPyBackend(Backend):
     def stop_gradient(self, value):
         return value
 
-    # def jacobian(self, f, wrt: tuple | list, get_output: bool):
+    # def jacobian(self, f, wrt: Union[tuple, list], get_output: bool):
     #     warnings.warn("NumPy does not support analytic gradients and will use differences instead. This may be slow!", RuntimeWarning)
     #     eps = {64: 1e-9, 32: 1e-4, 16: 1e-1}[self.precision]
     #
