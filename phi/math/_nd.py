@@ -85,7 +85,6 @@ def cross_product(vec1: Tensor, vec2: Tensor) -> Tensor:
     Returns:
         `Tensor`
     """
-    print(f'{vec1.shape, vec2.shape=}, {type(vec1), type(vec2)=}')
     vec1 = math.tensor(vec1)
     vec2 = math.tensor(vec2)
     spatial_rank = vec1.vector.size if 'vector' in vec1.shape else vec2.vector.size

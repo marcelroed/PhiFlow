@@ -19,16 +19,14 @@ INFLOW = CenteredGrid(Box['x,y', 14:21, 6:10], extrapolation.BOUNDARY, **DOMAIN)
 velocity = StaggeredGrid(0, extrapolation.ZERO, **DOMAIN)
 smoke = pressure = divergence = remaining_divergence = CenteredGrid(0, extrapolation.BOUNDARY, **DOMAIN)
 
-class ObstacleForces:
-    def __init__(self, forces):
-        self.
 
 # @jit_compile
 def step(smoke, velocity, pressure, dt=1.):
     smoke = advect.semi_lagrangian(smoke, velocity, 1) + INFLOW
     buoyancy_force = smoke * (0, 0.1) @ velocity  # resamples density to velocity sample points
     velocity = advect.semi_lagrangian(velocity, velocity, 1) + buoyancy_force
-    velocity, pressure, obstacle_forces = fluid.make_incompressible_two_way(velocity, OBSTACLES, Solve('CG-adaptive', 1e-5, 0, x0=pressure))
+    velocity, pressure, obstacle_forces = fluid.make_incompressible_two_way(velocity, OBSTACLES,
+                                                                            Solve('CG-adaptive', 1e-5, 0, x0=pressure))
     obstacles = update_obstacles(obstacle, obstacle_forces)
     remaining_divergence = field.divergence(velocity)
     return smoke, velocity, pressure, remaining_divergence

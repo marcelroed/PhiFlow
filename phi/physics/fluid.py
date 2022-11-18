@@ -17,66 +17,87 @@ from ..math._magic_ops import copy_with
 from ..math.extrapolation import combine_sides, Extrapolation
 
 
+class ForceSchedule:
+    pass
+
+class ObstacleUpdate:
+    def __init__(self, net_delta_momumentum: Tensor, delta_angular_momentum: float):
+        self.delta_net_momentum = net_delta_momumentum
+        self.delta_angular_momentum = delta_angular_momentum
+
+    def __repr__(self):
+        return f'ObstacleUpdate({self.delta_net_momentum}, {self.delta_angular_momentum})'
+
+
 class Obstacle:
     """
     An obstacle defines boundary conditions inside a geometry.
     It can also have a linear and angular velocity.
     """
 
-    def __init__(self, geometry, velocity=0, angular_velocity=0, mass=1, I=1):
+    def __init__(self, geometry: Geometry, velocity: Union[Tensor, Tuple, List] = [0.0, 0.0], angular_velocity: float = 0.0, mass: float = 1.0,
+                 moment_of_inertia: float = 1.0):
         """
         Args:
             geometry: Physical shape and size of the obstacle.
             velocity: Linear velocity vector of the obstacle.
             angular_velocity: Rotation speed of the obstacle. Scalar value in 2D, vector in 3D.
         """
-        self.geometry = geometry
+        self.geometry: Geometry = geometry
         self.velocity = wrap(velocity, channel(geometry)) if isinstance(velocity, (tuple, list)) else velocity
         self.angular_velocity = angular_velocity
         self.shape = shape(geometry) & non_channel(self.velocity) & non_channel(angular_velocity)
         # self.center_mass = center_mass if not center_mass is None else self.geometry.center
         # self.geometry.set_center(self.center_mass)
         self.mass = mass
-        self.I = I
+        self.moment_of_inertia = moment_of_inertia
 
     @property
     def is_stationary(self):
         """ Test whether the obstacle is completely still. """
-        return isinstance(self.velocity, (int, float)) and self.velocity == 0 and isinstance(self.angular_velocity, (int, float)) and self.angular_velocity == 0
+        return isinstance(self.velocity, (int, float)) and self.velocity == 0 and isinstance(self.angular_velocity, (
+        int, float)) and self.angular_velocity == 0
 
     def copied_with(self, **kwargs):
-        geometry, velocity, angular_velocity, mass, I = self.geometry, self.velocity, self.angular_velocity, self.mass, self.I
+        geometry, velocity, angular_velocity, mass, moment_of_intertia = self.geometry, self.velocity, self.angular_velocity, self.mass, self.moment_of_inertia
         if 'geometry' in kwargs:
             geometry = kwargs['geometry']
         if 'velocity' in kwargs:
             velocity = kwargs['velocity']
         if 'angular_velocity' in kwargs:
             angular_velocity = kwargs['angular_velocity']
-        return Obstacle(geometry, velocity, angular_velocity, mass, I)
+        return Obstacle(geometry=geometry, velocity=velocity, angular_velocity=angular_velocity, mass=mass,
+                        moment_of_inertia=moment_of_intertia)
 
-    def rotated(self, angle: float or Tensor):
-        self.geometry = self.geometry.rotated(angle)
+    def update_copy(self, obstacle_update: ObstacleUpdate, dt: float = 1.):
+        new_velocity = self.velocity + obstacle_update.delta_net_momentum / self.mass
+        new_angular_velocity = self.angular_velocity + obstacle_update.delta_angular_momentum / self.moment_of_inertia
+        # if (new_velocity ** 2).sum.sqrt() > 0.1:
+        #     new_velocity = new_velocity * 0.1 / (new_velocity ** 2).sum.sqrt()
+        # if (abs(new_angular_velocity) > 0.1).all:
+        #     new_angular_velocity = new_angular_velocity * 0.1 / abs(new_angular_velocity)
+        new_geometry = self.geometry.shifted(dt * new_velocity).rotated(dt * new_angular_velocity)
+        print('Moved by', new_geometry.center - self.geometry.center)
+        # print(f'Moving the geometry by {new_velocity * dt} and rotating by {dt * new_angular_velocity}')
+        return self.copied_with(geometry=new_geometry, velocity=new_velocity, angular_velocity=0)
 
-    def shifted(self, delta: Tensor):
-        self.geometry = self.geometry.shifted(delta)
-        # self.center_mass = self.geometry.center
+    def update_copy_set(self, obstacle_update: ObstacleUpdate, dt: float = 1.):
+        new_velocity = obstacle_update.delta_net_momentum / self.mass
+        new_angular_velocity = obstacle_update.delta_angular_momentum / self.moment_of_inertia
 
-    def step(self, dt = 1.):
-        self.rotated(dt*self.angular_velocity)
-        self.shifted(dt*self.velocity)
+        new_geometry = self.geometry.shifted(dt * new_velocity).rotated(dt * new_angular_velocity)
+        print('Moved by', new_geometry.center - self.geometry.center)
+        # print(f'Moving the geometry by {new_velocity * dt} and rotating by {dt * new_angular_velocity}')
+        return self.copied_with(geometry=new_geometry, velocity=new_velocity, angular_velocity=new_angular_velocity)
 
-    def update_velocity(self, force):
-        self.velocity += force/self.mass
 
-    def update_angular_velocity(self, torque):
-        self.angular_velocity += torque/self.I
+def update_obstacles(obstacles: List[Obstacle], obstacle_updates: List[ObstacleUpdate], dt: float = 1.):
+    print(obstacle_updates)
+    return [
+        obstacle.update_copy(obstacle_update, dt)
+        for obstacle, obstacle_update in zip(obstacles, obstacle_updates)
+    ]
 
-def update_obstacle(obstacle, torque : float, force: Tensor, dt = 1.):
-    obstacle.update_velocity(dt*force)
-    obstacle.update_angular_velocity(dt*torque)
-    obstacle.step(dt)
-    new_obstacle = obstacle.copied_with()
-    return new_obstacle
 
 def make_incompressible(velocity: GridType,
                         obstacles: tuple or list = (),
@@ -138,9 +159,11 @@ def make_incompressible(velocity: GridType,
 
 
 def make_incompressible_two_way(velocity: GridType,
-                                obstacles: tuple[Obstacle] | list[Obstacle] = (),
+                                obstacles: Union[Tuple[Obstacle], List[Obstacle]] = (),
                                 solve=math.Solve('auto', 1e-5, 1e-5, gradient_solve=math.Solve('auto', 1e-5, 1e-5)),
-                                active: CenteredGrid = None) -> Tuple[GridType, CenteredGrid]:
+                                active: CenteredGrid = None,
+                                fluid_density: float = 1.0,
+                                dt: float = 1.0) -> Tuple[GridType, CenteredGrid, List[Obstacle]]:
     """
     Projects the given velocity field by solving for the pressure and subtracting its spatial_gradient.
 
@@ -153,6 +176,9 @@ def make_incompressible_two_way(velocity: GridType,
         active: (Optional) Mask for which cells the pressure should be solved.
             If given, the velocity may take `NaN` values where it does not contribute to the pressure.
             Also, the total divergence will never be subtracted if active is given, even if all values are 1.
+        fluid_density: A single number indicating the density of the incompressible fluid. This will affect
+            how much the fluid pushes obstacles around.
+        dt: The time step to use for the obstacle updates.
 
     Returns:
         velocity: divergence-free velocity of type `type(velocity)`
@@ -175,7 +201,7 @@ def make_incompressible_two_way(velocity: GridType,
     else:
         active *= accessible  # no pressure inside obstacles
     # --- Linear solve ---
-    velocity, obstacles = apply_boundary_conditions_two_way(velocity, density=None, obstacles=obstacles)
+    velocity, obstacle_updates = apply_boundary_conditions_two_way(velocity, density=fluid_density, obstacles=obstacles)
     div = divergence(velocity) * active
     if not all_active:  # NaN in velocity allowed
         div = field.where(field.is_finite(div), div, 0)
@@ -192,7 +218,10 @@ def make_incompressible_two_way(velocity: GridType,
     # --- Subtract grad p ---
     grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, type=type(velocity)) * hard_bcs
     velocity = (velocity - grad_pressure).with_extrapolation(input_velocity.extrapolation)
-    return velocity, pressure
+
+    # Update obstacles
+    new_obstacles = update_obstacles(obstacles, obstacle_updates, dt)
+    return velocity, pressure, new_obstacles
 
 
 @math.jit_compile_linear  # jit compilation is required for boundary conditions that add a constant offset solving Ax + b = y
@@ -245,7 +274,7 @@ def apply_boundary_conditions(velocity: Union[Grid, PointCloud], obstacles: Unio
     return velocity
 
 
-def apply_boundary_conditions_two_way(velocity: Union[Grid, PointCloud], density: Union[Grid, PointCloud],
+def apply_boundary_conditions_two_way(velocity: Union[Grid, PointCloud], density: Union[Grid, PointCloud, float],
                                       obstacles: Union[tuple, list]):
     """
     NOTE: This method only works in 2D for the time being.
@@ -263,7 +292,7 @@ def apply_boundary_conditions_two_way(velocity: Union[Grid, PointCloud], density
     Returns:
         Velocity of same type as `velocity`
     """
-    new_obstacles = []
+    obstacle_updates = []
     for obstacle in obstacles:
         assert isinstance(obstacle, Obstacle), 'Two way boundary conditions only work with Obstacle objects'
         # Samples the overlap ratio of the obstacle with sample points on the velocity grid
@@ -272,32 +301,47 @@ def apply_boundary_conditions_two_way(velocity: Union[Grid, PointCloud], density
         if obstacle.is_stationary:
             # Stationary obstacles are treated as hard boundaries, so we set the velocity to zero where the obstacle is
             velocity = (1 - obs_mask) * velocity
+            print('Object is stationary')
         else:
+            print('Object is moving')
             # Construct an angular velocity field (pure curl) centered in the center of the obstacle
             angular_velocity = AngularVelocity(location=obstacle.geometry.center, strength=obstacle.angular_velocity,
                                                falloff=None) @ velocity
             # Velocities outside the object are untouched, but the velocities inside the object are set to the angular velocity + the linear velocity of the object
             # The linear velocity is constant over the entire object, but the angular velocity depends on how far away from the center of the object we are
-            velocity = (1 - obs_mask) * velocity + obs_mask * (angular_velocity + obstacle.velocity)
+            velocity_absorbed = obs_mask * velocity
+            velocity = (1 - obs_mask) * velocity + obs_mask * (angular_velocity + obstacle.velocity) / density
 
-        change_in_velocity = velocity - velocity_field_before
-        # # Now we need to set the velocity and the angular velocity of the obstacle based on the change in momentum of the fluid
-        # # The scalar linear velocity of the obstacle should change by the average change in velocity of the fluid inside the obstacle
-        masked_velocity = change_in_velocity * obs_mask  # Note that this allows fractional values on the boundary
-        new_velocity = obstacle.velocity - math.sum(masked_velocity.data) / obstacle.geometry.volume
+            # # Now we need to set the velocity and the angular velocity of the obstacle based on the change in momentum of the fluid
+            # # The scalar linear velocity of the obstacle should change by the average change in velocity of the fluid inside the obstacle
 
-        # # The angular velocity of the obstacle should change by the average change in angular velocity of the fluid inside the obstacle
-        distance_vector_from_center = velocity.points - obstacle.geometry.center
-        # Compute the cross product of the distance vector and the change in velocity
-        cross_product = math.cross_product(distance_vector_from_center, masked_velocity.data)
+            distance_vector_from_center = velocity_absorbed.at_centers().elements.center - obstacle.geometry.center_of_mass
 
-        # Sum all the z-components of the cross products
-        new_angular_velocity = obstacle.angular_velocity - math.sum(cross_product[..., 2:3]) / obstacle.geometry.volume
+            change_in_momentum = - math.sum(velocity_absorbed.data) * density
 
-        new_obstacle = obstacle.copied_with(velocity=new_velocity, angular_velocity=new_angular_velocity)
-        new_obstacles.append(new_obstacle)
+            # # The angular velocity of the obstacle should change by the average change in angular velocity of the fluid inside the obstacle
+            # Compute the cross product of the distance vector and the change in velocity
 
-    return velocity, new_obstacles
+            cross_product = math.cross_product(distance_vector_from_center, velocity_absorbed.at_centers().data)
+            cross_product_before = math.cross_product(distance_vector_from_center, velocity_field_before.at_centers().data)
+
+            # # Sum all the z-components of the cross products
+            change_in_angular_momentum = - math.sum(cross_product - cross_product_before) * density
+
+            # Approach storing the momentum in the field
+            # change_in_momentum = math.sum(velocity.data) * density
+            # change_in_angular_momentum = math.sum(math.cross_product(distance_vector_from_center, velocity.at_centers().data)) * density
+
+            # Doing it with curls
+            # total_curl = math.sum(field.curl(masked_velocity).data)
+            # print(total_curl)
+            # change_in_angular_momentum = - total_curl
+
+            obstacle_updates.append(
+                ObstacleUpdate(net_delta_momumentum=change_in_momentum, delta_angular_momentum=change_in_angular_momentum)
+            )
+
+    return velocity, obstacle_updates
 
 
 def boundary_push(particles: PointCloud, obstacles: Union[Tuple[Obstacle, ...], List[Obstacle]],

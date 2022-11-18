@@ -132,7 +132,7 @@ def semi_lagrangian_two_way(field: GridType,
 
     Args:
         field: quantity to be advected, stored on a grid (CenteredGrid or StaggeredGrid)
-        velocity: vector field, need not be compatible with with `field`.
+        velocity: vector field, need not be compatible with `field`.
         dt: time increment
         obstacles: obstacles to simulate
         integrator: ODE integrator for solving the movement.
