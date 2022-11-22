@@ -11,3 +11,4 @@ data/*
 test_data/*
 .cache
 run_tests.sh
+phiflow.egg-info/
