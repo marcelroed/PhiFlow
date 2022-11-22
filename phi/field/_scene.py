@@ -6,7 +6,7 @@ import shutil
 import sys
 import warnings
 from os.path import join, isfile, isdir, abspath, expanduser, basename, split
-from typing import Union
+from typing import Union, List, Tuple
 
 from phi import math, __version__ as phi_version
 from ._field import SampledField
@@ -176,7 +176,7 @@ class Scene:
             return Scene(paths)
 
     @staticmethod
-    def at(directory: Union[str, tuple, list, math.Tensor, 'Scene'], id: Union[int, math.Tensor, None] = None) -> 'Scene':
+    def at(directory: Union[str, Tuple, List, math.Tensor, 'Scene'], id: Union[int, math.Tensor, None] = None) -> 'Scene':
         """
         Creates a `Scene` for an existing directory.
 
