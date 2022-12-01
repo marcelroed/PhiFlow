@@ -12,7 +12,7 @@ from phi.field import SoftGeometryMask, AngularVelocity, Grid, divergence, spati
 from phi.geom import union, Geometry
 from ..field._embed import FieldEmbedding
 from ..field._grid import GridType
-from ..math import extrapolation, NUMPY, batch, shape, non_channel, expand
+from ..math import extrapolation, NUMPY, batch, shape, non_channel, expand, spatial
 from ..math._magic_ops import copy_with
 from ..math.extrapolation import combine_sides, Extrapolation
 
@@ -21,8 +21,8 @@ class ForceSchedule:
     pass
 
 class ObstacleUpdate:
-    def __init__(self, net_delta_momumentum: Tensor, delta_angular_momentum: float):
-        self.delta_net_momentum = net_delta_momumentum
+    def __init__(self, delta_net_momentum: Tensor, delta_angular_momentum: float):
+        self.delta_net_momentum = delta_net_momentum
         self.delta_angular_momentum = delta_angular_momentum
 
     def __repr__(self):
@@ -59,7 +59,7 @@ class Obstacle:
         int, float)) and self.angular_velocity == 0
 
     def copied_with(self, **kwargs):
-        geometry, velocity, angular_velocity, mass, moment_of_intertia = self.geometry, self.velocity, self.angular_velocity, self.mass, self.moment_of_inertia
+        geometry, velocity, angular_velocity, mass, moment_of_inertia = self.geometry, self.velocity, self.angular_velocity, self.mass, self.moment_of_inertia
         if 'geometry' in kwargs:
             geometry = kwargs['geometry']
         if 'velocity' in kwargs:
@@ -67,7 +67,7 @@ class Obstacle:
         if 'angular_velocity' in kwargs:
             angular_velocity = kwargs['angular_velocity']
         return Obstacle(geometry=geometry, velocity=velocity, angular_velocity=angular_velocity, mass=mass,
-                        moment_of_inertia=moment_of_intertia)
+                        moment_of_inertia=moment_of_inertia)
 
     def update_copy(self, obstacle_update: ObstacleUpdate, dt: float = 1.):
         new_velocity = self.velocity + obstacle_update.delta_net_momentum / self.mass
@@ -77,6 +77,7 @@ class Obstacle:
         # if (abs(new_angular_velocity) > 0.1).all:
         #     new_angular_velocity = new_angular_velocity * 0.1 / abs(new_angular_velocity)
         new_geometry = self.geometry.shifted(dt * new_velocity).rotated(dt * new_angular_velocity)
+        print('Delta_net_momentum', obstacle_update.delta_net_momentum)
         print('Moved by', new_geometry.center - self.geometry.center)
         # print(f'Moving the geometry by {new_velocity * dt} and rotating by {dt * new_angular_velocity}')
         return self.copied_with(geometry=new_geometry, velocity=new_velocity, angular_velocity=0)
@@ -296,6 +297,7 @@ def apply_boundary_conditions_two_way(velocity: Union[Grid, PointCloud], density
     for obstacle in obstacles:
         assert isinstance(obstacle, Obstacle), 'Two way boundary conditions only work with Obstacle objects'
         # Samples the overlap ratio of the obstacle with sample points on the velocity grid
+        print('Change_in_momentum', type(velocity))
         obs_mask = SoftGeometryMask(obstacle.geometry, balance=1) @ velocity
         velocity_field_before = velocity
         if obstacle.is_stationary:
@@ -309,15 +311,14 @@ def apply_boundary_conditions_two_way(velocity: Union[Grid, PointCloud], density
                                                falloff=None) @ velocity
             # Velocities outside the object are untouched, but the velocities inside the object are set to the angular velocity + the linear velocity of the object
             # The linear velocity is constant over the entire object, but the angular velocity depends on how far away from the center of the object we are
-            velocity_absorbed = obs_mask * velocity
+            velocity_absorbed = obs_mask * velocity # FIXME: Should this be assigned before or after the velocity updates?
             velocity = (1 - obs_mask) * velocity + obs_mask * (angular_velocity + obstacle.velocity) / density
 
             # # Now we need to set the velocity and the angular velocity of the obstacle based on the change in momentum of the fluid
             # # The scalar linear velocity of the obstacle should change by the average change in velocity of the fluid inside the obstacle
 
             distance_vector_from_center = velocity_absorbed.at_centers().elements.center - obstacle.geometry.center_of_mass
-
-            change_in_momentum = - math.sum(velocity_absorbed.data) * density
+            change_in_momentum = - math.sum(velocity_absorbed.data, spatial('x,y')) * density # FIXME: Is negative sign correct
 
             # # The angular velocity of the obstacle should change by the average change in angular velocity of the fluid inside the obstacle
             # Compute the cross product of the distance vector and the change in velocity
@@ -338,7 +339,7 @@ def apply_boundary_conditions_two_way(velocity: Union[Grid, PointCloud], density
             # change_in_angular_momentum = - total_curl
 
             obstacle_updates.append(
-                ObstacleUpdate(net_delta_momumentum=change_in_momentum, delta_angular_momentum=change_in_angular_momentum)
+                ObstacleUpdate(delta_net_momentum=change_in_momentum, delta_angular_momentum=change_in_angular_momentum)
             )
 
     return velocity, obstacle_updates
