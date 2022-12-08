@@ -211,17 +211,22 @@ class CenteredGrid(Grid):
 
     def _sample(self, geometry: Geometry, scheme: Scheme) -> Tensor:
         if geometry == self.bounds:
+            # If we're sampling a geometry that is equal to the bounds of the grid, return the mean of the values
             return math.mean(self._values, self._resolution)
         if isinstance(geometry, GeometryStack):
+            # For a geometry stack, sample each geometry separately, and stack the results (recursive call)
             sampled = [self._sample(g, scheme=scheme) for g in geometry.geometries]
             return math.stack(sampled, geometry.geometries.shape)
         if isinstance(geometry, GridCell):
+            # A GridCell is a collection of cells
             if self.elements == geometry:
                 return self.values
             elif math.close(self.dx, geometry.size):
                 fast_resampled = self._shift_resample(geometry.resolution, geometry.bounds)
                 if fast_resampled is not NotImplemented:
                     return fast_resampled
+
+        # For all other geometries, we use the center of the geometry as the sample point
         points = geometry.center
         local_points = self.box.global_to_local(points) * self.resolution - 0.5
         resampled_values = math.grid_sample(self.values, local_points, self.extrapolation, bounds=self.bounds)

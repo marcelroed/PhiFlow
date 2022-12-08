@@ -9,6 +9,10 @@ from ..math._magic_ops import variable_attributes, copy_with
 from ..math.magic import slicing_dict
 
 
+# class FaceStack:
+#     def __init__(self, ):
+#         self._normals =
+
 class GeometryStack(Geometry):
     def __init__(self, geometries: Tensor):
         self.geometries = geometries
