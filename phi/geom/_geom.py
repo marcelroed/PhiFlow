@@ -612,7 +612,14 @@ def subdivide_line_segment(line_segment: LineSegment, num_subdivisions: int) -> 
     :return: A new _single_ LineSegment with all the subdivisions
     """
     # It's fine if these are relatively slow since we will be calling them only once outside of JIT
-    raise NotImplementedError
+    assert not "b" in line_segment.shape, "Input LineSegment should not have batch dimension"
+
+    length = line_segment._length/num_subdivisions
+    start = line_segment._start
+    direction = line_segment._direction
+
+    return LineSegment(math.stack([start + direction*length*i for i in range(num_subdivisions)], math.batch('b')), math.stack([start + direction*length*(i+1) for i in range(num_subdivisions)], math.batch('b')))
+
 
 
 def subdivide_line_segment_to_size(line_segment: LineSegment, max_length: float) -> LineSegment:
@@ -622,7 +629,9 @@ def subdivide_line_segment_to_size(line_segment: LineSegment, max_length: float)
     :param max_length: The maximum length of one subdivision.
     :return: A new _single_ LineSegment with all the subdivisions
     """
-    raise NotImplementedError
+    assert not "b" in line_segment.shape, "Input LineSegment should not have batch dimension"
+
+    return subdivide_line_segment(line_segment, int(math.ceil(line_segment._length/max_length)))
 
 def assert_same_rank(rank1, rank2, error_message):
     """ Tests that two objects have the same spatial rank. Objects can be of types: `int`, `None` (no check), `Geometry`, `Shape`, `Tensor` """
