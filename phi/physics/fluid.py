@@ -70,7 +70,7 @@ class Obstacle:
                         moment_of_inertia=moment_of_inertia)
 
     def update_copy(self, obstacle_update: ObstacleUpdate, dt: float = 1.):
-        new_velocity = self.velocity + obstacle_update.delta_net_momentum / self.mass
+        new_velocity = self.velocity + obstacle_update.delta_net_momentum / dt / self.mass # F = dp / dt
         new_angular_velocity = self.angular_velocity + obstacle_update.delta_angular_momentum / self.moment_of_inertia
         # if (new_velocity ** 2).sum.sqrt() > 0.1:
         #     new_velocity = new_velocity * 0.1 / (new_velocity ** 2).sum.sqrt()
@@ -298,7 +298,7 @@ def apply_boundary_conditions_two_way(velocity: Union[Grid, PointCloud], density
         assert isinstance(obstacle, Obstacle), 'Two way boundary conditions only work with Obstacle objects'
         # Samples the overlap ratio of the obstacle with sample points on the velocity grid
         print('Change_in_momentum', type(velocity))
-        obs_mask = SoftGeometryMask(obstacle.geometry, balance=1) @ velocity
+        obs_mask = SoftGeometryMask(obstacle.geometry, balance=0.5) @ velocity
         velocity_field_before = velocity
         if obstacle.is_stationary:
             # Stationary obstacles are treated as hard boundaries, so we set the velocity to zero where the obstacle is
@@ -318,8 +318,7 @@ def apply_boundary_conditions_two_way(velocity: Union[Grid, PointCloud], density
             # # The scalar linear velocity of the obstacle should change by the average change in velocity of the fluid inside the obstacle
 
             distance_vector_from_center = velocity_absorbed.at_centers().elements.center - obstacle.geometry.center_of_mass
-            change_in_momentum = - math.sum(velocity_absorbed.data, spatial('x,y')) * density # FIXME: Is negative sign correct
-
+            change_in_momentum = (math.mean(velocity_absorbed.data, spatial('x,y'))  ) * density 
             # # The angular velocity of the obstacle should change by the average change in angular velocity of the fluid inside the obstacle
             # Compute the cross product of the distance vector and the change in velocity
 
