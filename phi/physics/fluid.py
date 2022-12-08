@@ -3,13 +3,13 @@ Functions for simulating incompressible fluids, both grid-based and particle-bas
 
 The main function for incompressible fluids (Eulerian as well as FLIP / PIC) is `make_incompressible()` which removes the divergence of a velocity field.
 """
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Literal
 
 from phi import math, field
 from phi.math import wrap, channel, Tensor
 from phi.field import SoftGeometryMask, AngularVelocity, Grid, divergence, spatial_gradient, where, CenteredGrid, \
     PointCloud
-from phi.geom import union, Geometry
+from phi.geom import union, Geometry, Box, Point
 from ..field._embed import FieldEmbedding
 from ..field._grid import GridType
 from ..math import extrapolation, NUMPY, batch, shape, non_channel, expand, spatial
@@ -98,6 +98,59 @@ def update_obstacles(obstacles: List[Obstacle], obstacle_updates: List[ObstacleU
         obstacle.update_copy(obstacle_update, dt)
         for obstacle, obstacle_update in zip(obstacles, obstacle_updates)
     ]
+
+class ObstacleForce:
+    def __init__(self,
+                 force: Tensor,
+                 torque: Tensor,  # Scalar tensor
+                 ):
+        self.force = force
+        self.torque = torque
+
+
+def sample_at_edge(field, edge):
+    # TODO(marcelroed): Should be this simple, so can remove function definition
+    return field @ edge
+
+
+def pressure_integral(pressure, edge):
+    # TODO(marcelroed): Generalize this to 3D
+
+    # Currently implements line sampling for the edges of a 2D polygon
+    sampled_pressure = sample_at_edge(pressure, edge)
+    print(sampled_pressure)
+
+    mean_pressure = math.mean(sampled_pressure)  # Need some dimension
+    return edge.length() * mean_pressure
+
+
+
+def pressure_to_obstacles(velocity, pressure: CenteredGrid, obstacles: List[Obstacle]) -> List[ObstacleForce]:
+    obstacle_forces = []
+    for obstacle in obstacles:  # TODO(marcelroed): vectorize by using geometry stacks? Might not be possible depending on uniformity.
+        # For now assume Box
+        obstacle: Box
+        # Construct a field of distances to the center of mass for torque calculations
+        distance_vec_to_centroid = pressure.elements.center - obstacle.geometry.center_of_mass
+
+        # linear_force = 0
+        # torque = 0
+
+        edges = obstacle.geometry.get_edges()
+        normals = obstacle.geometry.get_normals()
+
+        # Calculate integral of pressure over the edge
+        linear_forces = - pressure_integral(pressure, edges) * normals
+        # Calculate torque
+        torque = - pressure_integral(pressure * math.cross_product(distance_vec_to_centroid, normal), edge)
+
+        obstacle_forces.append(ObstacleForce(force=linear_force, torque=torque))
+
+    return obstacle_forces
+
+
+
+
 
 
 def make_incompressible(velocity: GridType,
@@ -201,9 +254,11 @@ def make_incompressible_two_way(velocity: GridType,
         active = accessible.with_extrapolation(extrapolation.NONE)
     else:
         active *= accessible  # no pressure inside obstacles
+
     # --- Linear solve ---
     velocity, obstacle_updates = apply_boundary_conditions_two_way(velocity, density=fluid_density, obstacles=obstacles)
     div = divergence(velocity) * active
+
     if not all_active:  # NaN in velocity allowed
         div = field.where(field.is_finite(div), div, 0)
     if not input_velocity.extrapolation.is_flexible and all_active:
@@ -215,8 +270,11 @@ def make_incompressible_two_way(velocity: GridType,
     if batch(math.merge_shapes(*obstacles)).without(
             batch(solve.x0)):  # The initial pressure guess must contain all batch dimensions
         solve = copy_with(solve, x0=expand(solve.x0, batch(math.merge_shapes(*obstacles))))
+
+    # We solve the linear system Δp = div(v) * active for p
     pressure = math.solve_linear(masked_laplace, f_args=[hard_bcs, active], y=div, solve=solve)
-    # --- Subtract grad p ---
+
+    # Subtract the gradient of the pressure from the velocity to get the updated velocity
     grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, type=type(velocity)) * hard_bcs
     velocity = (velocity - grad_pressure).with_extrapolation(input_velocity.extrapolation)
 
@@ -242,9 +300,18 @@ def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid)
     Returns:
         `CenteredGrid`
     """
+    # First compute the spatial gradient of the pressure
     grad = spatial_gradient(pressure, extrapolation.NONE, type=type(hard_bcs))
+
+    # The gradient is only defined for fluid cells, so we need to multiply it with the hard_bcs mask
+    # We bake_extrapolation to get an additional line of cells around the grid that ensure our boundary conditions are correct
     valid_grad = grad * field.bake_extrapolation(hard_bcs)
+
+    # Compute the divergence of the gradient in the valid regions
     div = divergence(valid_grad)
+
+    # Now the laplace of the pressure will be the divergence of the gradient in valid regions, in other places we set it equal to the pressure
+    # TODO(marcelroed): Why set it to the pressure otherwise?
     laplace = where(active, div, pressure)
     return laplace
 

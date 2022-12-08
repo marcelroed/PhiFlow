@@ -93,6 +93,18 @@ class RotatedGeometry(Geometry):
     def __hash__(self):
         return hash(self._angle) + hash(self._geometry)
 
+    def get_edges(self):
+        if hasattr(self._geometry, 'get_edges'):
+            edges = self._geometry.get_edges()
+            # Rotate about center of geometry
+            return math.rotate_vector(edges - self.center, self._angle) + self.center
+
+    def get_normals(self):
+        if hasattr(self._geometry, 'get_normals'):
+            normals = self._geometry.get_normals()
+            # Rotate about center of geometry
+            return math.rotate_vector(normals, self._angle)
+
 
 def rotate(geometry: Geometry, angle: Union[Number, Tensor]) -> Geometry:
     """ Package-internal rotation function. Users should use Geometry.rotated() instead. """

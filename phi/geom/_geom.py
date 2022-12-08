@@ -343,6 +343,9 @@ class Geometry:
     def center_of_mass(self) -> Tensor:
         return self.center
 
+    def faces(self) -> 'FaceStack':
+        # Faces contain all the information needed to render the geometry, as well as performing collsion and fluid -> obstacle interactions
+        raise NotImplementedError(self.__class__)
 
 class _InvertedGeometry(Geometry, ABC):
     def __init__(self, geometry):
@@ -520,6 +523,106 @@ class Point(Geometry):
         else:
             return Geometry.__stack__(self, values, dim, **kwargs)
 
+
+class LineSegment(Geometry):
+    """
+    Lines have zero volume and are determined by a start and end point.
+    An instance of `LineSegment` represents a single n-dimensional line or a batch of lines.
+    """
+
+    def __init__(self, start: math.Tensor, end: math.Tensor):
+        assert 'vector' in start.shape, "start must have a vector dimension"
+        assert 'vector' in end.shape, "end must have a vector dimension"
+        assert start.shape.get_item_names('vector') == end.shape.get_item_names('vector'), "start and end must have same spatial dimension"
+        self._start = start
+        self._end = end
+        self._length = math.vec_abs(self._end - self._start)
+        self._direction = (self._end - self._start) / self._length
+
+    @property
+    def center(self) -> Tensor:
+        return (self._start + self._end) / 2
+
+    @property
+    def shape(self) -> Shape:
+        return self._start.shape
+
+    def unstack(self, dimension: str) -> tuple:
+        return tuple(LineSegment(start, end) for start, end in zip(self._start.unstack(dimension), self._end.unstack(dimension)))
+
+    def lies_inside(self, location: Tensor) -> Tensor:
+        return math.wrap(False)
+
+    def approximate_signed_distance(self, location: Union[Tensor, tuple]) -> Tensor:
+        return math.vec_abs(location - self._start)
+
+    def push(self, positions: Tensor, outward: bool = True, shift_amount: float = 0) -> Tensor:
+        return positions
+
+    def bounding_radius(self) -> Tensor:
+        return math.zeros()
+
+    def bounding_half_extent(self) -> Tensor:
+        return math.zeros()
+
+    def shifted(self, delta: Tensor) -> 'Geometry':
+        return LineSegment(self._start + delta, self._end + delta)
+
+    def rotated(self, angle) -> 'Geometry':
+        return self
+
+    def __hash__(self):
+        return hash(self._start) + hash(self._end)
+
+    def __variable_attrs__(self):
+        return '_start', '_end'
+
+    @property
+    def volume(self) -> Tensor:
+        return math.wrap(0)
+
+    @property
+    def shape_type(self) -> Tensor:
+        return math.tensor('L')
+
+    def sample_uniform(self, *shape: math.Shape) -> Tensor:
+        raise NotImplementedError
+
+    def scaled(self, factor: Union[float, Tensor]) -> 'Geometry':
+        return self
+
+    def as_vectors(self):
+        return self._end - self._start
+
+    def __getitem__(self, item):
+        return LineSegment(self._start[_keep_vector(slicing_dict(self, item))], self._end[_keep_vector(slicing_dict(self, item))])
+
+    def __stack__(self, values: tuple, dim: Shape, **kwargs) -> 'Geometry':
+        if all(isinstance(v, LineSegment) for v in values):
+            return LineSegment(math.stack([v._start for v in values], dim, **kwargs), math.stack([v._end for v in values], dim, **kwargs))
+        else:
+            return Geometry.__stack__(self, values, dim, **kwargs)
+
+
+def subdivide_line_segment(line_segment: LineSegment, num_subdivisions: int) -> LineSegment:
+    """
+    Subdivide a line segment into a number of line segments.
+    :param line_segment: The line segment to subdivide.
+    :param num_subdivisions: The number of subdivisions.
+    :return: A new _single_ LineSegment with all the subdivisions
+    """
+    # It's fine if these are relatively slow since we will be calling them only once outside of JIT
+    raise NotImplementedError
+
+
+def subdivide_line_segment_to_size(line_segment: LineSegment, max_length: float) -> LineSegment:
+    """
+    Subdivide a line segment into a number of line segments.
+    :param line_segment: The line segment to subdivide.
+    :param max_length: The maximum length of one subdivision.
+    :return: A new _single_ LineSegment with all the subdivisions
+    """
+    raise NotImplementedError
 
 def assert_same_rank(rank1, rank2, error_message):
     """ Tests that two objects have the same spatial rank. Objects can be of types: `int`, `None` (no check), `Geometry`, `Shape`, `Tensor` """
