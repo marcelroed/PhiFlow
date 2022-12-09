@@ -1,6 +1,6 @@
 from abc import ABC
 from numbers import Number
-from typing import Union
+from typing import Union, Tuple
 
 import numpy as np
 
@@ -612,26 +612,43 @@ def subdivide_line_segment(line_segment: LineSegment, num_subdivisions: int) -> 
     :return: A new _single_ LineSegment with all the subdivisions
     """
     # It's fine if these are relatively slow since we will be calling them only once outside of JIT
-    assert not "b" in line_segment.shape, "Input LineSegment should not have batch dimension"
+    # assert not "b" in line_segment.shape, "Input LineSegment should not have batch dimension"
 
     length = line_segment._length/num_subdivisions
     start = line_segment._start
     direction = line_segment._direction
+    if "b" in line_segment.shape:
+        sub_line_seg = [subdivide_line_segment(LineSegment(st, ed), num_subdivisions) for (st, ed) in zip(math.unstack(line_segment._start, math.batch('b')), math.unstack(line_segment._end, math.batch('b')))]
+        return LineSegment(
+            math.stack([ls._start for ls in sub_line_seg], math.batch('c')),
+            math.stack([ls._end for ls in sub_line_seg], math.batch('c'))
+            )
+    else:
+        return LineSegment(math.stack([start + direction*length*i for i in range(num_subdivisions)], math.batch('b')), math.stack([start + direction*length*(i+1) for i in range(num_subdivisions)], math.batch('b'))) 
 
-    return LineSegment(math.stack([start + direction*length*i for i in range(num_subdivisions)], math.batch('b')), math.stack([start + direction*length*(i+1) for i in range(num_subdivisions)], math.batch('b')))
 
+def concat_tuples(tup):
+    result = []
+    for t in tup:
+        result += t
+    return result
 
-
-def subdivide_line_segment_to_size(line_segment: LineSegment, max_length: float) -> LineSegment:
+def subdivide_line_segment_to_size(line_segment: LineSegment, max_length: float) -> Tuple[LineSegment, list]:
     """
     Subdivide a line segment into a number of line segments.
     :param line_segment: The line segment to subdivide.
     :param max_length: The maximum length of one subdivision.
     :return: A new _single_ LineSegment with all the subdivisions
     """
-    assert not "b" in line_segment.shape, "Input LineSegment should not have batch dimension"
-
-    return subdivide_line_segment(line_segment, int(math.ceil(line_segment._length/max_length)))
+    if "b" in line_segment.shape:
+        sub_line_seg = [subdivide_line_segment(LineSegment(st, ed), int(math.ceil(length/max_length))) for (st, ed, length) in zip(math.unstack(line_segment._start, math.batch('b')), math.unstack(line_segment._end, math.batch('b')), math.unstack(line_segment._length, math.batch('b')))]
+        mapping = list(np.concatenate([[i]*int(math.ceil(length/max_length)) for (i, length) in enumerate(math.unstack(line_segment._length, math.batch('b')))]))
+        return LineSegment(
+            math.stack(concat_tuples([math.unstack(ls._start, math.batch('b')) for ls in sub_line_seg]), math.batch('b')),
+            math.stack(concat_tuples([math.unstack(ls._end, math.batch('b')) for ls in sub_line_seg]), math.batch('b'))
+            ), mapping
+    else:
+        return subdivide_line_segment(line_segment, int(math.ceil(line_segment._length/max_length))), None
 
 def assert_same_rank(rank1, rank2, error_message):
     """ Tests that two objects have the same spatial rank. Objects can be of types: `int`, `None` (no check), `Geometry`, `Shape`, `Tensor` """
