@@ -2,7 +2,6 @@
 Testing for interactions between fluid and obstacles using pressure.
 """
 from phi.flow import *
-from phi.physics.fluid import update_obstacles_forces
 from phi.torch.flow import *
 # from phi.jax.flow import *
 

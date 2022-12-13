@@ -24,7 +24,7 @@ from .field import Grid, CenteredGrid, StaggeredGrid, GeometryMask, SoftGeometry
     PointCloud, Scene
 from .field.numerical import Scheme
 from .vis import Viewer
-from .physics.fluid import Obstacle
+from .physics.fluid import Obstacle, update_obstacles_forces
 
 # Constants
 from .math import PI, INF, NAN
