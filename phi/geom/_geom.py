@@ -569,7 +569,12 @@ class LineSegment(Geometry):
         return LineSegment(self._start + delta, self._end + delta)
 
     def rotated(self, angle) -> 'Geometry':
-        return self
+        # Rotate around center
+        center = self.center
+        return LineSegment(center + math.rotate_vector(self._start - center, angle), center + math.rotate_vector(self._end - center, angle))
+
+    def rotate_around(self, angle, center) -> 'Geometry':
+        return LineSegment(center + math.rotate_vector(self._start - center, angle), center + math.rotate_vector(self._end - center, angle))
 
     def __hash__(self):
         return hash(self._start) + hash(self._end)
@@ -594,6 +599,9 @@ class LineSegment(Geometry):
     def as_vectors(self):
         return self._end - self._start
 
+    def length(self):
+        return self._length
+
     def __getitem__(self, item):
         return LineSegment(self._start[_keep_vector(slicing_dict(self, item))], self._end[_keep_vector(slicing_dict(self, item))])
 
@@ -602,6 +610,14 @@ class LineSegment(Geometry):
             return LineSegment(math.stack([v._start for v in values], dim, **kwargs), math.stack([v._end for v in values], dim, **kwargs))
         else:
             return Geometry.__stack__(self, values, dim, **kwargs)
+
+    def get_normals(self):
+        # Get outward pointing normals for each line segment.
+        # This is done by rotating by 90 degrees around the z-axis and normalizing.
+        rotated = math.rotate_vector(self.as_vectors(), math.pi / 2)
+        return rotated / math.vec_abs(rotated, vec_dim='vector')
+
+
 
 
 def subdivide_line_segment(line_segment: LineSegment, num_subdivisions: int) -> LineSegment:
@@ -633,6 +649,7 @@ def concat_tuples(tup):
         result += t
     return result
 
+
 def subdivide_line_segment_to_size(line_segment: LineSegment, max_length: float) -> Tuple[LineSegment, list]:
     """
     Subdivide a line segment into a number of line segments.
@@ -651,7 +668,7 @@ def subdivide_line_segment_to_size(line_segment: LineSegment, max_length: float)
         return subdivide_line_segment(line_segment, int(math.ceil(line_segment._length/max_length))), None
 
 def assert_same_rank(rank1, rank2, error_message):
-    """ Tests that two objects have the same spatial rank. Objects can be of types: `int`, `None` (no check), `Geometry`, `Shape`, `Tensor` """
+    """Tests that two objects have the same spatial rank. Objects can be of types: `int`, `None` (no check), `Geometry`, `Shape`, `Tensor` """
     rank1_, rank2_ = _rank(rank1), _rank(rank2)
     if rank1_ is not None and rank2_ is not None:
         assert rank1_ == rank2_, 'Ranks do not match: %s and %s. %s' % (rank1_, rank2_, error_message)

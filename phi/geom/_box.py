@@ -320,7 +320,7 @@ class Box(BaseBox, metaclass=BoxType):
         # edges = math.tensor([[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]], math.instance(edges=4, points=2), math.channel(vector=2))
         edges = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]]
 
-        lines = [LineSegment(start=math.tensor([x_start, y_start]), end=math.tensor([x_end, y_end])) for ((x_start, y_start), (x_end, y_end)) in edges]
+        lines = [LineSegment(start=math.tensor([x_start, y_start], channel(vector='x,y')), end=math.tensor([x_end, y_end], channel(vector='x,y'))) for ((x_start, y_start), (x_end, y_end)) in edges]
 
         single_line_obj = math.stack(lines, math.instance(edges=4))
         return single_line_obj

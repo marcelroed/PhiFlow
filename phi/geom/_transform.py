@@ -4,7 +4,7 @@ from typing import Tuple, Union
 from phi import math
 from phi.math import Tensor, Shape
 from . import BaseBox, Box
-from ._geom import Geometry
+from ._geom import Geometry, LineSegment
 from ._sphere import Sphere
 from ..math._shape import parse_dim_order
 
@@ -95,9 +95,9 @@ class RotatedGeometry(Geometry):
 
     def get_edges(self):
         if hasattr(self._geometry, 'get_edges'):
-            edges = self._geometry.get_edges()
+            edges: LineSegment = self._geometry.get_edges()
             # Rotate about center of geometry
-            return math.rotate_vector(edges - self.center, self._angle) + self.center
+            return edges.rotate_around(angle=self._angle, center=self.center)
 
     def get_normals(self):
         if hasattr(self._geometry, 'get_normals'):
