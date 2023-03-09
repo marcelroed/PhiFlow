@@ -134,10 +134,10 @@ _TO_NUMPY = {
     DType(int, 32): np.int32,
     DType(int, 64): np.int64,
     DType(bool): np.bool_,
-    DType(object): np.object,
+    DType(object): np.object_,
 }
 _FROM_NUMPY = {np: dtype for dtype, np in _TO_NUMPY.items()}
-_FROM_NUMPY[np.bool] = DType(bool)
+_FROM_NUMPY[np.bool_] = DType(bool)
 
 
 def combine_types(*dtypes: DType, fp_precision: int = None) -> DType:
