@@ -105,6 +105,9 @@ class RotatedGeometry(Geometry):
             # Rotate about center of geometry
             return math.rotate_vector(normals, self._angle)
 
+    def __variable_attrs__(self):
+        return '_geometry', '_angle'
+
 
 def rotate(geometry: Geometry, angle: Union[Number, Tensor]) -> Geometry:
     """ Package-internal rotation function. Users should use Geometry.rotated() instead. """
