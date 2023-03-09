@@ -243,6 +243,8 @@ class Box(BaseBox, metaclass=BoxType):
             return Geometry.__stack__(self, values, dim, **kwargs)
 
     def __eq__(self, other):
+        if self.shape is None and other.shape is None:  # If comparing for JIT compilation
+            return True
         return isinstance(other, BaseBox) \
                and set(self.shape) == set(other.shape) \
                and self.size.shape.get_size('vector') == other.size.shape.get_size('vector') \
@@ -257,7 +259,7 @@ class Box(BaseBox, metaclass=BoxType):
         return self.vector[remaining]
 
     def __hash__(self):
-        return hash(self._upper)
+        return hash(self._upper) + hash(self._lower)
 
     def __variable_attrs__(self):
         return '_lower', '_upper'
@@ -282,7 +284,9 @@ class Box(BaseBox, metaclass=BoxType):
 
     @property
     def center(self):
-        return 0.5 * (self.lower + self.upper)
+        lower, upper = self.lower, self.upper
+        result = (lower + upper) * 0.5
+        return result
 
     @property
     def half_size(self):
@@ -302,7 +306,7 @@ class Box(BaseBox, metaclass=BoxType):
         return Box(lower, upper)
 
     def __repr__(self):
-        if self.shape.non_channel.volume == 1:
+        if self.shape is not None and self.shape.non_channel.volume == 1:
             item_names = self.size.vector.item_names
             if item_names:
                 return f"Box({', '.join([f'{dim}=({lo}, {up})' for dim, lo, up in zip(item_names, self._lower, self._upper)])})"
