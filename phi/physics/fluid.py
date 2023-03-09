@@ -3,13 +3,13 @@ Functions for simulating incompressible fluids, both grid-based and particle-bas
 
 The main function for incompressible fluids (Eulerian as well as FLIP / PIC) is `make_incompressible()` which removes the divergence of a velocity field.
 """
-from dataclasses import dataclass
 from typing import Tuple, Union, List
 
+import phi.geom._transform
 from phi import math, field
 from phi.field import SoftGeometryMask, AngularVelocity, Grid, divergence, spatial_gradient, where, CenteredGrid, \
     PointCloud
-from phi.geom import union, Geometry, Box, subdivide_line_segment
+from phi.geom import union, Geometry, Box, subdivide_line_segment, LevelSet
 from phi.math import wrap, channel, Tensor
 from ..field._embed import FieldEmbedding
 from ..field._grid import GridType
@@ -51,6 +51,7 @@ class Obstacle:
     An obstacle defines boundary conditions inside a geometry.
     It can also have a linear and angular velocity.
     """
+
     def __repr__(self):
         return f'Obstacle(geometry={self.geometry}, velocity={self.velocity}, angular_velocity={self.angular_velocity})'
 
@@ -74,6 +75,12 @@ class Obstacle:
         # self.geometry.set_center(self.center_mass)
         self.mass = mass
         self.moment_of_inertia = moment_of_inertia
+
+    def __eq__(self, other: 'Obstacle'):
+        return all([getattr(self, attr) == getattr(other, attr) for attr in self.__variable_attrs__()])
+
+    def __variable_attrs__(self):
+        return 'geometry', 'velocity', 'angular_velocity', 'shape', 'mass', 'moment_of_inertia'
 
     @property
     def is_stationary(self):
@@ -152,31 +159,67 @@ def pressure_integral(pressure, edges):
     return pressure_integrals
 
 
-def pressure_to_obstacles(velocity, pressure: CenteredGrid, obstacles: List[Obstacle], dt: float) -> List[ObstacleForce]:
+def delta_tilde_func(values, eps=0.5):
+    # TODO (marcelroed): What happens when the object isn't convex? In this case the distance values will drop off
+    #  slower than they should, and the integral will be greater than we want. Does the normalization of delta deal
+    #  with this case? Ignore for now.
+    """
+    A smeared out one-sided delta function. This function is the derivative of the smoothed heaviside function.
+    H_eps(x) = 1 / (1 + exp(-x / eps))
+    => delta_eps(x) = H_eps'(x) = exp(x / eps) / (eps * (1 + exp(x / eps)) ** 2)
+    """
+    delta = math.exp(values / eps) / (eps * (1 + math.exp(values / eps)) ** 2)
+    delta = math.where((values < 10) & (values > -10), delta, 0)
+    return 2 * math.where(values > 0, delta, 0)
+
+
+def level_set_pressure_integral(pressure_field: CenteredGrid, level_set: LevelSet, centroid):
+    pos = pressure_field.elements.center
+    level_set_values = level_set.function(pos)
+    level_set_gradients = math.gradient(level_set.function, wrt='x', get_output=False)(pos)
+
+    delta_val = delta_tilde_func(level_set_values)
+    dV = pressure_field.elements.volume
+    pressure_integrand = delta_val * pressure_field.values * level_set_gradients * dV
+    linear_force = - math.sum(pressure_integrand, dim='x,y')
+    torque = - math.sum(pressure_integrand * (pos - centroid), dim='x,y')
+    return linear_force, torque
+
+
+def pressure_to_obstacles(velocity, pressure: CenteredGrid, obstacles: List[Obstacle], dt: float) -> List[
+    ObstacleForce]:
     obstacle_forces = []
     for obstacle in obstacles:  # TODO(marcelroed): vectorize by using geometry stacks? Might not be possible depending on uniformity.
-        # For now assume Box
-        obstacle: Box
-        # Construct a field of distances to the center of mass for torque calculations
-        distance_vec_to_centroid = field.CenteredGrid(pressure.elements.center - obstacle.geometry.center_of_mass)
+        geometry = obstacle.geometry
+        if isinstance(geometry, (Box, phi.geom._transform.RotatedGeometry)):
+            # Construct a field of distances to the center of mass for torque calculations
+            distance_vec_to_centroid = field.CenteredGrid(pressure.elements.center - geometry.center_of_mass)
 
-        # linear_force = 0
-        # torque = 0
+            # linear_force = 0
+            # torque = 0
 
-        edges = obstacle.geometry.get_edges()
-        # Subdivide edges to get a more accurate pressure integral
-        edges = subdivide_line_segment(edges, 20)
+            edges = geometry.get_edges()
+            # Subdivide edges to get a more accurate pressure integral
+            edges = subdivide_line_segment(edges, 20)
 
-        normals = obstacle.geometry.get_normals()
+            normals = geometry.get_normals()
 
-        # Calculate integral of pressure over the edge
-        linear_forces = - pressure_integral(pressure, edges) * normals
-        total_linear_force = math.sum(linear_forces, ('b', 'edges'))
-        # Calculate torque
-        torques = math.cross_product(distance_vec_to_centroid._sample(edges, scheme=field.numerical.Scheme()), linear_forces)
-        total_torque = math.sum(torques, ('b', 'edges', 'vector'))  # Should be zero in all other components
+            # Calculate integral of pressure over the edge
+            linear_forces = - pressure_integral(pressure, edges) * normals
+            total_linear_force = math.sum(linear_forces, ('b', 'edges'))
+            # Calculate torque
+            torques = math.cross_product(distance_vec_to_centroid._sample(edges, scheme=field.numerical.Scheme()),
+                                         linear_forces)
+            total_torque = math.sum(torques, ('b', 'edges', 'vector'))  # Should be zero in all other components
 
-        obstacle_forces.append(ObstacleForce(force=total_linear_force, torque=total_torque))
+            obstacle_forces.append(ObstacleForce(force=total_linear_force, torque=total_torque))
+        elif isinstance(geometry, LevelSet):
+            # Calculate integral of pressure over the boundary of the level set
+            linear_force, torque = level_set_pressure_integral(pressure, geometry, centroid=geometry.center_of_mass)
+            obstacle_forces.append(ObstacleForce(force=linear_force, torque=torque))
+        else:
+            raise NotImplementedError(f'Obstacle type {type(geometry)} not implemented yet')
+
 
     # Then apply the obstacle forces
     return obstacle_forces
