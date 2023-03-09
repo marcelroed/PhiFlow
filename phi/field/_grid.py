@@ -86,7 +86,7 @@ class Grid(SampledField):
                 return False
             else:  # both tracers
                 return self.values.shape == other.values.shape
-        return bool((self.values == other.values).all)
+        return (self.values == other.values).all
 
     def __getitem__(self, item) -> 'Grid':
         raise NotImplementedError(self)

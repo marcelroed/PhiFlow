@@ -174,7 +174,16 @@ class JaxBackend(Backend):
             @wraps(f)
             def unwrap_outputs(*args):
                 args = [self.to_float(arg) if self.dtype(arg).kind in (bool, int) else arg for arg in args]
-                (_, output_tuple), grads = jax_grad_f(*args)
+
+                grad_f = jax_grad_f
+                if is_f_scalar:
+                    # We need to vmap over all dimensions that are still in the output dimension
+                    output_shape = jax.eval_shape(f, *args)
+                    for _dim in output_shape[0].shape:
+                        grad_f = jax.vmap(grad_f)
+                    # jax_grad_f = jax.vmap(jax_grad_f, in_axis=)
+
+                (_, output_tuple), grads = grad_f(*args)
                 return (*output_tuple, *grads)
 
             return unwrap_outputs

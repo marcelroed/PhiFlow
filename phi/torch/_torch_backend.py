@@ -42,7 +42,7 @@ class TorchBackend(Backend):
             return True
         if isinstance(x, (tuple, list)) and all(isinstance(c, numbers.Number) for c in x):
             return True
-        if isinstance(x, np.ndarray) and x.dtype != np.object:
+        if isinstance(x, np.ndarray) and x.dtype != np.object_:
             return True  # this is pretty much required, else we couldn't perform NP+PyTorch operations
         return False
 
@@ -707,8 +707,8 @@ class TorchBackend(Backend):
             if np.prod(self.staticshape(loss)) == 1:
                 grads = torch.autograd.grad(loss, wrt_args)  # grad() cannot be called during jit trace
             else:
-                raise NotImplementedError()
-                grads = torch.autograd.grad(loss, wrt_args, retain_graph=True)
+                # raise NotImplementedError() TODO: Test this thoroughly, find out why implementation was missing
+                grads = torch.autograd.grad(loss, wrt_args, retain_graph=True, grad_outputs=torch.ones_like(loss))
             return (*output, *grads) if get_output else grads
 
         return eval_grad
