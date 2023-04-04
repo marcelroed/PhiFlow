@@ -9,7 +9,7 @@ import phi.geom._transform
 from phi import math, field
 from phi.field import SoftGeometryMask, AngularVelocity, Grid, divergence, spatial_gradient, where, CenteredGrid, \
     PointCloud
-from phi.geom import union, Geometry, Box, subdivide_line_segment, LevelSet
+from phi.geom import union, Geometry, Sphere, Box, subdivide_line_segment, LevelSet
 from phi.math import wrap, channel, Tensor
 from ..field._embed import FieldEmbedding
 from ..field._grid import GridType
@@ -173,16 +173,27 @@ def delta_tilde_func(values, eps=0.5):
     return 2 * math.where(values > 0, delta, 0)
 
 
+def delta_hat_func(phi_val, eps=5.0):
+    """This is the derivative of a one-sided smeared out heaviside function. Since we want to only measure the
+    pressure on the positive side of the level set, we need to double the value on that side for the integral to be
+    correct.
+    """
+    return math.where(
+        (0 <= phi_val) & (phi_val <= eps),
+        1 / eps + math.cos(math.pi * phi_val / eps) / eps,
+        0)
+
+
 def level_set_pressure_integral(pressure_field: CenteredGrid, level_set: LevelSet, centroid):
     pos = pressure_field.elements.center
-    level_set_values = level_set.function(pos)
-    level_set_gradients = math.gradient(level_set.function, wrt='x', get_output=False)(pos)
+    # level_set_values = level_set.function(pos)
+    level_set_values, level_set_gradients = math.gradient(level_set.function, wrt='x', get_output=True)(pos)
 
-    delta_val = delta_tilde_func(level_set_values)
+    delta_val = delta_hat_func(level_set_values)
     dV = pressure_field.elements.volume
     pressure_integrand = delta_val * pressure_field.values * level_set_gradients * dV
     linear_force = - math.sum(pressure_integrand, dim='x,y')
-    torque = - math.sum(pressure_integrand * (pos - centroid), dim='x,y')
+    torque = - math.sum(math.cross_product(pressure_integrand, pos - centroid), dim='x,y')
     return linear_force, torque
 
 
@@ -191,7 +202,7 @@ def pressure_to_obstacles(velocity, pressure: CenteredGrid, obstacles: List[Obst
     obstacle_forces = []
     for obstacle in obstacles:  # TODO(marcelroed): vectorize by using geometry stacks? Might not be possible depending on uniformity.
         geometry = obstacle.geometry
-        if isinstance(geometry, (Box, phi.geom._transform.RotatedGeometry)):
+        if isinstance(geometry, (Box, Sphere, phi.geom._transform.RotatedGeometry)):
             # Construct a field of distances to the center of mass for torque calculations
             distance_vec_to_centroid = field.CenteredGrid(pressure.elements.center - geometry.center_of_mass)
 
@@ -219,7 +230,6 @@ def pressure_to_obstacles(velocity, pressure: CenteredGrid, obstacles: List[Obst
             obstacle_forces.append(ObstacleForce(force=linear_force, torque=torque))
         else:
             raise NotImplementedError(f'Obstacle type {type(geometry)} not implemented yet')
-
 
     # Then apply the obstacle forces
     return obstacle_forces
