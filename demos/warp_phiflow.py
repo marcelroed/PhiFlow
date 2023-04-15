@@ -1,6 +1,7 @@
 from phi.flow import *
 import jax.numpy as jnp
 from phi.jax import *
+import warp as wp
 
 
 DOMAIN = dict(x=100, y=100, bounds=Box(x=100, y=100))
@@ -15,7 +16,6 @@ original_geometry = obstacle.geometry
 pressure = None
 
 obstacles = [obstacle]
-
 
 # @jit_compile
 def step(obstacles, velocity, frame):

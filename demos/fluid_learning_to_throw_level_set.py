@@ -1,6 +1,6 @@
 from typing import List
 from phi.flow import *
-from phi.torch.flow import *
+# from phi.torch.flow import *
 from tqdm.auto import trange, tqdm
 
 DOMAIN = dict(x=50, y=50, bounds=Box(x=100, y=100))
@@ -9,6 +9,7 @@ G = 0.5
 
 center = DOMAIN['bounds'].center
 radius = 20
+
 
 def signed_distance_field(x):
     return math.vec_length(x - center, vec_dim='vector') - radius

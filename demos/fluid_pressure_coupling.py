@@ -15,7 +15,7 @@ BOX_GEOMETRY = Box(x=(40, 60), y=(40, 60))
 print(BOX_GEOMETRY.get_edges())
 print(BOX_GEOMETRY.get_normals())
 
-OBSTACLES = [Obstacle(BOX_GEOMETRY, moment_of_inertia=1e6, mass=1e2)]
+OBSTACLES = [Obstacle(BOX_GEOMETRY, moment_of_inertia=1e6, mass=1e3)]
 # OBSTACLE_MASK = HardGeometryMask(OBSTACLE.geometry) @ CenteredGrid(0, extrapolation.BOUNDARY, **DOMAIN)
 
 INFLOW = (
@@ -35,11 +35,11 @@ def step(smoke, velocity, pressure, obstacles, dt):
     velocity = advect.mac_cormack(velocity, velocity, dt=dt) + buoyancy_force * dt
     print(math.max(field.curl(velocity).data, 'x,y'))
     velocity, pressure = fluid.make_incompressible(velocity, obstacles,
-                                                                      Solve('CG-adaptive', 1e-5, 1e-5, x0=pressure))
+                                                                      Solve('CG-adaptive', 1e-5, 1e-5))
     # Use the new pressure to compute the effects on the obstacles from the fluid
     obstacle_forces = fluid.pressure_to_obstacles(velocity, pressure, obstacles, dt=dt)
     obstacles = update_obstacles_forces(obstacles, obstacle_forces, dt=dt)
-    # remaining_divergence = field.divergence(velocity)
+    remaining_divergence = field.divergence(velocity)
     fluid.masked_laplace.tracers.clear()  # we will need to retrace because the matrix changes each step. This is not needed when JIT-compiling the physics.
     return smoke, velocity, pressure, obstacles, remaining_divergence
 

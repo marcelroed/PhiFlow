@@ -1,8 +1,10 @@
 """ Rotating Bar
 This demo shows how to simulate fluid flow with moving or rotating obstacles.
 """
+# from jax.config import config; config.update("jax_disable_jit", True)
 from phi.flow import *
-from phi.jax import *
+# from phi.jax.flow import *
+from phi.torch.flow import *
 
 
 DOMAIN = dict(x=100, y=100, bounds=Box(x=100, y=100))
@@ -16,7 +18,7 @@ velocity = StaggeredGrid(0, extrapolation.BOUNDARY, **DOMAIN)
 def step(obstacle, velocity):
     obstacle = obstacle.copied_with(geometry=obstacle.geometry.rotated(-obstacle.angular_velocity * DT))  # rotate bar
     velocity = advect.mac_cormack(velocity, velocity, DT)
-    print(math.max(field.curl(velocity).data, 'x,y'))
+    # print(math.max(field.curl(velocity).data, 'x,y'))
     velocity, pressure = fluid.make_incompressible(velocity, (obstacle,), Solve('CG-adaptive', 1e-5, 1e-5))
     fluid.masked_laplace.tracers.clear()  # we will need to retrace because the matrix changes each step. This is not needed when JIT-compiling the physics.
     OBSTACLE_MASK = CenteredGrid(obstacle.geometry, extrapolation.ZERO, **DOMAIN)
@@ -25,3 +27,4 @@ def step(obstacle, velocity):
 
 for frame in view(velocity, OBSTACLE_MASK, namespace=globals(), framerate=10, display=('velocity', 'OBSTACLE_MASK')).range():
     obstacle, velocity, OBSTACLE_MASK = step(obstacle, velocity)
+    print(obstacle, velocity)
