@@ -12,6 +12,7 @@ See `phi.tf.flow`, `phi.torch.flow`, `phi.jax.flow`.
 # Modules
 import numpy
 import numpy as np
+import re
 import phi
 from . import math, geom, field, physics, vis
 from .math import extrapolation, backend
@@ -19,7 +20,7 @@ from .physics import fluid, advect, diffuse
 
 # Classes
 from .math import Tensor, DType, Solve
-from .geom import Geometry, Sphere, Box, Cuboid, LevelSet
+from .geom import Geometry, Sphere, Box, Cuboid, LevelSet, Mesh
 from .field import Grid, CenteredGrid, StaggeredGrid, GeometryMask, SoftGeometryMask, HardGeometryMask, Noise, \
     PointCloud, Scene
 from .field.numerical import Scheme
@@ -43,3 +44,5 @@ from .vis import show, view, control, plot
 
 # Exceptions
 from .math import ConvergenceException, NotConverged, Diverged
+
+ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')

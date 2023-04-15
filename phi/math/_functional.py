@@ -530,7 +530,7 @@ class GradientFunction:
         output_key = match_output_signature(key, self.recorded_mappings, self)
         jac_shape = output_key.shapes[0].non_batch  # TODO(marcelroed): Make sure this makes sense
         # jac_shape = 0
-        wrt_shapes = [math.concat_shapes(jac_shape, key.shapes[i]) for i in wrt_tensors]
+        wrt_shapes = [math.merge_shapes(jac_shape, key.shapes[i]) for i in wrt_tensors]
         if self.get_output:
             result_shapes = list(output_key.shapes) + wrt_shapes
             output_tensors = assemble_tensors(native_result, result_shapes, None)

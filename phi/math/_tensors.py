@@ -1610,7 +1610,7 @@ class TensorStack(Tensor):
             return TensorStack(red_inners, self.stack_dim)
 
 
-def tensor(data: Union[Tensor, Shape, tuple, list, numbers.Number],
+def tensor(data: Union[Tensor, Shape, tuple, list, numbers.Number, str],
            *shape: Shape,
            convert: bool = True,
            default_list_dim=channel(
