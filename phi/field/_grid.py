@@ -262,6 +262,17 @@ class CenteredGrid(Grid):
         local_points = self.box.global_to_local(points.center) * self.resolution - 0.5
         return math.closest_grid_values(self.values, local_points, self.extrapolation)
 
+    def element_corners(self):
+        """Returns a stack of GridCells centered at the corners of the grid cells."""
+        new_bounds = self.bounds
+        new_bounds = Box(new_bounds.lower - self.dx / 2, new_bounds.upper + self.dx / 2)
+        new_resolution = self.resolution.with_dim_size('x', self.resolution.get_size('x') + 1)\
+                                        .with_dim_size('y', self.resolution.get_size('y') + 1)
+        if self.bounds.shape.size == 3:
+            new_resolution = new_resolution.with_dim_size('z', self.resolution.get_size('z') + 1)
+        return GridCell(new_resolution, new_bounds)
+
+
 
 class StaggeredGrid(Grid):
     """

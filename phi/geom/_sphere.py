@@ -4,7 +4,7 @@ from typing import Dict, Union
 from phi import math
 
 from ._geom import Geometry, _keep_vector
-from ..math import wrap, Tensor, Shape
+from ..math import wrap, Tensor, Shape, batch, instance, channel
 from ..math.backend import PHI_LOGGER
 from ..math.magic import slicing_dict
 
@@ -128,3 +128,17 @@ class Sphere(Geometry):
 
     def __hash__(self):
         return hash(self._center) + hash(self._radius)
+
+    def get_edges(self):
+        # Discretize circle into points on the circle
+        angles = math.linspace(0, 2 * math.PI, instance(edges=32))
+        points = math.stack([math.cos(angles), math.sin(angles)], channel(vector='x,y'))
+        points_on_circle = points * self.radius + self.center
+
+        # Construct line segments with start and end points on the circle
+        edges = math.stack([points_on_circle, math.roll(points_on_circle, shift=1, axis='edges')], dim='edge')
+        raise NotImplementedError()
+
+    def get_normals(self):
+        raise NotImplementedError()
+

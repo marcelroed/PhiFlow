@@ -5,6 +5,7 @@ from typing import Dict, Tuple, Union, List, Callable, Optional
 import numpy as np
 
 from phi import math
+from . import Box
 from ._geom import Geometry, _keep_vector, LineSegment
 from ..math import wrap, INF, Shape, channel, spatial, copy_with, Tensor, extrapolation
 from ..math._shape import parse_dim_order
@@ -12,8 +13,13 @@ from ..math.magic import slicing_dict
 from phi.field import CenteredGrid
 
 
+def vector_notation(n: int):
+    assert n in (2, 3), 'Only 2D and 3D is currently supported'
+    return 'x,y' if n == 2 else 'x,y,z'
+
 def identity(n: int) -> Tensor:
-    return math.tensor([[1. if i == j else 0. for i in range(n)] for j in range(n)], channel(vector_out='x,y'), channel(vector_in='x,y'))
+    assert n in (2, 3), 'Only 2D and 3D identity matrices are supported.'
+    return math.tensor([[1. if i == j else 0. for i in range(n)] for j in range(n)], channel(vector_out=vector_notation(n)), channel(vector_in=vector_notation(n)))
 
 
 def rotate_matmul(left: Tensor, right: Tensor):
@@ -22,23 +28,34 @@ def rotate_matmul(left: Tensor, right: Tensor):
     right_in = right._with_shape_replaced(channel(vector_mid='x,y', vector_in='x,y'))
     return math.sum(left_in * right_in, dim='vector_mid')
 
+def rotate_vec(rotation: Tensor, vector: Tensor):
+    left_in = rotation._with_shape_replaced(channel(vector='x,y', vector_mid='x,y'))
+    right_in = vector._with_shape_replaced(vector.shape.non_channel & channel(vector_mid='x,y'))
+    return math.sum(left_in * right_in, dim='vector_mid')
+
+
+def cast_rotation(rotation: Tensor | float):
+    if isinstance(rotation, float) or rotation.shape.sizes == ():
+        return math.tensor([[math.cos(rotation), -math.sin(rotation)], [math.sin(rotation), math.cos(rotation)]], channel(vector_out='x,y'), channel(vector_in='x,y'))
+    else:
+        return rotation
 
 class LevelSetTransform:
-    def __init__(self, translation: Optional[Tensor] = None, rotation: Optional[Tensor] = None, shape: Optional[Shape] = None):
+    def __init__(self, translation: Optional[Tensor] = None, rotation: Optional[Tensor] = None,
+                 shape: Optional[Shape] = None):
         if translation is None and shape is None:
             raise ValueError('Either translation or the shape of a translation must be specified.')
-        if translation is None:
-            translation = math.zeros(channel(vector='x,y'))
         self.shape = translation.shape if shape is None else shape
         self.translation = translation
-        self.rotation = rotation if rotation is not None else identity(self.translation.shape.sizes[0])
+        self.rotation = rotation if rotation is not None else identity(shape.sizes[0])
 
     def __call__(self, location: Tensor) -> Tensor:
         if self.translation is not None:
             location = location + self.translation
         if self.rotation is not None:
-            location_in = location._with_shape_replaced(location.shape.non_channel & channel(vector_in='x,y'))
-            location = math.sum(self.rotation * location_in, dim='vector_in')._with_shape_replaced(location.shape.non_channel & channel(vector='x,y'))
+            item_names = ','.join(location.shape.channel.item_names[0])
+            location_in = location._with_shape_replaced(location.shape.non_channel & channel(vector_in=item_names))
+            location = math.sum(self.rotation * location_in, dim='vector_in')._with_shape_replaced(location.shape.non_channel & channel(vector=vector_notation(self.shape.sizes[0])))
         return location
 
     def inverse(self) -> 'LevelSetTransform':
@@ -56,6 +73,7 @@ class LevelSetTransform:
         if rotation is None:
             rotation = self.rotation
         elif rotation is not None and self.rotation is not None:
+            rotation = cast_rotation(rotation)
             assert rotation.shape.sizes == self.rotation.shape.sizes
             rotation = rotation * self.rotation
 
@@ -67,8 +85,9 @@ class LevelSetTransform:
 class LevelSet(Geometry):
     @staticmethod
     def bake_properties(function: Callable, evaluation_grid: CenteredGrid):
+        n = evaluation_grid.shape.spatial_rank
         present = math.cast(function(evaluation_grid.elements.center) >= 0, dtype=evaluation_grid.values.dtype)
-        centroid = math.sum(evaluation_grid.elements.center * present, dim='x,y') / math.sum(present, dim='x,y')
+        centroid = math.sum(evaluation_grid.elements.center * present, dim=vector_notation(n)) / math.sum(present, dim=vector_notation(n))
 
         volume = math.sum(present, dim='x,y') * evaluation_grid.elements.volume
 
@@ -83,12 +102,18 @@ class LevelSet(Geometry):
     def center_of_mass(self):
         return self._centroid
 
-    def __init__(self, function: Callable, bounds, *, transforms: Optional[LevelSetTransform] = None, center=None, volume=None):
+    def __init__(self, function: Callable, bounds: Box, *, transforms: Optional[LevelSetTransform] = None, center=None, volume=None):
         self._bounds = bounds
-        self._evaluation_grid = CenteredGrid(0, x=100, y=100, bounds=bounds, extrapolation=extrapolation.BOUNDARY)
+        if bounds.shape.size == 2:
+            self._evaluation_grid = CenteredGrid(0, x=100, y=100, bounds=bounds, extrapolation=extrapolation.BOUNDARY)
+        elif bounds.shape.size == 3:
+            self._evaluation_grid = CenteredGrid(0, x=100, y=100, z=100, bounds=bounds, extrapolation=extrapolation.BOUNDARY)
+        else:
+            raise ValueError(f'Bounds must be 2D or 3D, but got {bounds.shape}')
+
 
         self._function = function
-        self._transforms = LevelSetTransform(shape=(2,)) if transforms is None else transforms
+        self._transforms = LevelSetTransform(shape=bounds.shape) if transforms is None else transforms
         if center is None or volume is None:
             self._centroid, self._volume = LevelSet.bake_properties(self.function, self._evaluation_grid)
         else:

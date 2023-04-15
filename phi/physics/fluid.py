@@ -3,7 +3,10 @@ Functions for simulating incompressible fluids, both grid-based and particle-bas
 
 The main function for incompressible fluids (Eulerian as well as FLIP / PIC) is `make_incompressible()` which removes the divergence of a velocity field.
 """
+from numbers import Number
 from typing import Tuple, Union, List
+
+import torch
 
 import phi.geom._transform
 from phi import math, field
@@ -16,6 +19,7 @@ from ..field._grid import GridType
 from ..math import extrapolation, NUMPY, batch, shape, non_channel, expand, spatial
 from ..math._magic_ops import copy_with
 from ..math.extrapolation import combine_sides, Extrapolation
+from pytorch3d.ops.marching_cubes import marching_cubes
 
 
 class ForceSchedule:
@@ -58,7 +62,7 @@ class Obstacle:
     def __str__(self):
         return f'Obstacle(geometry={self.geometry}, velocity={self.velocity}, angular_velocity={self.angular_velocity})'
 
-    def __init__(self, geometry: Geometry, velocity: Union[Tensor, Tuple, List] = [0.0, 0.0],
+    def __init__(self, geometry: Geometry, velocity: Union[Tensor, Tuple, List, None, Number] = None,
                  angular_velocity: float = 0.0, mass: float = 1.0,
                  moment_of_inertia: float = 1.0):
         """
@@ -68,6 +72,11 @@ class Obstacle:
             angular_velocity: Rotation speed of the obstacle. Scalar value in 2D, vector in 3D.
         """
         self.geometry: Geometry = geometry
+        if velocity is None:
+            velocity = 0
+        if isinstance(velocity, Number):
+            velocity = [float(velocity)] * channel(geometry).size
+
         self.velocity = wrap(velocity, channel(geometry)) if isinstance(velocity, (tuple, list)) else velocity
         self.angular_velocity = angular_velocity
         self.shape = shape(geometry) & non_channel(self.velocity) & non_channel(angular_velocity)
@@ -184,16 +193,58 @@ def delta_hat_func(phi_val, eps=5.0):
         0)
 
 
-def level_set_pressure_integral(pressure_field: CenteredGrid, level_set: LevelSet, centroid):
-    pos = pressure_field.elements.center
-    # level_set_values = level_set.function(pos)
-    level_set_values, level_set_gradients = math.gradient(level_set.function, wrt='x', get_output=True)(pos)
+def compute_area_normals(verts: torch.FloatTensor, faces: torch.LongTensor):
+    # Verts: (N, 3), faces: (M, 3)
 
-    delta_val = delta_hat_func(level_set_values)
-    dV = pressure_field.elements.volume
-    pressure_integrand = delta_val * pressure_field.values * level_set_gradients * dV
-    linear_force = - math.sum(pressure_integrand, dim='x,y')
-    torque = - math.sum(math.cross_product(pressure_integrand, pos - centroid), dim='x,y')
+
+    # TODO(marcelroed): Determine dim, since this defaults to the first 3-dimensional axis
+    face_normals = 1 / 2 * torch.cross(verts[faces[:, 1]] - verts[faces[:, 0]], verts[faces[:, 2]] - verts[faces[:, 0]])
+    # face_normals: (M, 3), area-normals for each face
+
+    return face_normals
+
+
+def get_area_normals(grid: CenteredGrid, level_set: LevelSet) -> CenteredGrid:
+    """Gets the equivalent normal scaled by the area of the region inside each cell"""
+    corner_positions = grid.element_corners().center
+    level_set_values_corner = level_set.function(corner_positions)
+    # Add batch dimension TODO(marcelroed): Make this use phiflow batch (and 1 when there's none)
+    level_set_values_corner_torch = level_set_values_corner.native(level_set_values_corner.shape)[None, ...]
+    # TODO(marcelroed): marching_cubes is broken on CPU, so need to fix it or always run on GPU. Both versions
+    #  currently return floats for vert indices when not in local coords, so need to fix that too.
+    #  Finally, this should return the cell indices for each face, so that we can reduce the area normals.
+    verts, faces = marching_cubes(level_set_values_corner_torch, isolevel=0.0, return_local_coords=False)
+    verts, faces = verts[0].long(), faces[0]
+    # TODO(marcelroed): Improve the verts by moving them to the zero of the level set, imbue them with gradients
+
+    area_normals = compute_area_normals(verts, faces)
+
+    # TODO(marcelroed): Reduce to the right cells
+    cell_normals = torch.zeros(*[s - 1 for s in corner_positions.shape], dtype=corner_positions.dtype, device=corner_positions.device)
+
+    cell_normals.scatter_add_(dim=0, index=face_belongs_to_cell, src=area_normals)
+
+    return grid.with_values(cell_normals)
+
+    # return math.tensor(cell_normals, *grid.elements.center.shape)
+
+
+
+def level_set_pressure_integral(pressure_field: CenteredGrid, level_set: LevelSet, centroid):
+    # pos = pressure_field.elements.center
+    # level_set_values = level_set.function(pos)
+    # level_set_values, level_set_gradients = math.gradient(level_set.function, wrt='x', get_output=True)(corner_positions)
+
+
+    # Normal vectors for each cell, length is by their projected area
+    # TODO(marcelroed): Should certainly be sparse!
+    area_normals = get_area_normals(grid=pressure_field, level_set=level_set)
+
+    # dV = pressure_field.elements.volume
+    pressure_field._masked_sample(area_normals.elements.center, mask=)
+    pressure_integrand = pressure_field.masked_sample() * area_normals
+    linear_force = - math.sum(pressure_integrand, dim=spatial(pressure_integrand))
+    torque = - math.sum(math.cross_product(pressure_integrand, pressure_integrand.elements.center - centroid), dim=spatial(pressure_integrand))
     return linear_force, torque
 
 
