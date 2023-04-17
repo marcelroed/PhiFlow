@@ -6,7 +6,7 @@ The main function for incompressible fluids (Eulerian as well as FLIP / PIC) is 
 from numbers import Number
 from typing import Tuple, Union, List
 import warnings
-from typing import Tuple, Callable
+from typing import Tuple, Callable, Union
 
 import torch
 
@@ -269,7 +269,7 @@ def pressure_to_obstacles(velocity, pressure: CenteredGrid, obstacles: List[Obst
 
 
 def make_incompressible(velocity: GridType,
-                        obstacles: Obstacle or Geometry or tuple or list = (),
+                        obstacles: Union[Obstacle, Geometry, tuple, list] = (),
                         solve: Solve = Solve(),
                         active: CenteredGrid = None,
                         order: int = 2) -> Tuple[GridType, CenteredGrid]:
@@ -363,7 +363,7 @@ def _balance_divergence(div, active):
     return div - active * (field.mean(div) / field.mean(active))
 
 
-def apply_boundary_conditions(velocity: Grid or PointCloud, obstacles: Obstacle or Geometry or tuple or list):
+def apply_boundary_conditions(velocity: Union[Grid, PointCloud], obstacles: Union[Obstacle, Geometry, tuple, list]):
     """
     Enforces velocities boundary conditions on a velocity grid.
     Cells inside obstacles will get their velocity from the obstacle movement.
@@ -391,7 +391,7 @@ def apply_boundary_conditions(velocity: Grid or PointCloud, obstacles: Obstacle 
     return velocity
 
 
-def boundary_push(particles: PointCloud, obstacles: tuple or list, offset: float = 0.5) -> PointCloud:
+def boundary_push(particles: PointCloud, obstacles: Union[tuple, list], offset: float = 0.5) -> PointCloud:
     """
     Enforces boundary conditions by correcting possible errors of the advection step and shifting particles out of
     obstacles or back into the domain.

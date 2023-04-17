@@ -12,7 +12,7 @@ from phi.math import copy_with, shape, Solve
 
 def explicit(field: FieldType,
              diffusivity: Union[float, math.Tensor, Field],
-             dt: float or math.Tensor,
+             dt: Union[float, math.Tensor],
              substeps: int = 1) -> FieldType:
     """
     Simulate a finite-time diffusion process of the form dF/dt = α · ΔF on a given `Field` FieldType with diffusion coefficient α.
@@ -40,7 +40,7 @@ def explicit(field: FieldType,
 
 def implicit(field: FieldType,
              diffusivity: Union[float, math.Tensor, Field],
-             dt: float or math.Tensor,
+             dt: Union[float, math.Tensor],
              order: int = 1,
              solve=Solve('CG')) -> FieldType:
     """
@@ -56,7 +56,6 @@ def implicit(field: FieldType,
     Returns:
         Diffused field of same type as `field`.
     """
-
     @jit_compile_linear
     def sharpen(x):
         return explicit(x, diffusivity, -dt, substeps=order)
@@ -67,7 +66,7 @@ def implicit(field: FieldType,
 
 
 def finite_difference(grid: Grid,
-                      diffusivity: float or math.Tensor or Field,
+                      diffusivity: Union[float, math.Tensor, Field],
                       order: int,
                       implicit: math.Solve) -> FieldType:
 
@@ -93,8 +92,8 @@ def finite_difference(grid: Grid,
 
 
 def fourier(field: GridType,
-            diffusivity: float or math.Tensor,
-            dt: float or math.Tensor) -> FieldType:
+            diffusivity: Union[float, math.Tensor],
+            dt: Union[float, math.Tensor]) -> FieldType:
     """
     Exact diffusion of a periodic field in frequency space.
 
