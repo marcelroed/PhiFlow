@@ -1,7 +1,7 @@
 import traceback
 
-import dash_core_components as dcc
-import dash_html_components as html
+import dash.dcc as dcc
+import dash.html as html
 from dash.dependencies import Input, Output
 from plotly import graph_objects
 

@@ -1,5 +1,7 @@
 from numbers import Number
-from typing import Union
+from typing import Union, Tuple
+
+import numpy as np
 
 from phi import math
 from phi.math import Tensor, Shape, EMPTY_SHAPE, non_channel, wrap, shape

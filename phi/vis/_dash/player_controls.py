@@ -1,7 +1,7 @@
 from typing import Union
 
-import dash_core_components as dcc
-import dash_html_components as html
+import dash.dcc as dcc
+import dash.html as html
 from dash.dependencies import Output, Input, State
 from dash.exceptions import PreventUpdate
 
