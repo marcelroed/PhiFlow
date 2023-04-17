@@ -1,17 +1,17 @@
 from numbers import Number
-from typing import Tuple, Union
+from typing import Tuple
 
 from phi import math
 from phi.math import Tensor, Shape
 from . import BaseBox, Box
-from ._geom import Geometry, LineSegment
+from ._geom import Geometry
 from ._sphere import Sphere
 from ..math._shape import parse_dim_order
 
 
 class RotatedGeometry(Geometry):
 
-    def __init__(self, geometry: Geometry, angle: Union[float, math.Tensor]):
+    def __init__(self, geometry: Geometry, angle: float or math.Tensor):
         assert not isinstance(geometry, RotatedGeometry)
         self._geometry = geometry
         self._angle = math.wrap(angle)
@@ -19,6 +19,9 @@ class RotatedGeometry(Geometry):
     @property
     def shape(self):
         return self._geometry.shape
+
+    def __variable_attrs__(self):
+        return '_geometry', '_angle'
 
     @property
     def geometry(self):
@@ -74,13 +77,13 @@ class RotatedGeometry(Geometry):
     def rank(self):
         return self.geometry.spatial_rank
 
-    def shifted(self, delta) -> Geometry:
-        return RotatedGeometry(self._geometry.shifted(delta), self._angle)
+    def at(self, center: Tensor) -> 'Geometry':
+        return RotatedGeometry(self._geometry.at(center), self._angle)
 
     def rotated(self, angle) -> Geometry:
         return RotatedGeometry(self._geometry, self._angle + angle)
 
-    def scaled(self, factor: Union[float, Tensor]) -> 'Geometry':
+    def scaled(self, factor: float or Tensor) -> 'Geometry':
         return RotatedGeometry(self._geometry.scaled(factor), self._angle)
 
     def unstack(self, dimension: str) -> tuple:
@@ -93,23 +96,11 @@ class RotatedGeometry(Geometry):
     def __hash__(self):
         return hash(self._angle) + hash(self._geometry)
 
-    def get_edges(self):
-        if hasattr(self._geometry, 'get_edges'):
-            edges: LineSegment = self._geometry.get_edges()
-            # Rotate about center of geometry
-            return edges.rotate_around(angle=self._angle, center=self.center)
-
-    def get_normals(self):
-        if hasattr(self._geometry, 'get_normals'):
-            normals = self._geometry.get_normals()
-            # Rotate about center of geometry
-            return math.rotate_vector(normals, self._angle)
-
-    def __variable_attrs__(self):
-        return '_geometry', '_angle'
+    def __repr__(self):
+        return f"rot({self._geometry}, angle={self._angle})"
 
 
-def rotate(geometry: Geometry, angle: Union[Number, Tensor]) -> Geometry:
+def rotate(geometry: Geometry, angle: Number or Tensor) -> Geometry:
     """ Package-internal rotation function. Users should use Geometry.rotated() instead. """
     assert isinstance(geometry, Geometry)
     if isinstance(geometry, RotatedGeometry):
@@ -179,17 +170,20 @@ class _EmbeddedGeometry(Geometry):
     def shifted(self, delta: Tensor) -> 'Geometry':
         raise NotImplementedError()
 
-    def rotated(self, angle: Union[float, Tensor]) -> 'Geometry':
+    def at(self, center: Tensor) -> 'Geometry':
         raise NotImplementedError()
 
-    def scaled(self, factor: Union[float, Tensor]) -> 'Geometry':
+    def rotated(self, angle: float or Tensor) -> 'Geometry':
+        raise NotImplementedError()
+
+    def scaled(self, factor: float or Tensor) -> 'Geometry':
         raise NotImplementedError()
 
     def __hash__(self):
         return hash(self.geometry) + hash(self.axes)
 
 
-def embed(geometry: Geometry, projected_dims: Union[math.Shape, str, tuple, list, None]) -> Geometry:
+def embed(geometry: Geometry, projected_dims: math.Shape or str or tuple or list or None) -> Geometry:
     """
     Adds fake spatial dimensions to a geometry.
     The geometry value will be constant along the added dimensions, as if it had infinite length in these directions.
@@ -218,7 +212,7 @@ def embed(geometry: Geometry, projected_dims: Union[math.Shape, str, tuple, list
     return _EmbeddedGeometry(geometry, axes)
 
 
-def infinite_cylinder(center=None, radius=None, inf_dim: Union[str, Shape, tuple, list] = None, **center_) -> Geometry:
+def infinite_cylinder(center=None, radius=None, inf_dim: str or Shape or tuple or list = None, **center_) -> Geometry:
     """
     Creates an infinite cylinder.
     This is equal to embedding an `n`-dimensional `Sphere` in `n+1` dimensions.

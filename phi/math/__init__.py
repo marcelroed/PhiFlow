@@ -18,33 +18,38 @@ from .backend import NUMPY, precision, set_global_precision, get_precision
 
 from ._shape import (
     shape, Shape, EMPTY_SHAPE, DimFilter,
-    spatial, channel, batch, instance,
-    non_batch, non_spatial, non_instance, non_channel,
-    merge_shapes, concat_shapes, IncompatibleShapes
+    spatial, channel, batch, instance, dual,
+    non_batch, non_spatial, non_instance, non_channel, non_dual,
+    merge_shapes, concat_shapes, IncompatibleShapes,
+    enable_debug_checks,
 )
-from ._magic_ops import unstack, stack, concat, expand, rename_dims, pack_dims, unpack_dim, unpack_dim as unpack_dims, \
-    flatten, copy_with
+
+from ._magic_ops import slice_ as slice, unstack, stack, concat, expand, rename_dims, pack_dims, unpack_dim, flatten, copy_with, replace
+
 from ._tensors import wrap, tensor, layout, Tensor, Dict, to_dict, from_dict, is_scalar
+
+from ._sparse import dense, get_sparsity, factor_ilu
+
 from .extrapolation import Extrapolation
+
 from ._ops import (
     choose_backend_t as choose_backend, all_available, convert, seed,
     native, numpy, reshaped_native, reshaped_tensor, reshaped_numpy, copy, native_call,
     print_ as print,
     map_ as map,
-    zeros, ones, fftfreq, random_normal, random_uniform, meshgrid, linspace, arange as range,
-    range_tensor,  # creation operators (use default backend)
+    zeros, ones, fftfreq, random_normal, random_uniform, meshgrid, linspace, arange as range, range_tensor,  # creation operators (use default backend)
     zeros_like, ones_like,
     pad,
     transpose,  # reshape operations
     divide_no_nan,
     where, nonzero,
-    sum_ as sum, finite_sum, mean, finite_mean, std, prod, max_ as max, finite_max, min_ as min, finite_min,
-    any_ as any, all_ as all, quantile, median,  # reduce
+    sum_ as sum, finite_sum, mean, finite_mean, std, prod, max_ as max, finite_max, min_ as min, finite_min, any_ as any, all_ as all, quantile, median,  # reduce
     dot,
     abs_ as abs, sign,
     round_ as round, ceil, floor,
     maximum, minimum, clip,
-    sqrt, exp, sin, cos, tan, log, log2, log10, sigmoid, arcsin, arccos,
+    sqrt, exp, log, log2, log10, sigmoid,
+    sin, cos, tan, sinh, cosh, tanh, arcsin, arccos, arctan, arcsinh, arccosh, arctanh,
     to_float, to_int32, to_int64, to_complex, imag, real, conjugate,
     degrees,
     boolean_mask,
@@ -53,8 +58,23 @@ from ._ops import (
     fft, ifft, convolve, cumulative_sum,
     dtype, cast,
     close, assert_close,
-    stop_gradient
+    stop_gradient,
+    pairwise_distances,
 )
+
+from ._trace import matrix_from_function
+
+from ._functional import (
+    LinearFunction, jit_compile_linear, jit_compile,
+    jacobian, jacobian as gradient, functional_gradient, custom_gradient, print_gradient,
+    map_types, map_s2b, map_i2b,
+    iterate,
+    identity,
+    trace_check,
+)
+
+from ._optimize import solve_linear, solve_nonlinear, minimize, Solve, SolveInfo, ConvergenceException, NotConverged, Diverged, SolveTape
+
 from ._nd import (
     shift,
     vec, const_vec, vec_abs, vec_abs as vec_length, vec_squared, vec_normalize, cross_product, rotate_vector, dim_mask,
@@ -63,14 +83,7 @@ from ._nd import (
     spatial_gradient, laplace,
     fourier_laplace, fourier_poisson, abs_square,
     downsample2x, upsample2x, sample_subgrid,
-    masked_fill, finite_fill,
-)
-from ._functional import (
-    LinearFunction, jit_compile_linear, jit_compile,
-    jacobian, jacobian as gradient, functional_gradient, custom_gradient, print_gradient, hessian,
-    solve_linear, solve_nonlinear, minimize, Solve, SolveInfo, ConvergenceException, NotConverged, Diverged, SolveTape,
-    map_types, map_s2b, map_i2b,
-    iterate,
+    masked_fill, finite_fill
 )
 
 PI = 3.14159265358979323846
@@ -80,6 +93,7 @@ pi = PI  # intentionally undocumented, use PI instead. Exists only as an anlog t
 INF = float("inf")
 """ Floating-point representation of positive infinity. """
 inf = INF  # intentionally undocumented, use INF instead. Exists only as an anlog to numpy.inf
+
 
 NAN = float("nan")
 """ Floating-point representation of NaN (not a number). """

@@ -1,11 +1,6 @@
-import warnings
-from typing import Dict, Union
-
 from phi import math
-
 from ._geom import Geometry, _keep_vector
-from ..math import wrap, Tensor, Shape, batch, instance, channel
-from ..math.backend import PHI_LOGGER
+from ..math import wrap, Tensor, expand
 from ..math.magic import slicing_dict
 
 
@@ -17,8 +12,8 @@ class Sphere(Geometry):
 
     def __init__(self,
                  center: Tensor = None,
-                 radius: Union[float, Tensor] = None,
-                 **center_: Union[float, Tensor]):
+                 radius: float or Tensor = None,
+                 **center_: float or Tensor):
         """
         Args:
             center: Sphere center as `Tensor` with `vector` dimension.
@@ -29,8 +24,7 @@ class Sphere(Geometry):
         if center is not None:
             assert isinstance(center, Tensor), "center must be a Tensor"
             assert 'vector' in center.shape, f"Sphere center must have a 'vector' dimension."
-            assert center.shape.get_item_names(
-                'vector') is not None, f"Vector dimension must list spatial dimensions as item names. Use the syntax Sphere(x=x, y=y) to assign names."
+            assert center.shape.get_item_names('vector') is not None, f"Vector dimension must list spatial dimensions as item names. Use the syntax Sphere(x=x, y=y) to assign names."
             self._center = center
         else:
             self._center = wrap(tuple(center_.values()), math.channel(vector=tuple(center_.keys())))
@@ -73,7 +67,7 @@ class Sphere(Geometry):
         distance_squared = math.sum((location - self.center) ** 2, dim='vector')
         return math.any(distance_squared <= self.radius ** 2, self.shape.instance)  # union for instance dimensions
 
-    def approximate_signed_distance(self, location: Union[Tensor, tuple]):
+    def approximate_signed_distance(self, location: Tensor or tuple):
         """
         Computes the exact distance from location to the closest point on the sphere.
         Very close to the sphere center, the distance takes a constant value.
@@ -86,8 +80,7 @@ class Sphere(Geometry):
 
         """
         distance_squared = math.vec_squared(location - self.center)
-        distance_squared = math.maximum(distance_squared,
-                                        self.radius * 1e-2)  # Prevent infinite spatial_gradient at sphere center
+        distance_squared = math.maximum(distance_squared, self.radius * 1e-2)  # Prevent infinite spatial_gradient at sphere center
         distance = math.sqrt(distance_squared)
         return math.min(distance - self.radius, self.shape.instance)  # union for instance dimensions
 
@@ -98,47 +91,26 @@ class Sphere(Geometry):
         return self.radius
 
     def bounding_half_extent(self):
-        return self.radius
+        return expand(self.radius, self._center.shape.only('vector'))
 
-    def shifted(self, delta):
-        return Sphere(self._center + delta, self._radius)
+    def at(self, center: Tensor) -> 'Geometry':
+        return Sphere(center, self._radius)
 
     def rotated(self, angle):
         return self
 
-    def scaled(self, factor: Union[float, Tensor]) -> 'Geometry':
+    def scaled(self, factor: float or Tensor) -> 'Geometry':
         return Sphere(self.center, self.radius * factor)
 
     def __variable_attrs__(self):
-        return '_radius', '_center'
+        return '_center', '_radius'
 
     def __getitem__(self, item):
         item = slicing_dict(self, item)
         return Sphere(self._center[_keep_vector(item)], self._radius[item])
-
-    def __stack__(self, values: tuple, dim: Shape, **kwargs) -> 'Geometry':
-        if all(isinstance(v, Sphere) for v in values):
-            return Sphere(math.stack([v.center for v in values], dim, **kwargs),
-                          radius=math.stack([v.radius for v in values], dim, **kwargs))
-        else:
-            return Geometry.__stack__(self, values, dim, **kwargs)
 
     def push(self, positions: Tensor, outward: bool = True, shift_amount: float = 0) -> Tensor:
         raise NotImplementedError()
 
     def __hash__(self):
         return hash(self._center) + hash(self._radius)
-
-    def get_edges(self):
-        # Discretize circle into points on the circle
-        angles = math.linspace(0, 2 * math.PI, instance(edges=32))
-        points = math.stack([math.cos(angles), math.sin(angles)], channel(vector='x,y'))
-        points_on_circle = points * self.radius + self.center
-
-        # Construct line segments with start and end points on the circle
-        edges = math.stack([points_on_circle, math.roll(points_on_circle, shift=1, axis='edges')], dim='edge')
-        raise NotImplementedError()
-
-    def get_normals(self):
-        raise NotImplementedError()
-

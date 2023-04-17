@@ -1,19 +1,18 @@
-from typing import Union
+import warnings
 
 from phi import math
 from phi.geom import Geometry
 from ._field import Field
-from .numerical import Scheme
 from ..math import Tensor
 
 
 class HardGeometryMask(Field):
     """
-    Field that takes the value 1 inside a Geometry object and 0 outside.
-    For volume sampling, performs sampling at the center points.
+    Deprecated since version 1.3. Use `phi.field.mask()` or `phi.field.resample()` instead.
     """
 
     def __init__(self, geometry: Geometry):
+        warnings.warn("HardGeometryMask and SoftGeometryMask are deprecated. Use field.mask or field.resample instead.", DeprecationWarning, stacklevel=2)
         assert isinstance(geometry, Geometry)
         self.geometry = geometry
 
@@ -21,7 +20,7 @@ class HardGeometryMask(Field):
     def shape(self):
         return self.geometry.shape.non_channel
 
-    def _sample(self, geometry: Geometry, scheme: Scheme) -> Tensor:
+    def _sample(self, geometry: Geometry, **kwargs) -> Tensor:
         return math.to_float(self.geometry.lies_inside(geometry.center))
 
     def __getitem__(self, item: dict):
@@ -30,15 +29,14 @@ class HardGeometryMask(Field):
 
 class SoftGeometryMask(HardGeometryMask):
     """
-    When sampled given another geometry, the approximate overlap between the geometries is computed, allowing for fractional values between 0 and 1.
+    Deprecated since version 1.3. Use `phi.field.mask()` or `phi.field.resample()` instead.
     """
-
-    def __init__(self, geometry: Geometry, balance: Union[Tensor, float] = 0.5):
+    def __init__(self, geometry: Geometry, balance: Tensor or float = 0.5):
+        warnings.warn("HardGeometryMask and SoftGeometryMask are deprecated. Use field.mask or field.resample instead.", DeprecationWarning, stacklevel=2)
         super().__init__(geometry)
         self.balance = balance
 
-    def _sample(self, geometry: Geometry, scheme: Scheme) -> Tensor:
-        """ Returns the approximate overlap between the geometries, allowing for fractional values between 0 and 1. """
+    def _sample(self, geometry: Geometry, **kwargs) -> Tensor:
         return self.geometry.approximate_fraction_inside(geometry, self.balance)
 
     def __getitem__(self, item: dict):

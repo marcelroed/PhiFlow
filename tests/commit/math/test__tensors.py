@@ -269,7 +269,7 @@ class TestTensors(TestCase):
             pass
         try:
             math.cos(t)
-        except AssertionError:
+        except ValueError:
             pass
 
     def test_Dict(self):
@@ -438,6 +438,16 @@ class TestTensors(TestCase):
                 self.assertEqual(False, t.all)
                 self.assertEqual(True, t.any)
 
+    def test_nested_reduce(self):
+        t = math.expand(stack([math.ones(spatial(x=4, y=3)), -math.ones(spatial(x=4, y=3))], channel(vector='x,y')), batch(b=10))
+        self.assertEqual(0, t.mean)
+        self.assertEqual(1, t.std)
+        self.assertEqual(-1, t.min)
+        self.assertEqual(1, t.max)
+        self.assertEqual(0, t.sum)
+        self.assertEqual(True, t.all)
+        self.assertEqual(True, t.any)
+
     def test_iter_dim(self):
         slices = tuple(math.zeros(channel(vector='x,y')).vector)
         self.assertEqual(2, len(slices))
@@ -458,9 +468,9 @@ class TestTensors(TestCase):
             math.zeros(batch(b=2, c=2)),
             math.ones(batch(b=10)) * wrap((1, 2), channel('vector')),
         ]:
-            natives, shapes, native_dims = disassemble_tensors(t, expand=False)
-            restored = assemble_tensors(natives, shapes, native_dims)
-            math.assert_close(t, restored)
+            natives, shapes, specs = disassemble_tensors([t], expand=False)
+            restored = assemble_tensors(natives, specs)
+            math.assert_close(t, restored[0])
             print(restored)
 
     def test_is_number(self):
@@ -487,6 +497,9 @@ class TestTensors(TestCase):
         t = math.expand(math.random_normal(spatial(x=4)), batch(b=10))
         self.assertEqual(batch(b=10, a=4), t.x.as_batch('a').shape)
         self.assertEqual(t.shape, t.nodim.as_batch('a').shape)
+        self.assertEqual(('b', '~x'), t.x.as_dual().shape.names)
+        self.assertEqual(('b', 'x'), t.x.as_dual().x.dual.as_spatial().shape.names)
+        self.assertEqual(('b', 'x'), t.x.as_dual().b.x.dual.as_spatial().shape.names)
 
     def test_device(self):
         for backend in BACKENDS:
@@ -605,3 +618,50 @@ class TestTensors(TestCase):
                 self.assertFalse(np.equal(x, y))
                 self.assertTrue(x != y)
                 self.assertTrue(np.not_equal(x, y))
+
+    def test_broadcast_vector_tuple(self):
+        t = vec('something', x=0, y=1)
+        i = math.linspace(0, 1, instance(particles=10))
+        result = t + (0, i)
+        self.assertEqual(instance(particles=10) & channel(something='x,y'), result.shape)
+
+    def test_broadcast_matrix_tuple(self):
+        i = math.linspace(0, 1, instance(particles=10))
+        t = math.expand(vec(x=0, y=1), channel(c=2))
+        result = t + (0, i)
+        self.assertEqual(instance(particles=10) & channel(vector='x,y', c=2), result.shape)
+
+    def test_tensor_expand_vararg(self):
+        dims = [spatial(x=4, y=3), channel(vector='x,y')]
+        zeros = math.zeros(*dims)
+        wrapped = math.expand(0, *dims)
+        tens = math.expand(tensor(0), *dims)
+        math.assert_close(zeros, wrapped, tens)
+        self.assertEqual(zeros.shape, wrapped.shape)
+        self.assertEqual(zeros.shape, tens.shape)
+
+    def test_auto_layout(self):
+        t = wrap(['a', object()])
+        self.assertEqual(channel(vector=2), t.shape)
+        try:
+            tensor(['a', object()])
+            raise RuntimeError
+        except AssertionError:
+            pass
+
+    def test_bit_shift(self):
+        ints = math.range_tensor(spatial(x=4))
+        math.assert_close([0, 2, 4, 6], ints << 1)
+        math.assert_close(ints, (ints << 2) >> 2)
+        math.assert_close([1, 2, 4, 8], 1 << ints)
+        math.assert_close(1, (1 << ints) >> ints)
+        np1 = np.int32(1)
+        math.assert_close([0, 2, 4, 6], ints << np1)
+        math.assert_close(ints, (ints << np1) >> np1)
+        math.assert_close([1, 2, 4, 8], np1 << ints)
+        math.assert_close(1, (np1 << ints) >> ints)
+        math.assert_close([1, 0, 0, 0], np1 >> ints)
+
+    def test_slice_outside(self):
+        t = math.random_normal(spatial(x=3)).x[:5]
+        self.assertEqual(t.x.size, 3)

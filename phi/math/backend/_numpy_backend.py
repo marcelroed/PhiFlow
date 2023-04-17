@@ -1,7 +1,7 @@
 import numbers
 import os
 import sys
-from typing import List, Any, Callable, Union
+from typing import List, Any, Callable
 
 import numpy as np
 import numpy.random
@@ -41,6 +41,7 @@ class NumPyBackend(Backend):
     concat = staticmethod(np.concatenate)
     stack = staticmethod(np.stack)
     tile = staticmethod(np.tile)
+    repeat = staticmethod(np.repeat)
     transpose = staticmethod(np.transpose)
     sqrt = np.sqrt
     exp = np.exp
@@ -49,6 +50,14 @@ class NumPyBackend(Backend):
     cos = np.cos
     arccos = np.arccos
     tan = np.tan
+    arctan = np.arctan
+    arctan2 = staticmethod(np.arctan2)
+    sinh = np.sinh
+    arcsinh = np.arcsinh
+    cosh = np.cosh
+    arccosh = np.arccosh
+    tanh = np.tanh
+    arctanh = np.arctanh
     log = np.log
     log2 = np.log2
     log10 = np.log10
@@ -87,9 +96,7 @@ class NumPyBackend(Backend):
             return True
         if issparse(x):
             return True
-        if isinstance(x, (
-        np.bool_, np.float32, np.float64, np.float16, np.int8, np.int16, np.int32, np.int64, np.complex128,
-        np.complex64)):
+        if isinstance(x, (np.bool_, np.float32, np.float64, np.float16, np.int8, np.int16, np.int32, np.int64, np.complex128, np.complex64)):
             return True
         # --- Above considered native ---
         if only_native:
@@ -122,9 +129,9 @@ class NumPyBackend(Backend):
 
     def equal(self, x, y):
         if isinstance(x, np.ndarray) and x.dtype.char == 'U':  # string comparison
-            x = x.astype(np.object_)
+            x = x.astype(object)
         if isinstance(x, str):
-            x = np.array(x, np.object_)
+            x = np.array(x, object)
         return np.equal(x, y)
 
     def divide_no_nan(self, x, y):
@@ -132,14 +139,12 @@ class NumPyBackend(Backend):
             result = x / y
         return np.where(y == 0, 0, result)
 
-    def random_uniform(self, shape, low, high, dtype: Union[DType, None]):
+    def random_uniform(self, shape, low, high, dtype: DType or None):
         dtype = dtype or self.float_type
         if dtype.kind == float:
             return np.random.uniform(low, high, shape).astype(to_numpy_dtype(dtype))
         elif dtype.kind == complex:
-            return (np.random.uniform(low.real, high.real, shape) + 1j * np.random.uniform(low.imag, high.imag,
-                                                                                           shape)).astype(
-                to_numpy_dtype(dtype))
+            return (np.random.uniform(low.real, high.real, shape) + 1j * np.random.uniform(low.imag, high.imag, shape)).astype(to_numpy_dtype(dtype))
         elif dtype.kind == int:
             return numpy.random.randint(low, high, shape, dtype=to_numpy_dtype(dtype))
         else:
@@ -155,7 +160,8 @@ class NumPyBackend(Backend):
         return np.arange(start, limit, delta, to_numpy_dtype(dtype))
 
     def pad(self, value, pad_width, mode='constant', constant_values=0):
-        assert mode in ('constant', 'symmetric', 'periodic', 'reflect', 'boundary'), mode
+        if mode not in ('constant', 'symmetric', 'periodic', 'reflect', 'boundary'):
+            return NotImplemented
         if mode == 'constant':
             return np.pad(value, pad_width, 'constant', constant_values=constant_values)
         else:
@@ -193,7 +199,7 @@ class NumPyBackend(Backend):
     def mean(self, value, axis=None, keepdims=False):
         return np.mean(value, axis, keepdims=keepdims)
 
-    def tensordot(self, a, a_axes: Union[tuple, list], b, b_axes: Union[tuple, list]):
+    def tensordot(self, a, a_axes: tuple or list, b, b_axes: tuple or list):
         return np.tensordot(a, b, (a_axes, b_axes))
 
     def mul(self, a, b):
@@ -204,13 +210,11 @@ class NumPyBackend(Backend):
         else:
             return Backend.mul(self, a, b)
 
-    def matmul(self, A, b):
+    def mul_matrix_batched_vector(self, A, b):
         return np.stack([A.dot(b[i]) for i in range(b.shape[0])])
 
-    def while_loop(self, loop: Callable, values: tuple):
-        while np.any(values[0]):
-            values = loop(*values)
-        return values
+    def get_diagonal(self, matrices, offset=0):
+        return np.transpose(np.diagonal(matrices, offset=offset, axis1=1, axis2=2), [0, 2, 1])
 
     def max(self, x, axis=None, keepdims=False):
         return np.max(x, axis, keepdims=keepdims)
@@ -220,12 +224,10 @@ class NumPyBackend(Backend):
 
     def conv(self, value, kernel, zero_padding=True):
         assert kernel.shape[0] in (1, value.shape[0])
-        assert value.shape[1] == kernel.shape[
-            2], f"value has {value.shape[1]} channels but kernel has {kernel.shape[2]}"
+        assert value.shape[1] == kernel.shape[2], f"value has {value.shape[1]} channels but kernel has {kernel.shape[2]}"
         assert value.ndim + 1 == kernel.ndim
         if zero_padding:
-            result = np.zeros((value.shape[0], kernel.shape[1], *value.shape[2:]),
-                              dtype=to_numpy_dtype(self.float_type))
+            result = np.zeros((value.shape[0], kernel.shape[1], *value.shape[2:]), dtype=to_numpy_dtype(self.float_type))
         else:
             valid = [value.shape[i + 2] - kernel.shape[i + 3] + 1 for i in range(value.ndim - 2)]
             result = np.zeros([value.shape[0], kernel.shape[1], *valid], dtype=to_numpy_dtype(self.float_type))
@@ -247,6 +249,10 @@ class NumPyBackend(Backend):
             return x
         else:
             return np.array(x, to_numpy_dtype(dtype))
+
+    def gather(self, values, indices, axis: int):
+        slices = [indices if i == axis else slice(None) for i in range(self.ndims(values))]
+        return values[tuple(slices)]
 
     def batched_gather_nd(self, values, indices):
         assert indices.shape[-1] == self.ndims(values) - 2
@@ -288,11 +294,10 @@ class NumPyBackend(Backend):
             indices = self.unstack(indices, axis=-1)
         if mode == 'add':
             for b in range(batch_size):
-                np.add.at(result, (b, *[i[min(b, i.shape[0] - 1)] for i in indices]),
-                          values[min(b, values.shape[0] - 1)])
+                np.add.at(result, (b, *[i[min(b, i.shape[0]-1)] for i in indices]), values[min(b, values.shape[0]-1)])
         else:  # update
             for b in range(batch_size):
-                result[(b, *[i[min(b, i.shape[0] - 1)] for i in indices])] = values[min(b, values.shape[0] - 1)]
+                result[(b, *[i[min(b, i.shape[0]-1)] for i in indices])] = values[min(b, values.shape[0]-1)]
         # elif duplicates_handling == 'mean':
         #     count = np.zeros(shape, np.int32)
         #     np.add.at(array, tuple(indices), values)
@@ -304,7 +309,7 @@ class NumPyBackend(Backend):
     def quantile(self, x, quantiles):
         return np.quantile(x, quantiles, axis=-1)
 
-    def fft(self, x, axes: Union[tuple, list]):
+    def fft(self, x, axes: tuple or list):
         x = self.to_complex(x)
         if not axes:
             return x
@@ -315,7 +320,7 @@ class NumPyBackend(Backend):
         else:
             return np.fft.fftn(x, axes=axes).astype(x.dtype)
 
-    def ifft(self, k, axes: Union[tuple, list]):
+    def ifft(self, k, axes: tuple or list):
         if not axes:
             return k
         if len(axes) == 1:
@@ -336,9 +341,11 @@ class NumPyBackend(Backend):
             array = np.array(array)
         return from_numpy_dtype(array.dtype)
 
+    def indexed_segment_sum(self, x, indices, axis: int):
+        return np.stack([np.add.reduceat(x[b], indices[b], axis-1) for b in range(x.shape[0])])
+
     def sparse_coo_tensor(self, indices, values, shape):
-        if not isinstance(indices, (tuple, list)):
-            indices = self.unstack(indices, -1)
+        indices = self.unstack(indices, -1)
         if len(shape) == 2:
             return scipy.sparse.coo_matrix((values, indices), shape=shape)
         else:
@@ -347,18 +354,24 @@ class NumPyBackend(Backend):
     def csr_matrix(self, column_indices, row_pointers, values, shape: tuple):
         return scipy.sparse.csr_matrix((values, column_indices, row_pointers), shape=shape)
 
+    def mul_csr_dense(self, column_indices, row_pointers, values, shape: tuple, dense):
+        batch_size, nnz, channel_count = values.shape
+        result = []
+        for b in range(batch_size):
+            b_result = []
+            for c in range(channel_count):
+                mat = scipy.sparse.csr_matrix((values[b, :, c], column_indices[b], row_pointers[b]), shape=shape)
+                b_result.append(mat * dense[b, :, c, :])
+            result.append(np.stack(b_result))
+        return np.stack(result)
+
     def csc_matrix(self, column_pointers, row_indices, values, shape: tuple):
         return scipy.sparse.csc_matrix((values, row_indices, column_pointers), shape=shape)
-
-    def coordinates(self, tensor):
-        assert scipy.sparse.issparse(tensor)
-        coo = tensor.tocoo()
-        return (coo.row, coo.col), coo.data
 
     def stop_gradient(self, value):
         return value
 
-    # def jacobian(self, f, wrt: Union[tuple, list], get_output: bool):
+    # def jacobian(self, f, wrt: tuple or list, get_output: bool):
     #     warnings.warn("NumPy does not support analytic gradients and will use differences instead. This may be slow!", RuntimeWarning)
     #     eps = {64: 1e-9, 32: 1e-4, 16: 1e-1}[self.precision]
     #
@@ -387,37 +400,30 @@ class NumPyBackend(Backend):
     #             return grads
     #     return gradient
 
-    def linear_solve(self, method: str, lin, y, x0, rtol, atol, max_iter, trj: bool) -> Any:
+    def linear_solve(self, method: str, lin, y, x0, tol_sq, max_iter) -> SolveResult:
         if method == 'direct':
             return self.direct_linear_solve(lin, y)
         elif method == 'CG-native':
-            return self.scipy_iterative_sparse_solve(lin, y, x0, rtol, atol, max_iter,
-                                                     scipy_function=scipy.sparse.linalg.cg)
+            return self.scipy_iterative_sparse_solve(lin, y, x0, tol_sq, max_iter, scipy_function=scipy.sparse.linalg.cg)
         elif method == 'GMres':
-            return self.scipy_iterative_sparse_solve(lin, y, x0, rtol, atol, max_iter,
-                                                     scipy_function=scipy.sparse.linalg.gmres)
+            return self.scipy_iterative_sparse_solve(lin, y, x0, tol_sq, max_iter, scipy_function=scipy.sparse.linalg.gmres)
         elif method == 'biCG':
-            return self.scipy_iterative_sparse_solve(lin, y, x0, rtol, atol, max_iter,
-                                                     scipy_function=scipy.sparse.linalg.bicg)
+            return self.scipy_iterative_sparse_solve(lin, y, x0, tol_sq, max_iter, scipy_function=scipy.sparse.linalg.bicg)
         elif method == 'CGS':
-            return self.scipy_iterative_sparse_solve(lin, y, x0, rtol, atol, max_iter,
-                                                     scipy_function=scipy.sparse.linalg.cgs)
+            return self.scipy_iterative_sparse_solve(lin, y, x0, tol_sq, max_iter, scipy_function=scipy.sparse.linalg.cgs)
         elif method == 'lGMres':
-            return self.scipy_iterative_sparse_solve(lin, y, x0, rtol, atol, max_iter,
-                                                     scipy_function=scipy.sparse.linalg.lgmres)
+            return self.scipy_iterative_sparse_solve(lin, y, x0, tol_sq, max_iter, scipy_function=scipy.sparse.linalg.lgmres)
         # elif method == 'minres':
-        #     return self.scipy_iterative_sparse_solve(lin, y, x0, rtol, atol, max_iter, scipy_function=scipy.sparse.linalg.minres)
+        #     return self.scipy_iterative_sparse_solve(lin, y, x0, tol_sq, max_iter, scipy_function=scipy.sparse.linalg.minres)
         elif method == 'QMR':
-            return self.scipy_iterative_sparse_solve(lin, y, x0, rtol, atol, max_iter,
-                                                     scipy_function=scipy.sparse.linalg.qmr)
+            return self.scipy_iterative_sparse_solve(lin, y, x0, tol_sq, max_iter, scipy_function=scipy.sparse.linalg.qmr)
         elif method == 'GCrotMK':
-            return self.scipy_iterative_sparse_solve(lin, y, x0, rtol, atol, max_iter,
-                                                     scipy_function=scipy.sparse.linalg.gcrotmk)
+            return self.scipy_iterative_sparse_solve(lin, y, x0, tol_sq, max_iter, scipy_function=scipy.sparse.linalg.gcrotmk)
         elif method == 'auto':
-            return self.conjugate_gradient_adaptive(lin, y, x0, rtol, atol, max_iter, trj)
-            # return self.conjugate_gradient(lin, y, x0, rtol, atol, max_iter, trj)
+            return self.conjugate_gradient_adaptive(lin, y, x0, tol_sq, max_iter)
+            # return self.conjugate_gradient(lin, y, x0, tol_sq, max_iter, trj)
         else:
-            return Backend.linear_solve(self, method, lin, y, x0, rtol, atol, max_iter, trj)
+            return Backend.linear_solve(self, method, lin, y, x0, tol_sq, max_iter)
 
     def direct_linear_solve(self, lin, y) -> Any:
         batch_size = self.staticshape(y)[0]
@@ -438,25 +444,20 @@ class NumPyBackend(Backend):
         converged = np.stack(converged)
         diverged = ~converged
         iterations = [-1] * batch_size  # spsolve does not perform iterations
-        return SolveResult('scipy.sparse.linalg.spsolve', x, None, iterations, iterations, converged, diverged, "")
+        return SolveResult('scipy.sparse.linalg.spsolve', x, None, iterations, iterations, converged, diverged, [""] * batch_size)
 
-    def conjugate_gradient(self, lin, y, x0, rtol, atol, max_iter, trj: bool) -> Any:
-        if trj or callable(lin):
-            return Backend.conjugate_gradient(self, lin, y, x0, rtol, atol, max_iter, trj)  # generic implementation
+    def conjugate_gradient(self, lin, y, x0, tol_sq, max_iter) -> SolveResult:
+        if len(max_iter) > 1 or callable(lin):
+            return Backend.conjugate_gradient(self, lin, y, x0, tol_sq, max_iter)  # generic implementation
         else:
-            return self.scipy_iterative_sparse_solve(lin, y, x0, rtol, atol, max_iter,
-                                                     scipy_function=scipy.sparse.linalg.bicg)  # more stable than cg
+            return self.scipy_iterative_sparse_solve(lin, y, x0, tol_sq, max_iter, scipy_function=scipy.sparse.linalg.bicg)  # more stable than cg
 
-    def scipy_iterative_sparse_solve(self, lin, y, x0, rtol, atol, max_iter, scipy_function=cg) -> Any:
+    def scipy_iterative_sparse_solve(self, lin, y, x0, tol_sq, max_iter, scipy_function=cg) -> SolveResult:
         bs_y = self.staticshape(y)[0]
         bs_x0 = self.staticshape(x0)[0]
         batch_size = combined_dim(bs_y, bs_x0)
         # if callable(A):
         #     A = LinearOperator(dtype=y.dtype, shape=(self.staticshape(y)[-1], self.staticshape(x0)[-1]), matvec=A)
-        if isinstance(lin, (tuple, list)):
-            assert len(lin) == batch_size
-        else:
-            lin = [lin] * batch_size
 
         def count_callback(x_n):  # called after each step, not with x0
             iterations[b] += 1
@@ -466,16 +467,15 @@ class NumPyBackend(Backend):
         converged = []
         diverged = []
         for b in range(batch_size):
-            x, ret_val = scipy_function(lin[b], y[b], x0=x0[b], tol=rtol[b], atol=atol[b], maxiter=max_iter[b],
-                                        callback=count_callback)
+            lin_b = lin[min(b, len(lin)-1)] if isinstance(lin, (tuple, list)) or (isinstance(lin, np.ndarray) and len(lin.shape) > 2) else lin
+            x, ret_val = scipy_function(lin_b, y[b], x0=x0[b], tol=0, atol=np.sqrt(tol_sq[b]), maxiter=max_iter[-1, b], callback=count_callback)
             # ret_val: 0=success, >0=not converged, <0=error
             xs.append(x)
             converged.append(ret_val == 0)
             diverged.append(ret_val < 0 or np.any(~np.isfinite(x)))
         x = np.stack(xs)
         f_eval = [i + 1 for i in iterations]
-        return SolveResult(f'scipy.sparse.linalg.{scipy_function.__name__}', x, None, iterations, f_eval, converged,
-                           diverged, "")
+        return SolveResult(f'scipy.sparse.linalg.{scipy_function.__name__}', x, None, iterations, f_eval, converged, diverged, [""] * batch_size)
 
     def matrix_solve_least_squares(self, matrix: TensorType, rhs: TensorType) -> TensorType:
         solution, residuals, rank, singular_values = [], [], [], []
@@ -486,3 +486,11 @@ class NumPyBackend(Backend):
             rank.append(rnk_b)
             singular_values.append(s_b)
         return np.stack(solution), np.stack(residuals), np.stack(rank), np.stack(singular_values)
+
+    def solve_triangular_dense(self, matrix, rhs, lower: bool, unit_diagonal: bool):
+        batch_size, rows, cols = matrix.shape
+        result = []
+        for b in range(batch_size):
+            x = scipy.linalg.solve_triangular(matrix[b, :, :], rhs[b, :], lower=lower, unit_diagonal=unit_diagonal)
+            result.append(x)
+        return np.stack(result)

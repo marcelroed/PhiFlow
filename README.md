@@ -36,23 +36,31 @@ making it easy to build end-to-end differentiable functions involving both learn
 
 Installation with [pip](https://pypi.org/project/pip/) on [Python 3.6](https://www.python.org/downloads/) and above:
 ``` bash
-$ pip install phiflow dash
+$ pip install phiflow
 ```
-Install PyTorch, TensorFlow or Jax in addition to Φ<sub>Flow</sub> to enable machine learning capabilities and GPU execution.
-See the [detailed installation instructions](https://tum-pbs.github.io/PhiFlow/Installation_Instructions.html) on how to compile the custom CUDA operators and verify your installation.
+Install [PyTorch](https://pytorch.org/), [TensorFlow](https://www.tensorflow.org/install) or [Jax](https://github.com/google/jax#installation) in addition to Φ<sub>Flow</sub> to enable machine learning capabilities and GPU execution.
+To enable the web UI, also install [Dash](https://pypi.org/project/dash/).
+For optimal GPU performance, you may compile the custom CUDA operators, see the [detailed installation instructions](https://tum-pbs.github.io/PhiFlow/Installation_Instructions.html).
+
+You can verify your installation by running
+```bash
+$ python3 -c "import phi; phi.verify()"
+```
+This will check for compatible PyTorch, Jax and TensorFlow installations as well.
 
 ## Documentation and Tutorials
 [**Documentation Overview**](https://tum-pbs.github.io/PhiFlow/)
 &nbsp; • &nbsp; [**▶ YouTube Tutorials**](https://www.youtube.com/playlist?list=PLYLhRkuWBmZ5R6hYzusA2JBIUPFEE755O)
 &nbsp; • &nbsp; [**API**](https://tum-pbs.github.io/PhiFlow/phi/)
-&nbsp; • &nbsp; [**Demos**](https://github.com/tum-pbs/PhiFlow/tree/develop/demos)
+&nbsp; • &nbsp; [**Demos**](https://github.com/tum-pbs/PhiFlow/tree/master/demos)
 &nbsp; • &nbsp; [<img src="https://www.tensorflow.org/images/colab_logo_32px.png" height=16> **Playground**](https://colab.research.google.com/drive/1zBlQbmNguRt-Vt332YvdTqlV4DBcus2S#offline=true&sandboxMode=true)
 
 To get started, check out our YouTube tutorial series and the following Jupyter notebooks:
 
-* [<img src="https://www.tensorflow.org/images/colab_logo_32px.png" height=16> Fluids](https://colab.research.google.com/github/tum-pbs/PhiFlow/blob/develop/docs/Fluids_Tutorial.ipynb): Introduction to core classes and fluid-related functions.
-* [<img src="https://www.tensorflow.org/images/colab_logo_32px.png" height=16> Solar System](https://colab.research.google.com/github/tum-pbs/PhiFlow/blob/develop/docs/Planets_Tutorial.ipynb): Visualize a many-body system with Newtonian gravity.
-* [<img src="https://www.tensorflow.org/images/colab_logo_32px.png" height=16> Learning to Throw](https://colab.research.google.com/github/tum-pbs/PhiFlow/blob/develop/docs/Learn_to_Throw_Tutorial.ipynb): Train a neural network to hit a target, comparing supervised and differentiable physics losses.
+* [<img src="https://www.tensorflow.org/images/colab_logo_32px.png" height=16>](https://colab.research.google.com/github/tum-pbs/PhiFlow/blob/develop/docs/Math_Introduction.ipynb) [Tensors](https://tum-pbs.github.io/PhiFlow/Math_Introduction.html): Introduction to tensors.
+* [<img src="https://www.tensorflow.org/images/colab_logo_32px.png" height=16>](https://colab.research.google.com/github/tum-pbs/PhiFlow/blob/develop/docs/Fluids_Tutorial.ipynb) [Fluids](https://tum-pbs.github.io/PhiFlow/Fluids_Tutorial.html): Introduction to core classes and fluid-related functions.
+* [<img src="https://www.tensorflow.org/images/colab_logo_32px.png" height=16>](https://colab.research.google.com/github/tum-pbs/PhiFlow/blob/develop/docs/Planets_Tutorial.ipynb) [Solar System](https://tum-pbs.github.io/PhiFlow/Planets_Tutorial.html): Visualize a many-body system with Newtonian gravity.
+* [<img src="https://www.tensorflow.org/images/colab_logo_32px.png" height=16>](https://colab.research.google.com/github/tum-pbs/PhiFlow/blob/develop/docs/Learn_to_Throw_Tutorial.ipynb) [Learn to Throw](https://tum-pbs.github.io/PhiFlow/Learn_to_Throw_Tutorial.html): Train a neural network to hit a target, comparing supervised and differentiable physics losses.
 
 If you like to work with an IDE, like PyCharm or VS Code, the following demos will also be helpful:
 
@@ -61,13 +69,20 @@ If you like to work with an IDE, like PyCharm or VS Code, the following demos wi
 
 ## Publications
 
-We have recently submitted a whitepaper.
+We will upload a whitepaper, soon.
 In the meantime, please cite the ICLR 2020 paper.
 
 * [Learning to Control PDEs with Differentiable Physics](https://ge.in.tum.de/publications/2020-iclr-holl/), *Philipp Holl, Vladlen Koltun, Nils Thuerey*, ICLR 2020.
 * [Solver-in-the-Loop: Learning from Differentiable Physics to Interact with Iterative PDE-Solvers](https://arxiv.org/abs/2007.00016), *Kiwon Um, Raymond Fei, Philipp Holl, Robert Brand, Nils Thuerey*, NeurIPS 2020.
 * [Φ<sub>Flow</sub>: A Differentiable PDE Solving Framework for Deep Learning via Physical Simulations](https://montrealrobotics.ca/diffcvgp/), *Nils Thuerey, Kiwon Um, Philipp Holl*, DiffCVGP workshop at NeurIPS 2020.
+* [Physics-based Deep Learning](https://physicsbaseddeeplearning.org/intro.html) (book), *Nils Thuerey, Philipp Holl, Maximilian Mueller, Patrick Schnell, Felix Trost, Kiwon Um*, DiffCVGP workshop at NeurIPS 2020.
 * [Half-Inverse Gradients for Physical Deep Learning](https://arxiv.org/abs/2203.10131), *Patrick Schnell, Philipp Holl, Nils Thuerey*, ICLR 2022.
+* [Scale-invariant Learning by Physics Inversion](https://arxiv.org/abs/2109.15048), *Philipp Holl, Vladlen Koltun, Nils Thuerey*, NeurIPS 2022.
+
+Φ<sub>Flow</sub> has been used in the following data sets:
+
+* [PDEBench](https://github.com/pdebench/PDEBench)
+* [PDEarena](https://microsoft.github.io/pdearena/)
 
 ## Version History
 

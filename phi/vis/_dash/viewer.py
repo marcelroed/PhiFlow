@@ -1,7 +1,7 @@
 import traceback
 
-from dash import dcc
-from dash import html
+import dash_core_components as dcc
+import dash_html_components as html
 from dash.dependencies import Input, Output
 from plotly import graph_objects
 
@@ -25,23 +25,18 @@ def build_viewers(app: DashApp, count: int, height: int, viewer_group: str):
 
 
 def build_viewer(app: DashApp, height: int, initial_field_name: str, id: str, viewer_group: str):
-    field_options = [{'label': item, 'value': item} for item in app.model.field_names] + [
-        {'label': '<None>', 'value': 'None'}]
+    field_options = [{'label': item, 'value': item} for item in app.model.field_names] + [{'label': '<None>', 'value': 'None'}]
 
     layout = html.Div(style={'height': '100%'}, children=[
-        html.Div(style={'width': '100%', 'height': '5%', 'display': 'inline-block', 'vertical-align': 'middle'},
-                 children=[
-                     dcc.Dropdown(options=field_options, value=initial_field_name, id=id + '-field-select'),
-                 ]),
-        html.Div(id=id + '-figure-container', style={'height': '95%', 'width': '100%', 'display': 'inline-block'},
-                 children=[
-                     dcc.Graph(figure={}, id=id + '-graph', style={'height': '100%'})
-                 ]),
+        html.Div(style={'width': '100%', 'height': '5%', 'display': 'inline-block', 'vertical-align': 'middle'}, children=[
+            dcc.Dropdown(options=field_options, value=initial_field_name, id=id+'-field-select'),
+        ]),
+        html.Div(id=id+'-figure-container', style={'height': '95%', 'width': '100%', 'display': 'inline-block'}, children=[
+            dcc.Graph(figure={}, id=id + '-graph', style={'height': '100%'})
+        ]),
     ])
 
-    @app.dash.callback(Output(id + '-graph', 'figure'), (
-    Input(f'{id}-field-select', 'value'), STEP_COMPLETE, REFRESH_INTERVAL, *all_view_settings(app, viewer_group),
-    *all_controls(app), *all_actions(app)))
+    @app.dash.callback(Output(id+'-graph', 'figure'), (Input(f'{id}-field-select', 'value'), STEP_COMPLETE, REFRESH_INTERVAL, *all_view_settings(app, viewer_group), *all_controls(app), *all_actions(app)))
     def update_figure(field, _0, _1, *settings):
         if field is None or field == 'None':
             fig = graph_objects.Figure()
@@ -51,8 +46,7 @@ def build_viewer(app: DashApp, height: int, initial_field_name: str, id: str, vi
         value = app.model.get_field(field, selection['select'])
         try:
             value = select_channel(value, selection.get('component', None))
-            return plot(value, lib='plotly', size=(height, height), same_scale=False,
-                        colormap=app.config.get('colormap', None)).native()
+            return plot(value, lib='plotly', size=(height, height), same_scale=False).native()
         except ValueError as err:
             fig = graph_objects.Figure()
             fig.update_layout(title_text=str(value), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')

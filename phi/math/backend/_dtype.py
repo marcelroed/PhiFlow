@@ -1,4 +1,3 @@
-from __future__ import annotations
 import numpy as np
 import sys
 
@@ -37,8 +36,7 @@ class DType:
             bits = int(np.round(np.log2(sys.maxsize))) + 1
         elif precision is not None:
             assert bits is None, "Specify either bits or precision when creating a DType but not both."
-            assert kind in [float,
-                            complex], f"Precision may only be specified for float or complex but got {kind}, precision={precision}"
+            assert kind in [float, complex], f"Precision may only be specified for float or complex but got {kind}, precision={precision}"
             if kind == float:
                 bits = precision
             else:
@@ -79,7 +77,7 @@ class DType:
         return f"{self.kind.__name__}{self.bits}"
 
     @staticmethod
-    def as_dtype(value: Union[DType, tuple, type, None]) -> Union[DType, None]:
+    def as_dtype(value: 'DType' or tuple or type or None) -> 'DType' or None:
         if isinstance(value, DType):
             return value
         elif value is int:
@@ -134,10 +132,11 @@ _TO_NUMPY = {
     DType(int, 32): np.int32,
     DType(int, 64): np.int64,
     DType(bool): np.bool_,
-    DType(object): np.object_,
+    DType(object): object,
 }
 _FROM_NUMPY = {np: dtype for dtype, np in _TO_NUMPY.items()}
 _FROM_NUMPY[np.bool_] = DType(bool)
+_FROM_NUMPY[bool] = DType(bool)
 
 
 def combine_types(*dtypes: DType, fp_precision: int = None) -> DType:

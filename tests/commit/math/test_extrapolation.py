@@ -1,10 +1,11 @@
 from unittest import TestCase
 
 import phi
-from phi.math import NUMPY, spatial, batch, extrapolation
-from phi.math.extrapolation import *
 from phi import math
-
+from phi.math import batch, extrapolation, shape, spatial, channel, EMPTY_SHAPE
+from phi.math._tensors import CollapsedTensor, wrap
+from phi.math.extrapolation import ConstantExtrapolation, ONE, ZERO, PERIODIC, BOUNDARY, SYMMETRIC, REFLECT, combine_sides, from_dict, combine_by_direction, SYMMETRIC_GRADIENT, as_extrapolation, \
+    ZERO_GRADIENT
 
 BACKENDS = phi.detect_backends()
 
@@ -35,13 +36,13 @@ class TestExtrapolationOperators(TestCase):
 
     def test_cross_errors(self):
         try:
-            PERIODIC + BOUNDARY
+            _ = PERIODIC + BOUNDARY
             self.fail("periodic and boundary are not compatible, should raise a TypeError")
         except TypeError:
             pass
 
         try:
-            PERIODIC + ONE
+            _ = PERIODIC + ONE
             self.fail("periodic and constant are not compatible, should raise a TypeError")
         except TypeError:
             pass
@@ -196,6 +197,12 @@ class TestExtrapolation(TestCase):
         self.assertEqual(ZERO, ext * ZERO)
         self.assertEqual(ext, abs(ext))
 
+    def test_symmetric_gradient(self):
+        t = wrap([0, 1, 2, 3, 3, 3], spatial('x'))
+        padded = SYMMETRIC_GRADIENT.pad(t, {'x': (4,  2)})
+        padded_rev = SYMMETRIC_GRADIENT.pad(t.x[::-1], {'x': (2,  4)}).x[::-1]
+        math.assert_close([-3, -3, -2, -1, 0, 1, 2, 3, 3, 3, 3, 3], padded, padded_rev)
+
     def test_map(self):
         ext = combine_by_direction(normal=ONE, tangential=PERIODIC)
         self.assertEqual(ext, extrapolation.map(lambda e: e, ext))
@@ -207,3 +214,21 @@ class TestExtrapolation(TestCase):
         ext = combine_sides(x=(INFLOW_LEFT, BOUNDARY), y=0)
         self.assertEqual(combine_sides(x=(1, BOUNDARY), y=0), ext[{'vector': 'x'}])
         self.assertEqual(combine_sides(x=(0, BOUNDARY), y=0), ext[{'vector': 'y'}])
+
+    def test_shapes(self):
+        self.assertEqual(EMPTY_SHAPE, ONE.shape)
+        self.assertEqual(EMPTY_SHAPE, PERIODIC.shape)
+        self.assertEqual(EMPTY_SHAPE, BOUNDARY.shape)
+        self.assertEqual(EMPTY_SHAPE, SYMMETRIC.shape)
+        self.assertEqual(EMPTY_SHAPE, REFLECT.shape)
+        v = math.vec(x=1, y=0)
+        self.assertEqual(v.shape, shape(ZERO + v))
+        self.assertEqual(v.shape, shape(combine_sides(x=v, y=0)))
+        self.assertEqual(v.shape, shape(combine_by_direction(normal=v, tangential=0)))
+
+    def test_as_extrapolation(self):
+        self.assertEqual(PERIODIC, as_extrapolation('periodic'))
+        self.assertEqual(ONE, as_extrapolation('one'))
+        self.assertEqual(ZERO, as_extrapolation('zero'))
+        self.assertEqual(combine_by_direction(ZERO, 1), as_extrapolation({'normal': 0, 'tangential': 1}))
+        self.assertEqual(combine_sides(x=1, y=ZERO_GRADIENT), as_extrapolation({'x': wrap(1), 'y': 'zero-gradient'}))

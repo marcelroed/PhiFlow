@@ -1,12 +1,8 @@
-from abc import ABC
 from numbers import Number
-from typing import Union, Tuple
-
-import numpy as np
 
 from phi import math
-from phi.math import Tensor, Shape, EMPTY_SHAPE
-from phi.math._tensors import variable_attributes
+from phi.math import Tensor, Shape, EMPTY_SHAPE, non_channel, wrap, shape
+from phi.math._magic_ops import variable_attributes, expand
 from phi.math.magic import BoundDim, slicing_dict
 
 
@@ -97,7 +93,7 @@ class Geometry:
         """
         raise NotImplementedError(self.__class__)
 
-    def approximate_signed_distance(self, location: Union[Tensor, tuple]) -> Tensor:
+    def approximate_signed_distance(self, location: Tensor or tuple) -> Tensor:
         """
         Computes the approximate distance from location to the surface of the geometry.
         Locations outside return positive values, inside negative values and zero exactly at the boundary.
@@ -119,7 +115,7 @@ class Geometry:
         """
         raise NotImplementedError(self.__class__)
 
-    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Union[Tensor, Number] = 0.5) -> Tensor:
+    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Tensor or Number = 0.5) -> Tensor:
         """
         Computes the approximate overlap between the geometry and a small other geometry.
         Returns 1.0 if `other_geometry` is fully enclosed in this geometry and 0.0 if there is no overlap.
@@ -208,6 +204,17 @@ class Geometry:
         """
         raise NotImplementedError(self.__class__)
 
+    def bounding_box(self) -> 'BaseBox':
+        """
+        Returns the approximately smallest axis-aligned box that contains this `Geometry`.
+        The center of the box may not be equal to `self.center`.
+
+        Returns:
+            `Box` or `Cuboid` that fully contains this `Geometry`.
+        """
+        from ._box import Cuboid
+        return Cuboid(self.center, half_size=self.bounding_half_extent())
+
     def shifted(self, delta: Tensor) -> 'Geometry':
         """
         Returns a translated version of this geometry.
@@ -223,9 +230,9 @@ class Geometry:
           Geometry: shifted geometry
 
         """
-        raise NotImplementedError(self.__class__)
+        return self.at(self.center + delta)
 
-    def at(self, center: Tensor):
+    def at(self, center: Tensor) -> 'Geometry':
         """
         Returns a copy of this `Geometry` with the center at `center`.
         This is equal to calling `self @ center`.
@@ -239,12 +246,12 @@ class Geometry:
         Returns:
             `Geometry`.
         """
-        return self.shifted(center - self.center)
+        raise NotImplementedError
 
     def __matmul__(self, other):
         return self.at(other)
 
-    def rotated(self, angle: Union[float, Tensor]) -> 'Geometry':
+    def rotated(self, angle: float or Tensor) -> 'Geometry':
         """
         Returns a rotated version of this geometry.
         The geometry is rotated about its center point.
@@ -257,7 +264,7 @@ class Geometry:
         """
         raise NotImplementedError(self.__class__)
 
-    def scaled(self, factor: Union[float, Tensor]) -> 'Geometry':
+    def scaled(self, factor: float or Tensor) -> 'Geometry':
         """
         Scales each individual geometry by `factor`.
         The individual `center` points act as pivots for the operation.
@@ -316,6 +323,20 @@ class Geometry:
                 return False
         return True
 
+    @staticmethod
+    def __stack__(values: tuple, dim: Shape, **kwargs) -> 'Geometry':
+        if all(type(v) == type(values[0]) for v in values):
+            return NotImplemented  # let attributes be stacked
+        else:
+            from ._stack import GeometryStack
+            return GeometryStack(math.layout(values, dim))
+
+    def __flatten__(self, flat_dim: Shape, flatten_batch: bool, **kwargs) -> 'Geometry':
+        dims = self.shape.without('vector')
+        if not flatten_batch:
+            dims = dims.non_batch
+        return math.pack_dims(self, dims, flat_dim, **kwargs)
+
     def __ne__(self, other):
         return not self == other
 
@@ -332,28 +353,35 @@ class Geometry:
         # attrs = {a: getattr(self, a)[item] for a in variable_attributes(self)}
         # return copy_with(self, **attrs)
 
-    def __stack__(self, values: tuple, dim: Shape, **kwargs) -> 'Geometry':
-        from ._stack import GeometryStack
-        return GeometryStack(math.layout(values, dim))
-
     def __getattr__(self, name: str) -> BoundDim:
         return BoundDim(self, name)
 
-    @property
-    def center_of_mass(self) -> Tensor:
-        return self.center
 
-    def faces(self) -> 'FaceStack':
-        # Faces contain all the information needed to render the geometry, as well as performing collsion and fluid -> obstacle interactions
-        raise NotImplementedError(self.__class__)
+class _InvertedGeometry(Geometry):
 
-class _InvertedGeometry(Geometry, ABC):
     def __init__(self, geometry):
         self.geometry = geometry
 
     @property
+    def volume(self) -> Tensor:
+        return math.wrap(math.INF)
+
+    @property
+    def shape_type(self) -> Tensor:
+        raise NotImplementedError
+
+    def sample_uniform(self, *shape: math.Shape) -> Tensor:
+        raise NotImplementedError
+
+    def scaled(self, factor: float or Tensor) -> 'Geometry':
+        return _InvertedGeometry(self.geometry.scaled(factor))
+
+    def __getitem__(self, item: dict):
+        return _InvertedGeometry(self.geometry[item])
+
+    @property
     def center(self):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def shape(self):
@@ -365,7 +393,7 @@ class _InvertedGeometry(Geometry, ABC):
     def approximate_signed_distance(self, location: Tensor) -> Tensor:
         return -self.geometry.approximate_signed_distance(location)
 
-    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Union[Tensor, Number] = 0.5) -> Tensor:
+    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Tensor or Number = 0.5) -> Tensor:
         return 1 - self.geometry.approximate_fraction_inside(other_geometry, 1 - balance)
 
     def push(self, positions: Tensor, outward: bool = True, shift_amount: float = 0) -> Tensor:
@@ -377,8 +405,8 @@ class _InvertedGeometry(Geometry, ABC):
     def bounding_half_extent(self) -> Tensor:
         raise NotImplementedError()
 
-    def shifted(self, delta: Tensor) -> Geometry:
-        return _InvertedGeometry(self.geometry.shifted(delta))
+    def at(self, center: Tensor) -> 'Geometry':
+        return _InvertedGeometry(self.geometry.at(center))
 
     def rotated(self, angle) -> Geometry:
         return _InvertedGeometry(self.geometry.rotated(angle))
@@ -406,32 +434,52 @@ def invert(geometry: Geometry):
     return ~geometry
 
 
-class _NoGeometry(Geometry, ABC):
+class _NoGeometry(Geometry):
+
+    @property
+    def shape_type(self) -> Tensor:
+        raise NotImplementedError
+
+    def push(self, positions: Tensor, outward: bool = True, shift_amount: float = 0) -> Tensor:
+        return positions
+
+    def sample_uniform(self, *shape: math.Shape) -> Tensor:
+        raise NotImplementedError
+
+    def scaled(self, factor: float or Tensor) -> 'Geometry':
+        return self
+
+    def __getitem__(self, item: dict):
+        return self
 
     @property
     def shape(self):
         return EMPTY_SHAPE
 
     @property
-    def center(self):
-        return 0
+    def volume(self) -> Tensor:
+        return wrap(0)
 
-    def bounding_radius(self):
-        return 0
+    @property
+    def center(self) -> Tensor:
+        return wrap(0)
 
-    def bounding_half_extent(self):
-        return 0
+    def bounding_radius(self) -> Tensor:
+        return wrap(0)
+
+    def bounding_half_extent(self) -> Tensor:
+        return wrap(0)
 
     def approximate_signed_distance(self, location):
-        return math.zeros(location.shape.non_channel) + np.inf
+        return math.expand(math.INF, non_channel(location))
 
     def lies_inside(self, location):
-        return math.zeros(location.shape.non_channel, dtype=math.DType(bool))
+        return math.zeros(non_channel(location), dtype=bool)
 
-    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Union[Tensor, Number] = 0.5) -> Tensor:
+    def approximate_fraction_inside(self, other_geometry: 'Geometry', balance: Tensor or Number = 0.5) -> Tensor:
         return math.zeros(other_geometry.shape)
 
-    def shifted(self, delta):
+    def at(self, center: Tensor) -> 'Geometry':
         return self
 
     def rotated(self, angle):
@@ -458,8 +506,7 @@ class Point(Geometry):
 
     def __init__(self, location: math.Tensor):
         assert 'vector' in location.shape, "location must have a vector dimension"
-        assert location.shape.get_item_names(
-            'vector') is not None, "Vector dimension needs to list spatial dimension as item names."
+        assert location.shape.get_item_names('vector') is not None, "Vector dimension needs to list spatial dimension as item names."
         self._location = location
 
     @property
@@ -474,9 +521,9 @@ class Point(Geometry):
         return tuple(Point(loc) for loc in self._location.unstack(dimension))
 
     def lies_inside(self, location: Tensor) -> Tensor:
-        return math.wrap(False)
+        return expand(math.wrap(False), shape(location).without('vector'))
 
-    def approximate_signed_distance(self, location: Union[Tensor, tuple]) -> Tensor:
+    def approximate_signed_distance(self, location: Tensor or tuple) -> Tensor:
         return math.vec_abs(location - self._location)
 
     def push(self, positions: Tensor, outward: bool = True, shift_amount: float = 0) -> Tensor:
@@ -488,8 +535,8 @@ class Point(Geometry):
     def bounding_half_extent(self) -> Tensor:
         return math.zeros()
 
-    def shifted(self, delta: Tensor) -> 'Geometry':
-        return Point(self._location + delta)
+    def at(self, center: Tensor) -> 'Geometry':
+        return Point(center)
 
     def rotated(self, angle) -> 'Geometry':
         return self
@@ -511,17 +558,11 @@ class Point(Geometry):
     def sample_uniform(self, *shape: math.Shape) -> Tensor:
         raise NotImplementedError
 
-    def scaled(self, factor: Union[float, Tensor]) -> 'Geometry':
+    def scaled(self, factor: float or Tensor) -> 'Geometry':
         return self
 
     def __getitem__(self, item):
         return Point(self._location[_keep_vector(slicing_dict(self, item))])
-
-    def __stack__(self, values: tuple, dim: Shape, **kwargs) -> 'Geometry':
-        if all(isinstance(v, Point) for v in values):
-            return Point(math.stack([v.center for v in values], dim, **kwargs))
-        else:
-            return Geometry.__stack__(self, values, dim, **kwargs)
 
 
 class LineSegment(Geometry):
@@ -640,7 +681,7 @@ def subdivide_line_segment(line_segment: LineSegment, num_subdivisions: int) -> 
             math.stack([ls._end for ls in sub_line_seg], math.batch('c'))
             )
     else:
-        return LineSegment(math.stack([start + direction*length*i for i in range(num_subdivisions)], math.batch('b')), math.stack([start + direction*length*(i+1) for i in range(num_subdivisions)], math.batch('b'))) 
+        return LineSegment(math.stack([start + direction*length*i for i in range(num_subdivisions)], math.batch('b')), math.stack([start + direction*length*(i+1) for i in range(num_subdivisions)], math.batch('b')))
 
 
 def concat_tuples(tup):
@@ -668,7 +709,7 @@ def subdivide_line_segment_to_size(line_segment: LineSegment, max_length: float)
         return subdivide_line_segment(line_segment, int(math.ceil(line_segment._length/max_length))), None
 
 def assert_same_rank(rank1, rank2, error_message):
-    """Tests that two objects have the same spatial rank. Objects can be of types: `int`, `None` (no check), `Geometry`, `Shape`, `Tensor` """
+    """ Tests that two objects have the same spatial rank. Objects can be of types: `int`, `None` (no check), `Geometry`, `Shape`, `Tensor` """
     rank1_, rank2_ = _rank(rank1), _rank(rank2)
     if rank1_ is not None and rank2_ is not None:
         assert rank1_ == rank2_, 'Ranks do not match: %s and %s. %s' % (rank1_, rank2_, error_message)

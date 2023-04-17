@@ -1,7 +1,7 @@
 from itertools import product
 from unittest import TestCase
 from phi import math
-from phi.math import wrap, extrapolation, PI, tensor, batch, spatial, instance, channel, NAN
+from phi.math import wrap, extrapolation, PI, tensor, batch, spatial, instance, channel, NAN, vec
 
 import numpy as np
 import os
@@ -255,3 +255,19 @@ class TestMathNDNumpy(TestCase):
     def test_dim_mask(self):
         math.assert_close((1, 0, 0), math.dim_mask(spatial('x,y,z'), 'x'))
         math.assert_close((1, 0, 1), math.dim_mask(spatial('x,y,z'), 'x,z'))
+
+    def test_vec_expand(self):
+        v = math.vec(x=0, y=math.linspace(0, 1, instance(points=10)))
+        self.assertEqual(set(instance(points=10) & channel(vector='x,y')), set(v.shape))
+
+    def test_vec_sequence(self):
+        size = vec(batch('size'), 4, 8, 16, 32)
+        self.assertEqual(batch(size='4,8,16,32'), size.shape)
+        math.assert_close([4, 8, 16, 32], size)
+        size = vec(batch('size'), [4, 8, 16, 32])
+        self.assertEqual(batch(size='4,8,16,32'), size.shape)
+        math.assert_close([4, 8, 16, 32], size)
+
+    def test_vec_component_sequence(self):
+        math.assert_close(wrap([(0, 1), (0, 2)], spatial('sequence'), channel(vector='x,y')), vec(x=0, y=(1, 2)))
+        math.assert_close(wrap([(0, 1), (0, 2)], instance('sequence'), channel(vector='x,y')), vec(x=0, y=[1, 2]))

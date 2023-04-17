@@ -1,31 +1,72 @@
-from typing import Tuple, Optional, Union
+from functools import partial
+from typing import Tuple, Optional, List
 
 import numpy as np
 
-from . import _ops as math
-from . import extrapolation as extrapolation
-from ._magic_ops import stack, rename_dims, concat, variable_values
-from ._shape import Shape, channel, batch, spatial, DimFilter, parse_dim_order, shape
-from ._tensors import Tensor, wrap
+from ._shape import Shape, channel, batch, spatial, DimFilter, parse_dim_order, shape, instance
 from .magic import PhiTreeNode
+from ._magic_ops import stack, rename_dims, concat, variable_values
+from ._tensors import Tensor, wrap, tensor
+from . import extrapolation as extrapolation
 from .extrapolation import Extrapolation
+from . import _ops as math
+from ._functional import jit_compile_linear
+from ._optimize import solve_linear
 
 
-def vec(name='vector', **components) -> Tensor:
+def vec(name: str or Shape = 'vector', *sequence, tuple_dim=spatial('sequence'), list_dim=instance('sequence'), **components) -> Tensor:
     """
     Lay out the given values along a channel dimension without converting them to the current backend.
 
     Args:
-        **components: Values by component name.
         name: Dimension name.
+        *sequence: Component values that will also be used as item names.
+            If specified, `components` must be empty.
+        **components: Values by component name.
+            If specified, no additional positional arguments must be given.
+        tuple_dim: Dimension for `tuple` values passed as components, e.g. `vec(x=(0, 1), ...)`
+        list_dim: Dimension for `list` values passed as components, e.g. `vec(x=[0, 1], ...)`
 
     Returns:
         `Tensor`
+
+    Examples:
+        >>> vec(x=1, y=0, z=-1)
+        (x=1, y=0, z=-1)
+
+        >>> vec(x=1., z=0)
+        (x=1.000, z=0.000)
+
+        >>> vec(x=tensor([1, 2, 3], instance('particles')), y=0)
+        (x=1, y=0); (x=2, y=0); (x=3, y=0) (particlesⁱ=3, vectorᶜ=x,y)
+
+        >>> vec(x=0, y=[0, 1])
+        (x=0, y=0); (x=0, y=1) (vectorᶜ=x,y, sequenceⁱ=2)
+
+        >>> vec(x=0, y=(0, 1))
+        (x=0, y=0); (x=0, y=1) (sequenceˢ=2, vectorᶜ=x,y)
     """
-    return stack(components, channel(name))
+    dim = channel(name) if isinstance(name, str) else name
+    assert isinstance(dim, Shape), f"name must be a str or Shape but got '{type(name)}'"
+    if sequence:
+        assert not components, "vec() must be given either positional or keyword arguments but not both"
+        if len(sequence) == 1 and isinstance(sequence[0], (tuple, list)):
+            sequence = sequence[0]
+        dim = dim.with_size([str(v) for v in sequence])
+        return wrap(sequence, dim)
+    else:
+        def wrap_sequence(value):
+            if isinstance(value, tuple):
+                return wrap(value, tuple_dim)
+            elif isinstance(value, list):
+                return wrap(value, list_dim)
+            else:
+                return value
+        components = {n: wrap_sequence(v) for n, v in components.items()}
+        return stack(components, dim, expand_values=True)
 
 
-def const_vec(value: Union[float, Tensor], dim: Union[Shape, tuple, list, str]):
+def const_vec(value: float or Tensor, dim: Shape or tuple or list or str):
     """
     Creates a single-dimension tensor with all values equal to `value`.
     `value` is not converted to the default backend, even when it is a Python primitive.
@@ -51,13 +92,15 @@ def const_vec(value: Union[float, Tensor], dim: Union[Shape, tuple, list, str]):
     return wrap([value] * shape.size, shape)
 
 
-def vec_abs(vec: Tensor, vec_dim: DimFilter = channel, eps: Union[float, Tensor] = None):
+def vec_abs(vec: Tensor, vec_dim: DimFilter = channel, eps: float or Tensor = None):
     """
     Computes the vector length of `vec`.
 
     Args:
         eps: Minimum vector length. Use to avoid `inf` gradients for zero-length vectors.
     """
+    if vec.dtype.kind == complex:
+        vec = stack([vec.real, vec.imag], channel('_ReIm'))
     squared = vec_squared(vec, vec_dim)
     if eps is not None:
         squared = math.maximum(squared, eps)
@@ -103,7 +146,7 @@ def cross_product(vec1: Tensor, vec2: Tensor) -> Tensor:
         raise AssertionError(f'dims = {spatial_rank}. Vector product not available in > 3 dimensions')
 
 
-def rotate_vector(vector: math.Tensor, angle: Union[float, math.Tensor]) -> Tensor:
+def rotate_vector(vector: math.Tensor, angle: float or math.Tensor) -> Tensor:
     """
     Rotates `vector` around the origin.
 
@@ -128,7 +171,7 @@ def rotate_vector(vector: math.Tensor, angle: Union[float, math.Tensor]) -> Tens
         raise NotImplementedError(f"Rotation in {vector.vector.size}D not yet implemented.")
 
 
-def dim_mask(all_dims: Union[Shape, tuple, list], dims: DimFilter, mask_dim=channel('vector')) -> Tensor:
+def dim_mask(all_dims: Shape or tuple or list, dims: DimFilter, mask_dim=channel('vector')) -> Tensor:
     """
     Creates a masked vector with 1 elements for `dims` and 0 for all other dimensions in `all_dims`.
 
@@ -141,8 +184,7 @@ def dim_mask(all_dims: Union[Shape, tuple, list], dims: DimFilter, mask_dim=chan
         `Tensor`
     """
     assert isinstance(all_dims, (Shape, tuple, list)), f"all_dims must be a tuple or Shape but got {type(all_dims)}"
-    assert isinstance(mask_dim,
-                      Shape) and mask_dim.rank == 1, f"mask_dim must be a single-dimension Shape but got {mask_dim}"
+    assert isinstance(mask_dim, Shape) and mask_dim.rank == 1, f"mask_dim must be a single-dimension Shape but got {mask_dim}"
     if isinstance(all_dims, (tuple, list)):
         all_dims = spatial(*all_dims)
     dims = all_dims.only(dims)
@@ -151,7 +193,7 @@ def dim_mask(all_dims: Union[Shape, tuple, list], dims: DimFilter, mask_dim=chan
     return wrap(mask, mask_dim)
 
 
-def normalize_to(target: Tensor, source: Union[float, Tensor], epsilon=1e-5):
+def normalize_to(target: Tensor, source: float or Tensor, epsilon=1e-5):
     """
     Multiplies the target so that its sum matches the source.
 
@@ -174,8 +216,8 @@ def l1_loss(x, reduce: DimFilter = math.non_batch) -> Tensor:
     Computes *∑<sub>i</sub> ||x<sub>i</sub>||<sub>1</sub>*, summing over all non-batch dimensions.
 
     Args:
-        x: `Tensor` or `PhiTreeNode` or 0D or 1D native tensor.
-            For `PhiTreeNode` objects, only value the sum over all value attributes is computed.
+        x: `Tensor` or `phi.math.magic.PhiTreeNode` or 0D or 1D native tensor.
+            For `phi.math.magic.PhiTreeNode` objects, only value the sum over all value attributes is computed.
         reduce: Dimensions to reduce as `DimFilter`.
 
     Returns:
@@ -194,8 +236,7 @@ def l1_loss(x, reduce: DimFilter = math.non_batch) -> Tensor:
             elif len(shape) == 1:
                 return backend.sum(abs(x))
             else:
-                raise ValueError(
-                    "l2_loss is only defined for 0D and 1D native tensors. For higher-dimensional data, use Φ-Flow tensors.")
+                raise ValueError("l2_loss is only defined for 0D and 1D native tensors. For higher-dimensional data, use Φ-Flow tensors.")
         except math.NoBackendFound:
             raise ValueError(x)
 
@@ -205,8 +246,8 @@ def l2_loss(x, reduce: DimFilter = math.non_batch) -> Tensor:
     Computes *∑<sub>i</sub> ||x<sub>i</sub>||<sub>2</sub><sup>2</sup> / 2*, summing over all non-batch dimensions.
 
     Args:
-        x: `Tensor` or `PhiTreeNode` or 0D or 1D native tensor.
-            For `PhiTreeNode` objects, only value the sum over all value attributes is computed.
+        x: `Tensor` or `phi.math.magic.PhiTreeNode` or 0D or 1D native tensor.
+            For `phi.math.magic.PhiTreeNode` objects, only value the sum over all value attributes is computed.
         reduce: Dimensions to reduce as `DimFilter`.
 
     Returns:
@@ -227,8 +268,7 @@ def l2_loss(x, reduce: DimFilter = math.non_batch) -> Tensor:
             elif len(shape) == 1:
                 return backend.sum(x ** 2) * 0.5
             else:
-                raise ValueError(
-                    "l2_loss is only defined for 0D and 1D native tensors. For higher-dimensional data, use Φ-Flow tensors.")
+                raise ValueError("l2_loss is only defined for 0D and 1D native tensors. For higher-dimensional data, use Φ-Flow tensors.")
         except math.NoBackendFound:
             raise ValueError(x)
 
@@ -243,7 +283,7 @@ def frequency_loss(x,
     Lower frequencies are weighted more strongly then higher frequencies, depending on `frequency_falloff`.
 
     Args:
-        x: `Tensor` or `PhiTreeNode` Values to penalize, typically `actual - target`.
+        x: `Tensor` or `phi.math.magic.PhiTreeNode` Values to penalize, typically `actual - target`.
         frequency_falloff: Large values put more emphasis on lower frequencies, 1.0 weights all frequencies equally.
             *Note*: The total loss is not normalized. Varying the value will result in losses of different magnitudes.
         threshold: Frequency amplitudes below this value are ignored.
@@ -264,8 +304,7 @@ def frequency_loss(x,
         diff_fft = math.sqrt(math.maximum(diff_fft, threshold))
         return l2_loss(diff_fft) if n == 2 else l1_loss(diff_fft)
     elif isinstance(x, PhiTreeNode):
-        losses = [frequency_loss(getattr(x, a), frequency_falloff, threshold, ignore_mean, n) for a in
-                  variable_values(x)]
+        losses = [frequency_loss(getattr(x, a), frequency_falloff, threshold, ignore_mean, n) for a in variable_values(x)]
         return sum(losses)
     else:
         raise ValueError(x)
@@ -322,7 +361,7 @@ def abs_square(complex_values: Tensor) -> Tensor:
 def shift(x: Tensor,
           offsets: tuple,
           dims: DimFilter = math.spatial,
-          padding: Union[Extrapolation, None] = extrapolation.BOUNDARY,
+          padding: Extrapolation or Tensor or float or None = extrapolation.BOUNDARY,
           stack_dim: Optional[Shape] = channel('shift'),
           extend_bounds=0) -> list:
     """
@@ -347,7 +386,7 @@ def shift(x: Tensor,
     x = wrap(x)
     pad_lower = max(0, -min(offsets))
     pad_upper = max(0, max(offsets))
-    if padding:
+    if padding is not None:
         x = math.pad(x, {axis: (pad_lower + extend_bounds, pad_upper + extend_bounds) for axis in dims}, mode=padding)
     if extend_bounds:
         assert padding is not None
@@ -356,13 +395,9 @@ def shift(x: Tensor,
         components = []
         for dimension in dims:
             if padding:
-                slices = {dim: slice(pad_lower + offset, (-pad_upper + offset) or None) if dim == dimension else slice(
-                    pad_lower, -pad_upper or None) for dim in dims}
+                slices = {dim: slice(pad_lower + offset, (-pad_upper + offset) or None) if dim == dimension else slice(pad_lower, -pad_upper or None) for dim in dims}
             else:
-                slices = {
-                    dim: slice(pad_lower + offset, (-pad_upper + offset) or None) if dim == dimension else slice(None,
-                                                                                                                 None)
-                    for dim in dims}
+                slices = {dim: slice(pad_lower + offset, (-pad_upper + offset) or None) if dim == dimension else slice(None, None) for dim in dims}
             components.append(x[slices])
         offset_tensors.append(stack(components, stack_dim) if stack_dim is not None else components[0])
     return offset_tensors
@@ -382,10 +417,8 @@ def masked_fill(values: Tensor, valid: Tensor, distance: int = 1) -> Tuple[Tenso
         values: Extrapolation result
         valid: mask marking all valid values after extrapolation
     """
-
     def binarize(x):
         return math.divide_no_nan(x, x)
-
     distance = min(distance, max(values.shape.sizes))
     for _ in range(distance):
         valid = binarize(valid)
@@ -402,8 +435,7 @@ def masked_fill(values: Tensor, valid: Tensor, distance: int = 1) -> Tuple[Tenso
     return values, binarize(valid)
 
 
-def finite_fill(values: Tensor, dims: DimFilter = spatial, distance: int = 1, diagonal: bool = True,
-                padding=extrapolation.BOUNDARY) -> Tuple[Tensor, Tensor]:
+def finite_fill(values: Tensor, dims: DimFilter = spatial, distance: int = 1, diagonal: bool = True, padding=extrapolation.BOUNDARY) -> Tuple[Tensor, Tensor]:
     """
     Fills non-finite (NaN, inf, -inf) values from nearby finite values.
     Extrapolates the finite values of `values` for `distance` steps along `dims`.
@@ -435,8 +467,7 @@ def finite_fill(values: Tensor, dims: DimFilter = spatial, distance: int = 1, di
     else:
         distance = min(distance, sum(values.shape.sizes))
         for _ in range(distance):
-            neighbors = concat(shift(values, (-1, 1), dims, padding=padding, stack_dim=channel('neighbors')),
-                               'neighbors')
+            neighbors = concat(shift(values, (-1, 1), dims, padding=padding, stack_dim=channel('neighbors')), 'neighbors')
             finite = math.is_finite(neighbors)
             avg_neighbors = math.sum_(math.where(finite, neighbors, 0), 'neighbors') / math.sum_(finite, 'neighbors')
             values = math.where(math.is_finite(values), values, avg_neighbors)
@@ -446,11 +477,11 @@ def finite_fill(values: Tensor, dims: DimFilter = spatial, distance: int = 1, di
 # Gradient
 
 def spatial_gradient(grid: Tensor,
-                     dx: Union[float, Tensor] = 1,
+                     dx: float or Tensor = 1,
                      difference: str = 'central',
-                     padding: Union[Extrapolation, None] = extrapolation.BOUNDARY,
+                     padding: Extrapolation or None = extrapolation.BOUNDARY,
                      dims: DimFilter = spatial,
-                     stack_dim: Union[Shape, None] = channel('gradient'),
+                     stack_dim: Shape or None = channel('gradient'),
                      pad=0) -> Tensor:
     """
     Calculates the spatial_gradient of a scalar channel from finite differences.
@@ -472,8 +503,7 @@ def spatial_gradient(grid: Tensor,
     """
     grid = wrap(grid)
     if stack_dim is not None and stack_dim in grid.shape:
-        assert grid.shape.only(
-            stack_dim).size == 1, f"spatial_gradient() cannot list components along {stack_dim.name} because that dimension already exists on grid {grid}"
+        assert grid.shape.only(stack_dim).size == 1, f"spatial_gradient() cannot list components along {stack_dim.name} because that dimension already exists on grid {grid}"
         grid = grid[{stack_dim.name: 0}]
     dims = grid.shape.only(dims)
     dx = wrap(dx)
@@ -497,7 +527,7 @@ def spatial_gradient(grid: Tensor,
 # Laplace
 
 def laplace(x: Tensor,
-            dx: Union[Tensor, float] = 1,
+            dx: Tensor or float = 1,
             padding: Extrapolation = extrapolation.BOUNDARY,
             dims: DimFilter = spatial,
             weights: Tensor = None):
@@ -534,7 +564,7 @@ def laplace(x: Tensor,
 
 
 def fourier_laplace(grid: Tensor,
-                    dx: Union[Tensor, Shape, float, list, tuple],
+                    dx: Tensor or Shape or float or list or tuple,
                     times: int = 1):
     """
     Applies the spatial laplace operator to the given tensor with periodic boundary conditions.
@@ -564,7 +594,7 @@ def fourier_laplace(grid: Tensor,
 
 
 def fourier_poisson(grid: Tensor,
-                    dx: Union[Tensor, Shape, float, list, tuple],
+                    dx: Tensor or Shape or float or list or tuple,
                     times: int = 1):
     """
     Inverse operation to `fourier_laplace`.
@@ -685,11 +715,11 @@ def poisson_bracket(grid1, grid2):
         return _periodic_2d_arakawa_poisson_bracket(grid1.values, grid2.values, grid1.dx)
     else:
         raise NotImplementedError("\n".join([
-            "Not implemented for:"
-            f"ranks ({grid1.rank}, {grid2.rank}) != 2",
-            f"boundary ({grid1.boundary}, {grid2.boundary}) != {extrapolation.PERIODIC}",
-            f"dx uniform ({grid1.dx}, {grid2.dx})"
-        ]))
+                                      "Not implemented for:"
+                                      f"ranks ({grid1.rank}, {grid2.rank}) != 2",
+                                      f"boundary ({grid1.boundary}, {grid2.boundary}) != {extrapolation.PERIODIC}",
+                                      f"dx uniform ({grid1.dx}, {grid2.dx})"
+                                  ]))
 
 
 def _periodic_2d_arakawa_poisson_bracket(tensor1: Tensor, tensor2: Tensor, dx: float):

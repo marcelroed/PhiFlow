@@ -6,7 +6,9 @@ import shutil
 import sys
 import warnings
 from os.path import join, isfile, isdir, abspath, expanduser, basename, split
-from typing import Union, List, Tuple
+from typing import Tuple
+
+import numpy as np
 
 from phi import math, __version__ as phi_version
 from ._field import SampledField
@@ -33,8 +35,7 @@ def get_fieldnames(simpath) -> tuple:
 
 def get_frames(path: str, field_name: str = None, mode=set.intersection) -> tuple:
     if field_name is not None:
-        all_frames = {int(f[-10:-4]) for f in os.listdir(path) if
-                      _str(f).startswith(field_name) and _str(f).endswith(".npz")}
+        all_frames = {int(f[-10:-4]) for f in os.listdir(path) if _str(f).startswith(field_name) and _str(f).endswith(".npz")}
         return tuple(sorted(all_frames))
     else:
         fields = get_fieldnames(path)
@@ -59,9 +60,9 @@ class Scene:
     To list all scenes within a directory, use `Scene.list()`.
     """
 
-    def __init__(self, paths: Union[str, math.Tensor]):
+    def __init__(self, paths: str or math.Tensor):
         self._paths = math.wrap(paths)
-        self._properties: Union[dict, None] = None
+        self._properties: dict or None = None
 
     def __getitem__(self, item):
         return Scene(self._paths[item])
@@ -69,11 +70,14 @@ class Scene:
     def __getattr__(self, name: str) -> BoundDim:
         return BoundDim(self, name)
 
-    def __stack__(self, values: tuple, dim: Shape, **kwargs) -> 'Scene':
-        if all(isinstance(v, Scene) for v in values):
-            return Scene(stack([v.paths for v in values], dim, **kwargs))
+    def __variable_attrs__(self) -> Tuple[str, ...]:
+        return 'paths',
+
+    def __with_attrs__(self, **attrs):
+        if 'paths' in attrs:
+            return Scene(attrs['paths'])
         else:
-            return NotImplemented
+            return Scene(self._paths)
 
     @property
     def shape(self):
@@ -130,7 +134,7 @@ class Scene:
             os.makedirs(abs_dir)
             next_id = 0
         else:
-            indices = [int(f[len(name) + 1:]) for f in os.listdir(abs_dir) if f.startswith(f"{name}_")]
+            indices = [int(f[len(name)+1:]) for f in os.listdir(abs_dir) if f.startswith(f"{name}_")]
             next_id = max([-1] + indices) + 1
         ids = unpack_dim(wrap(tuple(range(next_id, next_id + shape.volume))), 'vector', shape)
         paths = math.map(lambda id_: join(parent_directory, f"{name}_{id_:06d}"), ids)
@@ -147,7 +151,7 @@ class Scene:
     def list(parent_directory: str,
              name='sim',
              include_other: bool = False,
-             dim: Union[Shape, None] = None) -> Union['Scene', tuple]:
+             dim: Shape or None = None) -> 'Scene' or tuple:
         """
         Lists all scenes inside the given directory.
 
@@ -167,8 +171,7 @@ class Scene:
         abs_dir = abspath(parent_directory)
         if not isdir(abs_dir):
             return ()
-        names = [sim for sim in os.listdir(abs_dir) if
-                 sim.startswith(f"{name}_") or (include_other and isdir(join(abs_dir, sim)))]
+        names = [sim for sim in os.listdir(abs_dir) if sim.startswith(f"{name}_") or (include_other and isdir(join(abs_dir, sim)))]
         if dim is None:
             return tuple(Scene(join(parent_directory, n)) for n in names)
         else:
@@ -176,7 +179,7 @@ class Scene:
             return Scene(paths)
 
     @staticmethod
-    def at(directory: Union[str, Tuple, List, math.Tensor, 'Scene'], id: Union[int, math.Tensor, None] = None) -> 'Scene':
+    def at(directory: str or tuple or list or math.Tensor or 'Scene', id: int or math.Tensor or None = None) -> 'Scene':
         """
         Creates a `Scene` for an existing directory.
 
@@ -202,26 +205,28 @@ class Scene:
             id = math.wrap(id)
             paths = math.map(lambda d, i: join(d, f"sim_{i:06d}"), directory, id)
         # test all exist
-        for path in math.flatten(paths):
+        for path in math.flatten(paths, flatten_batch=True):
             if not isdir(path):
                 raise IOError(f"There is no scene at '{path}'")
         return Scene(paths)
 
-    def subpath(self, name: str, create: bool = False) -> Union[str, tuple]:
+    def subpath(self, name: str, create=False, create_parent=False) -> str or tuple:
         """
         Resolves the relative path `name` with this `Scene` as the root folder.
 
         Args:
             name: Relative path with this `Scene` as the root folder.
             create: Whether to create a directory of that name.
+            create_parent: Whether to create the parent directory.
 
         Returns:
             Relative path including the path to this `Scene`.
             In batch mode, returns a `tuple`, else a `str`.
         """
-
         def single_subpath(path):
             path = join(path, name)
+            if create_parent and not isdir(os.path.dirname(path)):
+                os.makedirs(os.path.dirname(path))
             if create and not isdir(path):
                 os.mkdir(path)
             return path
@@ -255,8 +260,7 @@ class Scene:
             dicts = [read_json(p) for p in self._paths]
             keys = set(sum([tuple(d.keys()) for d in dicts], ()))
             for key in keys:
-                assert all(key in d for d in
-                           dicts), f"Failed to create batched Scene because property '{key}' is present in some scenes but not all."
+                assert all(key in d for d in dicts), f"Failed to create batched Scene because property '{key}' is present in some scenes but not all."
                 if all([math.all(d[key] == dicts[0][key]) for d in dicts]):
                     self._properties[key] = dicts[0][key]
                 else:
@@ -271,7 +275,7 @@ class Scene:
         if self._properties is not None:
             return True  # must have been written or read
         else:
-            json_file = join(next(iter(math.flatten(self._paths))), "description.json")
+            json_file = join(next(iter(math.flatten(self._paths, flatten_batch=True))), "description.json")
             return isfile(json_file)
 
     def exists_config(self):
@@ -310,6 +314,12 @@ class Scene:
         if update:
             self._properties.update(update)
         self._properties.update(kw_updates)
+        for key, value in self._properties.items():
+            if isinstance(value, (np.int64, np.int32)):
+                value = int(value)
+            elif isinstance(value, (np.float16, np.float32, np.float64, np.float16)) or (hasattr(np, 'float128') and isinstance(value, np.float128)):
+                value = float(value)
+            self._properties[key] = value
         self._write_properties()
 
     def _get_properties(self, index: dict):
@@ -459,7 +469,7 @@ class Scene:
                 text = "\n\n".join(blocks)
                 self.copy_src_text('ipython.py', text)
         if include_context_information:
-            for path in math.flatten(self._paths):
+            for path in math.flatten(self._paths, flatten_batch=True):
                 with open(join(path, 'src', 'context.json'), 'w') as context_file:
                     json.dump({
                         'phi_version': phi_version,
@@ -467,23 +477,23 @@ class Scene:
                     }, context_file)
 
     def copy_src(self, script_path, only_external=True):
-        for path in math.flatten(self._paths):
+        for path in math.flatten(self._paths, flatten_batch=True):
             if not only_external or not _is_phi_file(script_path):
                 shutil.copy(script_path, join(path, 'src', basename(script_path)))
 
     def copy_src_text(self, filename, text):
-        for path in math.flatten(self._paths):
+        for path in math.flatten(self._paths, flatten_batch=True):
             target = join(path, 'src', filename)
             with open(target, "w") as file:
                 file.writelines(text)
 
     def mkdir(self):
-        for path in math.flatten(self._paths):
+        for path in math.flatten(self._paths, flatten_batch=True):
             isdir(path) or os.mkdir(path)
 
     def remove(self):
         """ Deletes the scene directory and all contained files. """
-        for p in math.flatten(self._paths):
+        for p in math.flatten(self._paths, flatten_batch=True):
             p = abspath(p)
             if isdir(p):
                 shutil.rmtree(p)
@@ -509,30 +519,30 @@ def slugify(value):
 
 
 greek = {
-    u'Α': 'Alpha', u'α': 'alpha',
-    u'Β': 'Beta', u'β': 'beta',
-    u'Γ': 'Gamma', u'γ': 'gamma',
-    u'Δ': 'Delta', u'δ': 'delta',
-    u'Ε': 'Epsilon', u'ε': 'epsilon',
-    u'Ζ': 'Zeta', u'ζ': 'zeta',
-    u'Η': 'Eta', u'η': 'eta',
-    u'Θ': 'Theta', u'θ': 'theta',
-    u'Ι': 'Iota', u'ι': 'iota',
-    u'Κ': 'Kappa', u'κ': 'kappa',
-    u'Λ': 'Lambda', u'λ': 'lambda',
-    u'Μ': 'Mu', u'μ': 'mu',
-    u'Ν': 'Nu', u'ν': 'nu',
-    u'Ξ': 'Xi', u'ξ': 'xi',
-    u'Ο': 'Omicron', u'ο': 'omicron',
-    u'Π': 'Pi', u'π': 'pi',
-    u'Ρ': 'Rho', u'ρ': 'rho',
-    u'Σ': 'Sigma', u'σ': 'sigma',
-    u'Τ': 'Tau', u'τ': 'tau',
-    u'Υ': 'Upsilon', u'υ': 'upsilon',
-    u'Φ': 'Phi', u'φ': 'phi',
-    u'Χ': 'Chi', u'χ': 'chi',
-    u'Ψ': 'Psi', u'ψ': 'psi',
-    u'Ω': 'Omega', u'ω': 'omega',
+    u'Α': 'Alpha',      u'α': 'alpha',
+    u'Β': 'Beta',       u'β': 'beta',
+    u'Γ': 'Gamma',      u'γ': 'gamma',
+    u'Δ': 'Delta',      u'δ': 'delta',
+    u'Ε': 'Epsilon',    u'ε': 'epsilon',
+    u'Ζ': 'Zeta',       u'ζ': 'zeta',
+    u'Η': 'Eta',        u'η': 'eta',
+    u'Θ': 'Theta',      u'θ': 'theta',
+    u'Ι': 'Iota',       u'ι': 'iota',
+    u'Κ': 'Kappa',      u'κ': 'kappa',
+    u'Λ': 'Lambda',     u'λ': 'lambda',
+    u'Μ': 'Mu',         u'μ': 'mu',
+    u'Ν': 'Nu',         u'ν': 'nu',
+    u'Ξ': 'Xi',         u'ξ': 'xi',
+    u'Ο': 'Omicron',    u'ο': 'omicron',
+    u'Π': 'Pi',         u'π': 'pi',
+    u'Ρ': 'Rho',        u'ρ': 'rho',
+    u'Σ': 'Sigma',      u'σ': 'sigma',
+    u'Τ': 'Tau',        u'τ': 'tau',
+    u'Υ': 'Upsilon',    u'υ': 'upsilon',
+    u'Φ': 'Phi',        u'φ': 'phi',
+    u'Χ': 'Chi',        u'χ': 'chi',
+    u'Ψ': 'Psi',        u'ψ': 'psi',
+    u'Ω': 'Omega',      u'ω': 'omega',
 }
 
 
