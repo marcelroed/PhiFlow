@@ -214,13 +214,14 @@ def get_area_normals(grid: CenteredGrid, level_set: LevelSet) -> CenteredGrid:
     #  currently return floats for vert indices when not in local coords, so need to fix that too.
     #  Finally, this should return the cell indices for each face, so that we can reduce the area normals.
     verts, faces = marching_cubes(level_set_values_corner_torch, isolevel=0.0, return_local_coords=False)
-    verts, faces = verts[0].long(), faces[0]
+    verts, faces = verts[0], faces[0]
     # TODO(marcelroed): Improve the verts by moving them to the zero of the level set, imbue them with gradients
 
     area_normals = compute_area_normals(verts, faces)
 
     # TODO(marcelroed): Reduce to the right cells
-    cell_normals = torch.zeros(*[s - 1 for s in corner_positions.shape], dtype=corner_positions.dtype, device=corner_positions.device)
+    cell_normals = torch.zeros(*[s - 1 for s in spatial(corner_positions).sizes], channel(corner_positions).size,
+                               dtype=level_set_values_corner_torch.dtype, device=level_set_values_corner_torch.device)
 
     cell_normals.scatter_add_(dim=0, index=face_belongs_to_cell, src=area_normals)
 
@@ -241,7 +242,7 @@ def level_set_pressure_integral(pressure_field: CenteredGrid, level_set: LevelSe
     area_normals = get_area_normals(grid=pressure_field, level_set=level_set)
 
     # dV = pressure_field.elements.volume
-    pressure_field._masked_sample(area_normals.elements.center, mask=)
+    # pressure_field._masked_sample(area_normals.elements.center, mask=)
     pressure_integrand = pressure_field.masked_sample() * area_normals
     linear_force = - math.sum(pressure_integrand, dim=spatial(pressure_integrand))
     torque = - math.sum(math.cross_product(pressure_integrand, pressure_integrand.elements.center - centroid), dim=spatial(pressure_integrand))

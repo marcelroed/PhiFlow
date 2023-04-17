@@ -12,6 +12,9 @@ os.environ['JAX_CHECK_TRACER_LEAKS'] = '1'
 from phi.torch.flow import *
 import jax
 
+backend_obj = backend.default_backend()
+backend_obj.set_default_device(backend_obj.list_devices('GPU')[5])
+
 DOMAIN = dict(x=100, y=100, z=100, bounds=Box(x=100, y=100, z=100))
 
 DT = 1.0
