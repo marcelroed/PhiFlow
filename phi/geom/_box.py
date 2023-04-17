@@ -293,6 +293,8 @@ class Box(BaseBox, metaclass=BoxType):
         return Box(lower, upper)
 
     def __repr__(self):
+        if self.shape is None:
+            return 'Box'
         if self.shape.non_channel.volume == 1:
             item_names = self.size.vector.item_names
             if item_names:

@@ -80,7 +80,7 @@ class Obstacle:
         """
         self.geometry: Geometry = geometry
         if velocity is None:
-            velocity = 0
+            velocity = 0.
         if isinstance(velocity, Number):
             velocity = [float(velocity)] * channel(geometry).size
 
