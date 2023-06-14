@@ -4,7 +4,7 @@ from typing import Dict, Tuple, Union
 import numpy as np
 
 from phi import math
-from ._geom import Geometry, _keep_vector
+from ._geom import Geometry, _keep_vector, LineSegment
 from ..math import wrap, INF, Shape, channel, spatial, copy_with, Tensor
 from ..math._shape import parse_dim_order
 from ..math.magic import slicing_dict
@@ -303,6 +303,32 @@ class Box(BaseBox, metaclass=BoxType):
                 return 'Box[%s at %s]' % ('x'.join([str(x) for x in self.size.numpy().flatten()]), ','.join([str(x) for x in self.lower.numpy().flatten()]))
         else:
             return f'Box[shape={self.shape}]'
+
+    def get_edges(self):
+        # Get a [2, 2, 4] tensor of the edges of the box (in 2d)
+        assert self.spatial_rank == 2, "get_edges() only works for 2d boxes"
+        # We have 4 edges, each of which is 2 points in 2d
+        x0, y0, x1, y1 = self.lower.vector.unstack(2) + self.upper.vector.unstack(2)
+        # edges = math.tensor([[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]], math.instance(edges=4, points=2), math.channel(vector=2))
+        edges = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]]
+
+        lines = [LineSegment(start=math.tensor([x_start, y_start], channel(vector='x,y')), end=math.tensor([x_end, y_end], channel(vector='x,y'))) for ((x_start, y_start), (x_end, y_end)) in edges]
+
+        single_line_obj = math.stack(lines, math.instance(edges=4))
+        return single_line_obj
+
+    def get_normals(self):
+        # Get a [2, 4] tensor of the normals of the edges of the box (in 2d)
+        assert self.spatial_rank == 2, "get_normals() only works for 2d boxes"
+        # We have 4 normals, each of which is a single 2d vector
+        edges = self.get_edges()
+
+        # First compute the edge vectors
+        edge_vectors = edges.as_vectors()
+        # The normals are the edge vectors rotated by 90 degrees clockwise
+        normals = math.rotate_vector(edge_vectors, - math.pi / 2)
+        normals = math.vec_normalize(normals, 'vector')
+        return normals
 
 
 class Cuboid(BaseBox):

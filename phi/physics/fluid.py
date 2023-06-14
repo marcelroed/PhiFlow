@@ -110,6 +110,11 @@ class Obstacle:
             return False
         return self.geometry == other.geometry and self.velocity == other.velocity and self.angular_velocity == other.angular_velocity
 
+    def update_copy_forces(self, obstacle_force: ObstacleForce, dt: float):
+        return math.copy_with(self,
+                              velocity=self.velocity + obstacle_force.force * dt / self.mass,
+                              angular_velocity=self.angular_velocity + obstacle_force.torque * dt / self.moment_of_inertia)
+
 
 def _get_obstacles_for(obstacles, space: Field):
     obstacles = [obstacles] if isinstance(obstacles, (Obstacle, Geometry)) else obstacles
@@ -137,7 +142,7 @@ def update_obstacles_forces(obstacles: List[Obstacle], obstacle_forces: List[Obs
 
 def sample_at_edges(sample_field, edges):
     # TODO(marcelroed): Should be this simple, so can remove function definition
-    return sample_field._sample(geometry=edges, scheme=field.numerical.Scheme())
+    return sample_field._sample(geometry=edges)
 
 
 def pressure_integral(pressure, edges):
@@ -237,7 +242,7 @@ def pressure_to_obstacles(velocity, pressure: CenteredGrid, obstacles: List[Obst
         geometry = obstacle.geometry
         if isinstance(geometry, (Box, Sphere, phi.geom._transform.RotatedGeometry)):
             # Construct a field of distances to the center of mass for torque calculations
-            distance_vec_to_centroid = field.CenteredGrid(pressure.elements.center - geometry.center_of_mass)
+            distance_vec_to_centroid = field.CenteredGrid(pressure.elements.center - geometry.center)
 
             # linear_force = 0
             # torque = 0
@@ -252,7 +257,7 @@ def pressure_to_obstacles(velocity, pressure: CenteredGrid, obstacles: List[Obst
             linear_forces = - pressure_integral(pressure, edges) * normals
             total_linear_force = math.sum(linear_forces, ('b', 'edges'))
             # Calculate torque
-            torques = math.cross_product(distance_vec_to_centroid._sample(edges, scheme=field.numerical.Scheme()),
+            torques = math.cross_product(distance_vec_to_centroid._sample(edges),
                                          linear_forces)
             total_torque = math.sum(torques, ('b', 'edges', 'vector'))  # Should be zero in all other components
 
