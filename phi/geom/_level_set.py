@@ -4,14 +4,15 @@ from typing import Dict, Tuple, Union, List, Callable, Optional
 
 import numpy as np
 
+import phi.field
 from phi import math
 from . import Box
 from ._geom import Geometry, _keep_vector, LineSegment
 from ..math import wrap, INF, Shape, channel, spatial, copy_with, Tensor, extrapolation
 from ..math._shape import parse_dim_order
 from ..math.magic import slicing_dict
-from phi.field import CenteredGrid
 
+# Rotation matrices are of dim ('vector', 'vector_in')
 
 def vector_notation(n: int):
     assert n in (2, 3), 'Only 2D and 3D is currently supported'
@@ -19,26 +20,30 @@ def vector_notation(n: int):
 
 def identity(n: int) -> Tensor:
     assert n in (2, 3), 'Only 2D and 3D identity matrices are supported.'
-    return math.tensor([[1. if i == j else 0. for i in range(n)] for j in range(n)], channel(vector_out=vector_notation(n)), channel(vector_in=vector_notation(n)))
+    return math.tensor([[1. if i == j else 0. for i in range(n)] for j in range(n)],
+                       channel(vector=vector_notation(n)), channel(vector_in=vector_notation(n)))
 
 
 def rotate_matmul(left: Tensor, right: Tensor):
     # ik,kj->ij
-    left_in = left._with_shape_replaced(channel(vector_out='x,y', vector_mid='x,y'))
-    right_in = right._with_shape_replaced(channel(vector_mid='x,y', vector_in='x,y'))
-    return math.sum(left_in * right_in, dim='vector_mid')
+    # left_in = left._with_shape_replaced(channel(vector_out='x,y', vector_mid='x,y'))
+    # right_in = right._with_shape_replaced(channel(vector_mid='x,y', vector_in='x,y'))
+    # return math.sum(left_in * right_in, dim='vector_mid')
+    return math.dot(left, 'vector_in', right, 'vector')
+
 
 def rotate_vec(rotation: Tensor, vector: Tensor):
-    left_in = rotation._with_shape_replaced(channel(vector='x,y', vector_mid='x,y'))
-    right_in = vector._with_shape_replaced(vector.shape.non_channel & channel(vector_mid='x,y'))
-    return math.sum(left_in * right_in, dim='vector_mid')
+    # left_in = rotation._with_shape_replaced(channel(vector='x,y', vector_mid='x,y'))
+    # right_in = vector._with_shape_replaced(vector.shape.non_channel & channel(vector_mid='x,y'))
+    return math.dot(rotation, 'vector_in', vector, 'vector')
 
 
 def cast_rotation(rotation: Tensor | float):
     if isinstance(rotation, float) or rotation.shape.sizes == ():
-        return math.tensor([[math.cos(rotation), -math.sin(rotation)], [math.sin(rotation), math.cos(rotation)]], channel(vector_out='x,y'), channel(vector_in='x,y'))
+        return math.tensor([[math.cos(rotation), -math.sin(rotation)], [math.sin(rotation), math.cos(rotation)]], channel(vector='x,y'), channel(vector_in='x,y'))
     else:
         return rotation
+
 
 class LevelSetTransform:
     def __init__(self, translation: Optional[Tensor] = None, rotation: Optional[Tensor] = None,
@@ -53,9 +58,8 @@ class LevelSetTransform:
         if self.translation is not None:
             location = location + self.translation
         if self.rotation is not None:
-            item_names = ','.join(location.shape.channel.item_names[0])
-            location_in = location._with_shape_replaced(location.shape.non_channel & channel(vector_in=item_names))
-            location = math.sum(self.rotation * location_in, dim='vector_in')._with_shape_replaced(location.shape.non_channel & channel(vector=vector_notation(self.shape.sizes[0])))
+            # item_names = ','.join(location.shape.channel.item_names[0])
+            location = math.dot(self.rotation, 'vector_in', location, 'vector')
         return location
 
     def inverse(self) -> 'LevelSetTransform':
@@ -81,10 +85,13 @@ class LevelSetTransform:
                                  rotation=rotation,
                                  shape=self.shape)
 
+    def __repr__(self):
+        return f'LevelSetTransform(translation={self.translation}, rotation={self.rotation})'
+
 
 class LevelSet(Geometry):
     @staticmethod
-    def bake_properties(function: Callable, evaluation_grid: CenteredGrid):
+    def bake_properties(function: Callable, evaluation_grid: 'phi.field.CenteredGrid'):
         n = evaluation_grid.shape.spatial_rank
         present = math.cast(function(evaluation_grid.elements.center) >= 0, dtype=evaluation_grid.values.dtype)
         centroid = math.sum(evaluation_grid.elements.center * present, dim=vector_notation(n)) / math.sum(present, dim=vector_notation(n))
@@ -105,12 +112,11 @@ class LevelSet(Geometry):
     def __init__(self, function: Callable, bounds: Box, *, transforms: Optional[LevelSetTransform] = None, center=None, volume=None):
         self._bounds = bounds
         if bounds.shape.size == 2:
-            self._evaluation_grid = CenteredGrid(0, x=100, y=100, bounds=bounds, extrapolation=extrapolation.BOUNDARY)
+            self._evaluation_grid = phi.field.CenteredGrid(0, x=100, y=100, bounds=bounds, extrapolation=extrapolation.BOUNDARY)
         elif bounds.shape.size == 3:
-            self._evaluation_grid = CenteredGrid(0, x=100, y=100, z=100, bounds=bounds, extrapolation=extrapolation.BOUNDARY)
+            self._evaluation_grid = phi.field.CenteredGrid(0, x=100, y=100, z=100, bounds=bounds, extrapolation=extrapolation.BOUNDARY)
         else:
             raise ValueError(f'Bounds must be 2D or 3D, but got {bounds.shape}')
-
 
         self._function = function
         self._transforms = LevelSetTransform(shape=bounds.shape) if transforms is None else transforms
@@ -120,8 +126,10 @@ class LevelSet(Geometry):
             self._centroid = center
             self._volume = volume
         self._shape = self._centroid.shape
+        self._marcher = None
 
     def function(self, x):
+        print(self._transforms)
         x = self._transforms(x)
         return self._function(x)
 
@@ -160,9 +168,7 @@ class LevelSet(Geometry):
 
     @cache
     def bounding_radius(self) -> Tensor:
-        # Create a masked distance array and get its maximum value
-        mask = self.lies_inside()
-
+        return self._bounds.bounding_radius()
 
     def bounding_half_extent(self) -> Tensor:
         # It is okay to overshoot this value by just returning the bounding_radius
@@ -173,6 +179,7 @@ class LevelSet(Geometry):
         return LevelSet(self._function, bounds=self._bounds, center=self.center, volume=self.volume, transforms=new_transforms)
 
     def shifted(self, delta: Tensor) -> 'LevelSet':
+        print('Shifting the level set')
         return self.transformed(translation=delta)
 
     def rotated(self, angle: Union[float, Tensor]) -> 'LevelSet':
@@ -185,4 +192,41 @@ class LevelSet(Geometry):
         return hash(self._function)
 
     def __getitem__(self, item):
-        raise NotImplementedError()
+        return self
+        # item = slicing_dict(self, item)
+        # return LevelSet(self._center[_keep_vector(item)], self._radius[item])
+
+    @property
+    def bounds(self) -> Box:
+        return self._bounds
+
+
+    def marching_cubes(self, corner_positions=None):
+        import warp as wp
+        import torch
+        if corner_positions is None:
+            corner_positions = self._evaluation_grid.element_corners().center
+
+        corner_values = self.function(corner_positions)
+        corner_values_native: torch.Tensor = corner_values.native(corner_values.shape)
+
+        if self._marcher is None:
+            nx, ny, nz = spatial(corner_positions).sizes
+            self._marcher = wp.MarchingCubes(nx=nx, ny=ny, nz=nz, max_verts=100_000, max_tris=100_000,
+                                             device=str(corner_values_native.device))
+
+        def _marching_cubes(corner_values: Tensor):
+            w = wp.from_torch(corner_values)
+            # with wp.ScopedStream(torch_stream):
+            self._marcher.surface(w, 0.0)
+            # wp.synchronize_stream(torch_stream)
+            # print(marcher.verts.size, marcher.indices.size)
+            verts, tris = wp.to_torch(self._marcher.verts)[:self._marcher.verts.size, :], wp.to_torch(self._marcher.indices)[
+                                                                              :self._marcher.indices.size].reshape(-1, 3)
+            # wp.stream_from_torch()
+            # print(marcher.)
+            return verts, tris
+
+
+        return _marching_cubes(corner_values_native)
+
