@@ -14,11 +14,12 @@ import phi.geom._transform
 from phi import math, field
 from phi.field import SoftGeometryMask, AngularVelocity, Grid, divergence, spatial_gradient, where, CenteredGrid, \
     PointCloud
-from phi.geom import union, Geometry, Sphere, Box, subdivide_line_segment, LevelSet
-from phi.math import wrap, channel, Tensor
+from phi.geom import union, Geometry, Sphere, Box, subdivide_line_segment, LevelSet, Cuboid
+from phi.math import wrap, channel, Tensor, instance
 from phi.math import wrap, channel, Solve
 from phi.field import AngularVelocity, Grid, divergence, spatial_gradient, where, CenteredGrid, PointCloud, Field, resample
 from phi.geom import union, Geometry
+from .march import march_2d, level_set_march
 from ..field._embed import FieldEmbedding
 from ..field._grid import GridType
 from ..math import extrapolation, NUMPY, batch, shape, non_channel, expand, spatial
@@ -26,7 +27,8 @@ from ..field._grid import GridType, StaggeredGrid
 from ..math import extrapolation, NUMPY, batch, shape, non_channel, expand
 from ..math._magic_ops import copy_with
 from ..math.extrapolation import combine_sides, Extrapolation
-from pytorch3d.ops.marching_cubes import marching_cubes
+# from pytorch3d.ops.marching_cubes import marching_cubes
+
 
 
 class ForceSchedule:
@@ -55,6 +57,9 @@ class ObstacleForce:
 
     def __repr__(self):
         return f'ObstacleForce(force={self.force}, torque={self.torque})'
+
+    def copy_with(self, **kwargs):
+        return copy_with(self, **kwargs)
 
 
 class Obstacle:
@@ -102,6 +107,17 @@ class Obstacle:
         warnings.warn("Obstacle.copied_with is deprecated. Use math.copy_with instead.", DeprecationWarning, stacklevel=2)
         return math.copy_with(self, **kwargs)
 
+    def update_copy_forces(self, obstacle_force: ObstacleForce, dt: float = 1.0):
+        new_velocity = self.velocity + obstacle_force.force * dt / self.mass
+        new_angular_velocity = self.angular_velocity + obstacle_force.torque * dt / self.moment_of_inertia
+        shifted_geometry = self.geometry.shifted(dt * new_velocity)
+        rotated_geometry = shifted_geometry.rotated(dt * new_angular_velocity)
+        new_geometry = rotated_geometry
+        # print(f'{new_geometry=}, {self.geometry=}')
+        # print(f'Moving the geometry by {new_velocity * dt} and rotating by {dt * new_angular_velocity}')
+        return math.copy_with(self, geometry=new_geometry, velocity=new_velocity, angular_velocity=new_angular_velocity)
+
+
     def __variable_attrs__(self) -> Tuple[str, ...]:
         return 'geometry', 'velocity', 'angular_velocity', 'mass', 'moment_of_inertia'
 
@@ -120,7 +136,7 @@ def _get_obstacles_for(obstacles, space: Field):
     return obstacles
 
 def update_obstacles(obstacles: List[Obstacle], obstacle_updates: List[ObstacleUpdate], dt: float = 1.):
-    print(obstacle_updates)
+    # print(obstacle_updates)
     return [
         obstacle.update_copy(obstacle_update, dt)
         for obstacle, obstacle_update in zip(obstacles, obstacle_updates)
@@ -128,7 +144,7 @@ def update_obstacles(obstacles: List[Obstacle], obstacle_updates: List[ObstacleU
 
 
 def update_obstacles_forces(obstacles: List[Obstacle], obstacle_forces: List[ObstacleForce], dt: float = 1.):
-    print(obstacle_forces)
+    # print(obstacle_forces)
     return [
         obstacle.update_copy_forces(obstacle_force, dt)
         for obstacle, obstacle_force in zip(obstacles, obstacle_forces)
@@ -137,7 +153,7 @@ def update_obstacles_forces(obstacles: List[Obstacle], obstacle_forces: List[Obs
 
 def sample_at_edges(sample_field, edges):
     # TODO(marcelroed): Should be this simple, so can remove function definition
-    return sample_field._sample(geometry=edges, scheme=field.numerical.Scheme())
+    return sample_field._sample(geometry=edges)
 
 
 def pressure_integral(pressure, edges):
@@ -211,8 +227,29 @@ def get_area_normals(grid: CenteredGrid, level_set: LevelSet) -> CenteredGrid:
     # return math.tensor(cell_normals, *grid.elements.center.shape)
 
 
+def level_set_pressure_integral_2d(pressure_field: CenteredGrid, level_set: LevelSet, centroid: Tensor):
+    centers, area_normals = level_set_march(level_set, pressure_field)
 
-def level_set_pressure_integral(pressure_field: CenteredGrid, level_set: LevelSet, centroid):
+    center_geometry = PointCloud(centers)
+    forces: PointCloud = field.resample(pressure_field, to=center_geometry) * area_normals
+    forces = forces.values
+    total_force = math.sum(forces, instance(forces))
+
+    dist_vec = centers - centroid
+
+    torque = math.cross_product(dist_vec, area_normals)
+
+    # level_set_pressure_cells()
+    total_torque = math.sum(torque, instance(torque))
+    # print('Here', total_force, total_torque)
+
+    return total_force, total_torque
+
+
+
+def level_set_pressure_integral(pressure_field: CenteredGrid, level_set: LevelSet, centroid: Tensor):
+    if pressure_field.spatial_rank == 2:
+        return level_set_pressure_integral_2d(pressure_field, level_set, centroid)
     # pos = pressure_field.elements.center
     # level_set_values = level_set.function(pos)
     # level_set_values, level_set_gradients = math.gradient(level_set.function, wrt='x', get_output=True)(corner_positions)
@@ -237,7 +274,7 @@ def pressure_to_obstacles(velocity, pressure: CenteredGrid, obstacles: List[Obst
         geometry = obstacle.geometry
         if isinstance(geometry, (Box, Sphere, phi.geom._transform.RotatedGeometry)):
             # Construct a field of distances to the center of mass for torque calculations
-            distance_vec_to_centroid = field.CenteredGrid(pressure.elements.center - geometry.center_of_mass)
+            distance_vec_to_centroid = field.CenteredGrid(pressure.elements.center - geometry.center)
 
             # linear_force = 0
             # torque = 0
@@ -252,7 +289,7 @@ def pressure_to_obstacles(velocity, pressure: CenteredGrid, obstacles: List[Obst
             linear_forces = - pressure_integral(pressure, edges) * normals
             total_linear_force = math.sum(linear_forces, ('b', 'edges'))
             # Calculate torque
-            torques = math.cross_product(distance_vec_to_centroid._sample(edges, scheme=field.numerical.Scheme()),
+            torques = math.cross_product(distance_vec_to_centroid._sample(edges),
                                          linear_forces)
             total_torque = math.sum(torques, ('b', 'edges', 'vector'))  # Should be zero in all other components
 
@@ -318,7 +355,10 @@ def make_incompressible(velocity: GridType,
         pressure_extrapolation = _pressure_extrapolation(input_velocity.extrapolation)
         solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution))
     if batch(math.merge_shapes(*obstacles)).without(batch(solve.x0)):  # The initial pressure guess must contain all batch dimensions
+        # print(solve.x0.shape)
         solve = copy_with(solve, x0=expand(solve.x0, batch(math.merge_shapes(*obstacles))))
+    # print(solve)
+    # print(masked_laplace, div, solve, hard_bcs, active, order)
     pressure = math.solve_linear(masked_laplace, div, solve, hard_bcs, active, order=order)
     # --- Subtract grad p ---
     grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, type=type(velocity), order=order) * hard_bcs
