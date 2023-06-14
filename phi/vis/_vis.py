@@ -12,7 +12,7 @@ from ._vis_base import Control, value_range, Action, VisModel, Gui, PlottingLibr
 from .. import math
 from ..field import SampledField, Scene, Field, PointCloud
 from ..field._scene import _slugify_filename
-from ..geom import Geometry, Box, embed
+from ..geom import Geometry, Box, embed, LevelSet
 from ..math import Tensor, layout, batch, Shape, wrap, merge_shapes, EMPTY_SHAPE
 from ..math._shape import parse_dim_order, DimFilter
 
@@ -438,9 +438,9 @@ def layout_sub_figures(data: Union[Tensor, SampledField],
     else:
         if isinstance(data, Tensor):
             data = tensor_as_field(data)
-        elif isinstance(data, Geometry):
+        elif isinstance(data, Geometry) and not isinstance(data, LevelSet):
             data = PointCloud(data)
-        assert isinstance(data, Field), f"Cannot plot {type(data)}. Only tensors, geometries and fields can be plotted."
+        assert isinstance(data, (Field, LevelSet)), f"Cannot plot {type(data)}. Only tensors, geometries and fields can be plotted."
         overlay = data.shape.only(overlay)
         animate = data.shape.only(animate).without(overlay)
         row_shape = data.shape.only(row_dims).without(animate).without(overlay)

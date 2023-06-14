@@ -375,8 +375,10 @@ class PlottingLibrary:
         raise NotImplementedError
 
     def plot(self, data, figure, subplot, space, *args, **kwargs):
+        # print(f'Looking for recipe for {data}')
         for recipe in self.recipes:
             if recipe.can_plot(data, space):
+                # print(f'Plotting {data} with {recipe}')
                 recipe.plot(data, figure, subplot, space, *args, **kwargs)
                 return
         raise NotImplementedError(f"No {self.name} recipe found for {data}. Recipes: {self.recipes}")

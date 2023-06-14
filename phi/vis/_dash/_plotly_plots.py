@@ -7,9 +7,10 @@ from plotly import graph_objects, figure_factory
 from plotly.subplots import make_subplots
 from plotly.tools import DEFAULT_PLOTLY_COLORS
 
+import phi.physics.march
 from phi import math, field
 from phi.field import SampledField, PointCloud, Grid, StaggeredGrid
-from phi.geom import Sphere, BaseBox, Point, Box
+from phi.geom import Sphere, BaseBox, Point, Box, LevelSet
 from phi.geom._stack import GeometryStack
 from phi.math import Tensor, spatial, channel, non_channel
 from phi.vis._dash.colormaps import COLORMAPS
@@ -63,6 +64,43 @@ class PlotlyPlots(PlottingLibrary):
         figure.layout.update(margin=dict(l=0, r=0, b=0, t=0))
         scale = dpi/90.
         figure.write_image(path, width=width * dpi / scale, height=height * dpi / scale, scale=scale)
+
+
+class Mesh3D(Recipe):
+    def can_plot(self, data: LevelSet, space: Box):
+        return isinstance(data, LevelSet) and data._evaluation_grid.spatial_rank == 3
+
+    def plot(self, data: LevelSet, figure: graph_objects.Figure, subplot, space: Box, min_val: float, max_val: float, show_color_bar: bool, color: Tensor, alpha: Tensor):
+        row, col = subplot
+        subplot = figure.get_subplot(row, col)
+
+        verts, tris = data.marching_cubes()
+        verts, tris = verts.cpu(), tris.cpu()
+        figure.add_mesh3d(x=verts[:, 0], y=verts[:, 1], z=verts[:, 2], i=tris[:, 0], j=tris[:, 1], k=tris[:, 2],
+                          colorbar_title='Level Set', colorscale='Viridis', intensity=verts[:, 2], showscale=show_color_bar, row=row, col=col)
+        figure.update_layout(showlegend=False, uirevision=True)
+
+
+class Levelset2D(Recipe):
+    def can_plot(self, data: LevelSet, space: Box):
+        return isinstance(data, LevelSet) and data._evaluation_grid.spatial_rank == 2
+
+    def plot(self, data: LevelSet, figure: graph_objects.Figure, subplot, space: Box, min_val: float, max_val: float, show_color_bar: bool, color: Tensor, alpha: Tensor):
+        row, col = subplot
+        subplot = figure.get_subplot(row, col)
+
+        corner_values = data.function(data._evaluation_grid.element_corners().center)
+        corner_values = corner_values.native(corner_values.shape)
+        lines = phi.physics.march.find_edge_crossings(corner_values)
+        import torch
+        lines = lines[~torch.isnan(lines).any(dim=-1)].cpu()
+        starting_point, ending_point = lines[..., :2], lines[..., 2:]
+
+        d = {'x': starting_point[..., 0], 'y': starting_point[..., 0]}
+        # Plot each individual line
+        for i in range(starting_point.shape[0]):
+            figure.add_trace(graph_objects.Scatter(x=[starting_point[i, 0], ending_point[i, 0]], y=[starting_point[i, 1], ending_point[i, 1]], mode='lines'))
+        figure.update_layout(showlegend=False, uirevision=True)
 
 
 class LinePlot(Recipe):
@@ -437,6 +475,8 @@ def join_curves(curves: List[np.ndarray]) -> np.ndarray:
 
 PLOTLY = PlotlyPlots()
 PLOTLY.recipes.extend([
+            Levelset2D(),
+            Mesh3D(),
             LinePlot(),
             Heatmap2D(),
             VectorField2D(),

@@ -16,7 +16,7 @@ from .._vis_base import display_name, gui_interrupt, benchmark
 BENCHMARK_BUTTON = Input('benchmark-button', 'n_clicks')
 PROFILE_BUTTON = Input('profile-button', 'n_clicks')
 
-NO_BENCHMARK_TEXT = '*No benchmarks available.*'
+NO_BENCHMARK_TEXT = '*No bench available.*'
 NO_PROFILES_TEXT = '*No profiles available.*'
 
 REFRESH_GRAPHS_BUTTON = Input('refresh-graphs-button', 'n_clicks')
