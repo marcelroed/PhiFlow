@@ -16,7 +16,6 @@ from phi.math.backend._backend import combined_dim, SolveResult, get_functional_
 
 
 class TorchBackend(Backend):
-
     def __init__(self):
         cpu = NUMPY.get_default_device()
         devices = [ComputeDevice(self, "CPU", 'CPU', cpu.memory, cpu.processor_count, cpu.description, ref='cpu')]
@@ -24,6 +23,7 @@ class TorchBackend(Backend):
             properties = torch.cuda.get_device_properties(index)
             devices.append(ComputeDevice(self, properties.name, 'GPU', properties.total_memory, properties.multi_processor_count, f"compute capability {properties.major}.{properties.minor}", f'cuda:{index}'))
         Backend.__init__(self, 'PyTorch', devices, devices[1 if len(devices) > 1 else 0])
+        self._has_warp = False
 
     def prefers_channels_last(self) -> bool:
         return False
@@ -890,6 +890,31 @@ class TorchBackend(Backend):
 
     def stop_gradient(self, value):
         return value.detach()
+
+    def setup_warp(self):
+        if not self._has_warp:
+            try:
+                import warp as wp
+            except ImportError as e:
+                raise ImportError("Warp is required to run this on GPU. Please install NVIDIA Warp.")
+            wp.init()
+            self._has_warp = True
+
+
+    def marching_cubes(self, corner_values: torch.Tensor):
+
+        import warp as wp
+        self.setup_warp()
+        # nx, ny, nz = corner_values.shape
+        w = wp.from_torch(corner_values)
+        # with wp.ScopedStream(torch_stream):
+        marcher.surface(w, 0.0)
+        # wp.synchronize_stream(torch_stream)
+        # print(marcher.verts.size, marcher.indices.size)
+        verts, tris = wp.to_torch(marcher.verts)[:marcher.verts.size, :], wp.to_torch(marcher.indices)[:marcher.indices.size]
+        # wp.stream_from_torch()
+        # print(marcher.)
+        return verts, tris
 
 
 def channels_first(x):
