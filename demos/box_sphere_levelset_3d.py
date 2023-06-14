@@ -31,8 +31,7 @@ def vec_l2(x):
     return math.sqrt(math.sum(math.vec_squared(x), dim='vector'))
 
 
-# The signed distance field for a circle in 2D
-def circle_sdf(x):
+def sphere_sdf(x):
     return vec_l2(x - center) - radius
 
 
@@ -62,7 +61,7 @@ obstacles = {
         # 'circle': Obstacle(Sphere(center=center, radius=radius), angular_velocity=0.05, mass=1e3),
     },
     'levelset': {
-        'circle': Obstacle(LevelSet(circle_sdf, bounds=DOMAIN['bounds'])),
+        'circle': Obstacle(LevelSet(sphere_sdf, bounds=DOMAIN['bounds'])),
         # 'box': Obstacle(LevelSet(box_sdf, bounds=DOMAIN['bounds']), mass=1e3),
     }
 }

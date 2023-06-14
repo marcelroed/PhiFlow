@@ -12,14 +12,14 @@ backend_obj = backend.default_backend()
 backend_obj.set_default_device(backend_obj.list_devices('GPU')[5])
 device_name = 'cuda:5'
 
-# wp.config.kernel_cache_dir = "/mnt/marod/env/.warp_cache/"
 wp.config.print_launches = True
 wp.init()
 
-DOMAIN = dict(x=10, y=10, z=10, bounds=Box(x=100, y=100, z=100))
+DOMAIN = dict(x=100, y=100, bounds=Box(x=100, y=100))
 
-marcher = wp.MarchingCubes(DOMAIN['x'] + 1, ny=DOMAIN['y'] + 1, nz=DOMAIN['z'] + 1, max_verts=10_000, max_tris=40_000,
-                           device='cuda:5')
+# Use Warp kernel for 3D marching cubes only
+# marcher = wp.MarchingCubes(DOMAIN['x'] + 1, ny=DOMAIN['y'] + 1, nz=DOMAIN['z'] + 1, max_verts=10_000, max_tris=40_000,
+#                            device='cuda:5')
 
 
 def find_dimensions(verts, tris):
