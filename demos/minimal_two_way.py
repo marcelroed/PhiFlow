@@ -1,6 +1,7 @@
-from phi.flow import *
-import jax.numpy as jnp
-from phi.jax import *
+# from phi.flow import *
+# import jax.numpy as jnp
+from phi.torch.flow import *
+# from phi.jax import *
 
 
 DOMAIN = dict(x=100, y=100, bounds=Box(x=100, y=100))
@@ -17,14 +18,14 @@ pressure = None
 obstacles = [obstacle]
 
 
-# @jit_compile
+@jit_compile
 def step(obstacles, velocity, frame):
-    print(math.max(field.curl(velocity).data, 'x,y'))
+    # print(math.max(field.curl(velocity).data, 'x,y'))
     velocity = advect.mac_cormack(velocity, velocity, DT)
     velocity, pressure = fluid.make_incompressible(velocity, obstacles, Solve('CG-adaptive', 1e-5, 1e-5))
     obstacle_forces = fluid.pressure_to_obstacles(velocity, pressure, obstacles, dt=DT)
     obstacles = update_obstacles_forces(obstacles, obstacle_forces=obstacle_forces)
-    fluid.masked_laplace.tracers.clear()  # we will need to retrace because the matrix changes each step. This is not needed when JIT-compiling the physics.
+    # fluid.masked_laplace.tracers.clear()  # we will need to retrace because the matrix changes each step. This is not needed when JIT-compiling the physics.
     global OBSTACLE_MASK
     OBSTACLE_MASK = CenteredGrid(obstacles[0].geometry, extrapolation.ZERO, **DOMAIN)
     return obstacles, velocity, pressure, OBSTACLE_MASK

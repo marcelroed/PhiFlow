@@ -30,7 +30,7 @@ def simulate(obstacles: List[Obstacle], velocity: StaggeredGrid):
         # Add gravity to the obstacle
         obstacle_forces[0].force = obstacle_forces[0].force + math.tensor([0, -G], channel(vector='x,y'))
         obstacles = update_obstacles_forces(obstacles, obstacle_forces=obstacle_forces)
-        fluid.masked_laplace.tracers.clear()  # we will need to retrace because the matrix changes each step. This is not needed when JIT-compiling the physics.
+        # fluid.masked_laplace.tracers.clear()  # we will need to retrace because the matrix changes each step. This is not needed when JIT-compiling the physics.
 
     # Incentivize being close to the center of the domain at timestep 20
     loss = math.vec_length(obstacles[0].geometry.center - math.tensor([50, 50], channel(vector='x,y'))) ** 2
