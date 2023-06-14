@@ -126,6 +126,11 @@ class Obstacle:
             return False
         return self.geometry == other.geometry and self.velocity == other.velocity and self.angular_velocity == other.angular_velocity
 
+    def update_copy_forces(self, obstacle_force: ObstacleForce, dt: float):
+        return math.copy_with(self,
+                              velocity=self.velocity + obstacle_force.force * dt / self.mass,
+                              angular_velocity=self.angular_velocity + obstacle_force.torque * dt / self.moment_of_inertia)
+
 
 def _get_obstacles_for(obstacles, space: Field):
     obstacles = [obstacles] if isinstance(obstacles, (Obstacle, Geometry)) else obstacles

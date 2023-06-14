@@ -8,7 +8,6 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 from typing import List
 # from phi.flow import *
-# from phi.jax.flow import *
 from phi.torch.flow import *
 from tqdm.auto import trange, tqdm
 from warnings import filterwarnings
@@ -134,7 +133,7 @@ def step(obstacles, velocity, frame):
     velocity, pressure = fluid.make_incompressible(velocity, obstacles)
     obstacle_forces = fluid.pressure_to_obstacles(velocity, pressure, obstacles, dt=DT)
     obstacles = update_obstacles_forces(obstacles, obstacle_forces=obstacle_forces)
-    fluid.masked_laplace.tracers.clear()  # we will need to retrace because the matrix changes each step. This is not needed when JIT-compiling the physics.
+    # fluid.masked_laplace.tracers.clear()  # we will need to retrace because the matrix changes each step. This is not needed when JIT-compiling the physics.
     OBSTACLE_MASK = CenteredGrid(obstacles[0].geometry, extrapolation.ZERO, **DOMAIN)
     return obstacles, velocity, pressure, OBSTACLE_MASK
 

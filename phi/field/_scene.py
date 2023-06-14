@@ -17,6 +17,9 @@ from ..math import Shape, batch, stack, unpack_dim, wrap
 from ..math.magic import BoundDim
 
 
+typing_list = list
+
+
 def _filename(simpath, name, frame):
     return join(simpath, f"{slugify(name)}_{frame:06d}.npz")
 
@@ -172,6 +175,7 @@ class Scene:
         if not isdir(abs_dir):
             return ()
         names = [sim for sim in os.listdir(abs_dir) if sim.startswith(f"{name}_") or (include_other and isdir(join(abs_dir, sim)))]
+        names = list(sorted(names))
         if dim is None:
             return tuple(Scene(join(parent_directory, n)) for n in names)
         else:
@@ -179,7 +183,7 @@ class Scene:
             return Scene(paths)
 
     @staticmethod
-    def at(directory: Union[str, tuple, list, math.Tensor, 'Scene'], id: Union[int, math.Tensor, None] = None) -> 'Scene':
+    def at(directory: Union[str, tuple, typing_list, math.Tensor, 'Scene'], id: Union[int, math.Tensor, None] = None) -> 'Scene':
         """
         Creates a `Scene` for an existing directory.
 
@@ -199,6 +203,11 @@ class Scene:
         if isinstance(directory, (tuple, list)):
             directory = math.wrap(directory, batch('scenes'))
         directory = math.map(lambda d: expanduser(d), math.wrap(directory))
+        if isinstance(id, int) and id < 0:
+            assert directory.shape.volume == 1
+            scenes = Scene.list(directory.native())
+            assert len(scenes) >= -id, f"Failed to get scene {id} at {directory}. {len(scenes)} scenes available in that directory."
+            return scenes[id]
         if id is None:
             paths = directory
         else:
@@ -497,6 +506,15 @@ class Scene:
             p = abspath(p)
             if isdir(p):
                 shutil.rmtree(p)
+
+    def rename(self, name: str):
+        """ Deletes the scene directory and all contained files. """
+        for p in math.flatten(self._paths, flatten_batch=True):
+            p = abspath(p)
+            if isdir(p):
+                new_path = os.path.join(os.path.dirname(p), name)
+                print(f"Renaming {p} to {new_path}")
+                shutil.move(p, new_path)
 
 
 def _slugify_filename(struct_name):

@@ -29,7 +29,8 @@ class Grid(SampledField):
         assert values.shape.spatial_rank == elements.spatial_rank, f"Spatial dimensions of values ({values.shape}) do not match elements {elements}"
         assert values.shape.spatial_rank == bounds.spatial_rank, f"Spatial dimensions of values ({values.shape}) do not match elements {elements}"
         assert values.shape.instance_rank == 0, f"Instance dimensions not supported for grids. Got values with shape {values.shape}"
-        self._resolution = resolution
+        assert set(resolution.names) == set(bounds.vector.item_names), f"Resolution does not match bounds"
+        self._resolution = resolution.only(bounds.vector.item_names, reorder=True)
 
     def closest_values(self, points: Geometry):
         """
@@ -53,8 +54,8 @@ class Grid(SampledField):
 
     def with_values(self, values):
         if isinstance(values, math.Tensor):
-            bounds = self.bounds.project(*values.shape.spatial.names)
-            return type(self)(values, extrapolation=self.extrapolation, bounds=bounds)
+            assert set(spatial(values).names) == set(self.bounds.vector.item_names), f"StaggeredGrid.with_values() only accepts tensor with same spatial dimensiosn but got {spatial(values)} for {self}"
+            return type(self)(values, extrapolation=self.extrapolation, bounds=self.bounds)
         else:
             return type(self)(values, extrapolation=self.extrapolation, bounds=self.bounds, resolution=self._resolution)
 
@@ -97,6 +98,8 @@ class Grid(SampledField):
                 return False
             else:  # both tracers
                 return self.values.shape == other.values.shape
+        if self.values.shape != other.values.shape:
+            return False
         return bool((self.values == other.values).all)
 
     def __getitem__(self, item) -> 'Grid':
@@ -158,7 +161,7 @@ class CenteredGrid(Grid):
 
     def __init__(self,
                  values: Any = 0.,
-                 extrapolation: Any = 0.,
+                 extrapolation: Union[float, Extrapolation, dict, Field] = 0.,
                  bounds: Union[Box, float] = None,
                  resolution: Union[int, Shape] = None,
                  **resolution_: Union[int, Tensor]):
@@ -312,7 +315,7 @@ class StaggeredGrid(Grid):
 
     def __init__(self,
                  values: Any = 0.,
-                 extrapolation: Union[float, Extrapolation] = 0,
+                 extrapolation: Union[float, Extrapolation, dict, Field] = 0,
                  bounds: Union[Box, float] = None,
                  resolution: Union[Shape, int] = None,
                  **resolution_: Union[int, Tensor]):
@@ -506,11 +509,11 @@ def unstack_staggered_tensor(data: Tensor, extrapolation: Extrapolation) -> Tens
 
 def staggered_elements(resolution: Shape, bounds: Box, extrapolation: Extrapolation):
     cells = GridCell(resolution, bounds)
-    grids = []
-    for dim in resolution.names:
+    grids = {}
+    for dim in bounds.vector.item_names:
         lower, upper = extrapolation.valid_outer_faces(dim)
-        grids.append(cells.stagger(dim, lower, upper))
-    return geom.stack(grids, channel(staggered_direction=resolution.names))
+        grids[dim] = cells.stagger(dim, lower, upper)
+    return geom.stack(grids, channel('staggered_direction'))
 
 
 def expand_staggered(values: Tensor, resolution: Shape, extrapolation: Extrapolation):
@@ -534,10 +537,9 @@ def resolution_from_staggered_tensor(values: Tensor, extrapolation: Extrapolatio
 
 
 def _sample_function(f, elements: Geometry):
-    import inspect
+    from phi.math._functional import get_function_parameters
     try:
-        signature = inspect.signature(f)
-        params = dict(signature.parameters)
+        params = get_function_parameters(f)
         dims = elements.shape.get_size('vector')
         names_match = tuple(params.keys())[:dims] == elements.shape.get_item_names('vector')
         num_positional = 0
@@ -547,10 +549,10 @@ def _sample_function(f, elements: Geometry):
                 num_positional += 1
             if p.kind == 2:  # _ParameterKind.VAR_POSITIONAL
                 has_varargs = True
-        assert num_positional <= dims, f"Cannot sample {f.__name__}{signature} on physical space {elements.shape.get_item_names('vector')}"
+        assert num_positional <= dims, f"Cannot sample {f.__name__}({', '.join(tuple(params))}) on physical space {elements.shape.get_item_names('vector')}"
         pass_varargs = has_varargs or names_match or num_positional > 1 or num_positional == dims
         if num_positional > 1 and not has_varargs:
-            assert names_match, f"Positional arguments of {f.__name__}{signature} should match physical space {elements.shape.get_item_names('vector')}"
+            assert names_match, f"Positional arguments of {f.__name__}({', '.join(tuple(params))}) should match physical space {elements.shape.get_item_names('vector')}"
     except ValueError as err:  # signature not available for all functions
         pass_varargs = False
     if pass_varargs:
