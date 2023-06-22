@@ -1,7 +1,5 @@
 import os
 
-import torch.jit
-
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 # os.environ['JAX_CHECK_TRACER_LEAKS'] = '1'
 # os.environ['JAX_DISABLE_JIT'] = '1'
@@ -12,11 +10,11 @@ from phi.torch.flow import *
 from tqdm.auto import trange, tqdm
 from warnings import filterwarnings
 
-filterwarnings('error')
-filterwarnings('default', category=DeprecationWarning)
-filterwarnings('default', category=UserWarning)
-
-filterwarnings('default', category=torch.jit.TracerWarning)  # This seems like it may be a problem
+# filterwarnings('error')
+# filterwarnings('default', category=DeprecationWarning)
+# filterwarnings('default', category=UserWarning)
+#
+# filterwarnings('default', category=torch.jit.TracerWarning)  # This seems like it may be a problem
 
 
 DOMAIN = dict(x=20, y=20, bounds=Box(x=100, y=100))
@@ -87,7 +85,6 @@ sim_grad = field.functional_gradient(simulate, wrt='obstacle_shift')
 print(initial_velocity.data)
 # tensors = [tensor.native(tensor.shape) for tensor in initial_velocity.data._tensors]
 
-@jit_compile
 def run_optimization():
     position_shift = math.tensor([10., 10.], channel(vector='x,y'))
     best_shift = position_shift.native(position_shift.shape).detach()

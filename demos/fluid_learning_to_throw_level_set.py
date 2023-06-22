@@ -1,6 +1,6 @@
 from typing import List
-from phi.flow import *
-# from phi.torch.flow import *
+# from phi.flow import *
+from phi.torch.flow import *
 from tqdm.auto import trange, tqdm
 
 DOMAIN = dict(x=50, y=50, bounds=Box(x=100, y=100))
@@ -38,7 +38,7 @@ def simulate(obstacles: List[Obstacle], velocity: StaggeredGrid):
         # Add gravity to the obstacle
         obstacle_forces[0].force = obstacle_forces[0].force + math.tensor([0, -G], channel(vector='x,y'))
         obstacles = update_obstacles_forces(obstacles, obstacle_forces=obstacle_forces)
-        fluid.masked_laplace.tracers.clear()  # we will need to retrace because the matrix changes each step. This is not needed when JIT-compiling the physics.
+        # fluid.masked_laplace.tracers.clear()  # we will need to retrace because the matrix changes each step. This is not needed when JIT-compiling the physics.
 
     # Incentivize being close to the center of the domain at timestep 20
     loss = math.vec_length(obstacles[0].geometry.center - math.tensor([75, 75], channel(vector='x,y'))) ** 2
@@ -56,10 +56,11 @@ best_vel = initial_velocity
 best_val = math.inf
 for _ in trange(20, desc='Optimizing velocity field'):
     # Calculate the gradient of the loss w.r.t. the velocity
-    val, grad = sim_grad(obstacles, initial_velocity)
+    val, grad = sim_grad(obstacles, velocity=initial_velocity)
     # grad = sim_grad(obstacles, initial_velocity)
     # Update the velocity
     initial_velocity = initial_velocity - grad * 0.2
+    print(grad, initial_velocity)
     if float(val) < best_val:
         best_val = float(val)
         best_vel = initial_velocity

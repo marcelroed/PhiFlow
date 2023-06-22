@@ -135,7 +135,7 @@ class LevelSet(Geometry):
 
     @property
     def center(self) -> Tensor:
-        return self._centroid  # TODO: Should be center
+        return self._transforms(self._centroid)  # TODO: Should be center
 
     @property
     def shape(self) -> Shape:
