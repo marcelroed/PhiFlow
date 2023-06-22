@@ -27,6 +27,7 @@ pressure = None
 
 obstacles = [obstacle]
 
+goal_position = [75., 75.]
 
 # Try to keep the box in the center of the domain in the final timestep
 def simulate(obstacles: List[Obstacle], velocity: StaggeredGrid):
@@ -40,8 +41,8 @@ def simulate(obstacles: List[Obstacle], velocity: StaggeredGrid):
         obstacles = update_obstacles_forces(obstacles, obstacle_forces=obstacle_forces)
         # fluid.masked_laplace.tracers.clear()  # we will need to retrace because the matrix changes each step. This is not needed when JIT-compiling the physics.
 
-    # Incentivize being close to the center of the domain at timestep 20
-    loss = math.vec_length(obstacles[0].geometry.center - math.tensor([75, 75], channel(vector='x,y'))) ** 2
+    # Incentivize being close to goal position after all timesteps
+    loss = math.vec_length(obstacles[0].geometry.center - math.tensor(goal_position, channel(vector='x,y'))) ** 2
     return loss
 
 
